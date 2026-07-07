@@ -62,3 +62,47 @@
   --s-topbar-h: 68px;
   --s-rail-w: 64px;
 }
+
+/* ---- Light theme ---- */
+[data-theme='light'] .suite {
+  --s-bg: #f6f6f9;
+  --s-bg-2: #ffffff;
+  --s-panel: #ffffff;
+  --s-panel-2: #f3f3f7;
+  --s-panel-3: #ebebf1;
+  --s-hover: #e6e6ee;
+  --s-inset: #eeeef3;
+
+  --s-line: rgba(18, 18, 30, 0.09);
+  --s-line-2: rgba(18, 18, 30, 0.14);
+  --s-line-strong: rgba(18, 18, 30, 0.24);
+
+  --s-text: #14141b;
+  --s-text-2: #45454f;
+  --s-text-3: #6c6c78;
+  --s-text-4: #9797a2;
+
+  /* lime fill stays; accent-2 goes deeper so accent-as-text stays legible on light */
+  --s-accent: #c7ee44;
+  --s-accent-2: #6f9a12;
+  --s-accent-soft: rgba(150, 190, 30, 0.16);
+  --s-accent-line: rgba(120, 158, 18, 0.42);
+  --s-accent-glow: rgba(150, 190, 30, 0.4);
+  --s-accent-ink: #10160a;
+
+  --s-good: #1f9d63;
+  --s-good-soft: rgba(31, 157, 99, 0.14);
+  --s-warn: #cc8a17;
+  --s-info: #2f7be0;
+
+  --s-shadow-sm: 0 1px 2px rgba(18, 18, 30, 0.08);
+  --s-shadow: 0 12px 28px -14px rgba(18, 18, 30, 0.16);
+  --s-shadow-lg: 0 26px 50px -22px rgba(18, 18, 30, 0.22);
+  --s-shadow-glow: 0 0 0 1px var(--s-accent-line), 0 12px 34px -14px var(--s-accent-glow);
+}
+
+/* Lighten the thin scrollbars on light surfaces */
+[data-theme='light'] .suite *::-webkit-scrollbar-thumb {
+  background: rgba(18, 18, 30, 0.16);
+  background-clip: padding-box;
+}

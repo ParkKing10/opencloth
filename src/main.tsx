@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/global.css'
 import { App } from './App'
+import { initTheme } from './suite/theme'
+
+initTheme()
 import { SuiteApp } from './suite/SuiteApp'
 import { Dashboard } from './suite/pages/Dashboard/Dashboard'
 import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'

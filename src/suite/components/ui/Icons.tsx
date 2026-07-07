@@ -240,3 +240,10 @@ export const IcoMoon = (p: P) => (
     <path d="M20 14.5A8 8 0 1 1 9.5 4a6.3 6.3 0 0 0 10.5 10.5Z" />
   </svg>
 )
+
+export const IcoShield = (p: P) => (
+  <svg {...s} {...p}>
+    <path d="M12 3 5 6v5c0 4.5 3 7.6 7 9 4-1.4 7-4.5 7-9V6l-7-3Z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+)

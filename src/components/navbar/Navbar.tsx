@@ -14,10 +14,10 @@ export function Navbar() {
             <span>DE</span>
             <Chevron width="14" height="14" />
           </button>
-          <a className="btn btn--ghost" href="/suite">
+          <a className="btn btn--ghost" href="/login">
             Anmelden
           </a>
-          <a className="btn btn--accent" href="/suite">
+          <a className="btn btn--accent" href="/signup">
             Kostenlos starten
             <ArrowRight width="18" height="18" />
           </a>

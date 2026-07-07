@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
   IcoDashboard,
   IcoDesign,
@@ -14,7 +15,11 @@ import {
   IcoSettings,
   IcoCoins,
   IcoChevron,
+  IcoShield,
+  IcoLogout,
 } from './ui/Icons'
+import { useAuth } from '../auth/auth'
+import { useToast } from './ui/Toast'
 import './sidebar.css'
 
 type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: string }
@@ -34,7 +39,19 @@ const PRIMARY: NavItem[] = [
   { to: '/suite/settings', label: 'Settings', icon: IcoSettings },
 ]
 
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/)
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U'
+}
+
 export function Sidebar() {
+  const { user, isAdmin, logout } = useAuth()
+  const toast = useToast()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const storagePct = user?.plan === 'Free' ? 34 : 72
+
   return (
     <aside className="sb">
       <div className="sb__brand">
@@ -63,6 +80,13 @@ export function Sidebar() {
             {badge && <span className="sb__badge">{badge}</span>}
           </NavLink>
         ))}
+        {isAdmin && (
+          <NavLink to="/admin" className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}>
+            <span className="sb__glow" aria-hidden="true" />
+            <IcoShield className="sb__ico" width="19" height="19" />
+            <span className="sb__label">Admin Console</span>
+          </NavLink>
+        )}
       </nav>
 
       <div className="sb__foot">
@@ -71,11 +95,11 @@ export function Sidebar() {
             <span className="sb__coins-left">
               <IcoCoins className="sb__coins-ico" width="17" height="17" />
               <span>
-                <b>12,540</b>
+                <b>{(user?.coins ?? 0).toLocaleString()}</b>
                 <small>Coins</small>
               </span>
             </span>
-            <button className="sb__buy" type="button">
+            <button className="sb__buy" type="button" onClick={() => toast('Coin top-up is coming soon.', 'info')}>
               Buy
             </button>
           </div>
@@ -83,10 +107,10 @@ export function Sidebar() {
           <div className="sb__storage">
             <div className="sb__storage-top">
               <span>Storage</span>
-              <span className="sb__storage-pct">72%</span>
+              <span className="sb__storage-pct">{storagePct}%</span>
             </div>
             <div className="sb__bar">
-              <span style={{ width: '72%' }} />
+              <span style={{ width: `${storagePct}%` }} />
             </div>
           </div>
         </div>
@@ -94,21 +118,41 @@ export function Sidebar() {
         <div className="sb__plan">
           <div className="sb__plan-info">
             <span className="sb__plan-label">Current plan</span>
-            <span className="sb__plan-name">Studio</span>
+            <span className="sb__plan-name">{user?.plan ?? 'Free'}</span>
           </div>
-          <button className="sb__upgrade" type="button">
+          <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/settings')}>
             Upgrade
           </button>
         </div>
 
-        <button className="sb__user" type="button">
-          <span className="sb__avatar">MC</span>
-          <span className="sb__user-text">
-            <span className="sb__user-name">Mike Carter</span>
-            <span className="sb__user-mail">mike@threados.com</span>
-          </span>
-          <IcoChevron className="sb__user-chev" width="15" height="15" />
-        </button>
+        <div className="sb__user-wrap">
+          {menuOpen && (
+            <>
+              <div className="sb__menu-scrim" onClick={() => setMenuOpen(false)} />
+              <div className="sb__menu">
+                <button className="sb__menu-item" type="button" onClick={() => { setMenuOpen(false); navigate('/suite/settings') }}>
+                  <IcoSettings width="16" height="16" /> Settings
+                </button>
+                {isAdmin && (
+                  <button className="sb__menu-item" type="button" onClick={() => { setMenuOpen(false); navigate('/admin') }}>
+                    <IcoShield width="16" height="16" /> Admin console
+                  </button>
+                )}
+                <button className="sb__menu-item sb__menu-item--danger" type="button" onClick={() => { logout(); navigate('/login') }}>
+                  <IcoLogout width="16" height="16" /> Log out
+                </button>
+              </div>
+            </>
+          )}
+          <button className="sb__user" type="button" onClick={() => setMenuOpen((o) => !o)}>
+            <span className="sb__avatar">{initials(user?.name ?? 'User')}</span>
+            <span className="sb__user-text">
+              <span className="sb__user-name">{user?.name ?? 'User'}</span>
+              <span className="sb__user-mail">{user?.email ?? ''}</span>
+            </span>
+            <IcoChevron className="sb__user-chev" width="15" height="15" />
+          </button>
+        </div>
       </div>
     </aside>
   )

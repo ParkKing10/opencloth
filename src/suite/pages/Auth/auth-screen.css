@@ -1,0 +1,231 @@
+.auth {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  background: var(--s-bg);
+  color: var(--s-text);
+}
+
+/* Left brand panel */
+.auth__brand {
+  position: relative;
+  overflow: hidden;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-right: 1px solid var(--s-line);
+  background:
+    radial-gradient(120% 80% at 15% 0%, var(--s-accent-soft), transparent 55%),
+    var(--s-bg-2);
+}
+.auth__brand-top {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.auth__mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  color: var(--s-accent-ink);
+  background: linear-gradient(150deg, var(--s-accent-2), var(--s-accent));
+}
+.auth__wordmark {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.auth__pitch {
+  max-width: 30ch;
+}
+.auth__pitch h2 {
+  font-size: clamp(28px, 2rem + 1vw, 40px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.auth__pitch h2 span {
+  color: var(--s-accent);
+}
+.auth__pitch p {
+  margin-top: 16px;
+  font-size: 15px;
+  color: var(--s-text-2);
+  line-height: 1.55;
+}
+.auth__stats {
+  display: flex;
+  gap: 28px;
+}
+.auth__stat b {
+  display: block;
+  font-size: 22px;
+  font-weight: 800;
+}
+.auth__stat span {
+  font-size: 12.5px;
+  color: var(--s-text-3);
+}
+
+/* Right form panel */
+.auth__panel {
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+.auth__card {
+  width: 100%;
+  max-width: 400px;
+}
+.auth__title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.auth__sub {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--s-text-2);
+}
+.auth__form {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.auth__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.auth__label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--s-text-2);
+}
+.auth__input {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line-2);
+  color: var(--s-text);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--s-dur) var(--s-ease), box-shadow var(--s-dur) var(--s-ease);
+}
+.auth__input::placeholder {
+  color: var(--s-text-3);
+}
+.auth__input:focus {
+  border-color: var(--s-accent-line);
+  box-shadow: 0 0 0 3px var(--s-accent-soft);
+}
+.auth__input.is-invalid {
+  border-color: rgba(255, 90, 90, 0.5);
+}
+.auth__hint {
+  font-size: 11.5px;
+  color: var(--s-text-3);
+}
+.auth__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--s-r-sm);
+  background: rgba(255, 90, 90, 0.1);
+  border: 1px solid rgba(255, 90, 90, 0.28);
+  color: #ff8f8f;
+  font-size: 12.5px;
+}
+.auth__submit {
+  height: 46px;
+  margin-top: 4px;
+  border-radius: var(--s-r-sm);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  transition: background var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease);
+}
+.auth__submit:hover {
+  background: var(--s-accent-2);
+}
+.auth__submit:active {
+  transform: translateY(1px);
+}
+.auth__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.auth__alt {
+  margin-top: 22px;
+  font-size: 13px;
+  color: var(--s-text-3);
+  text-align: center;
+}
+.auth__alt a {
+  color: var(--s-accent-2);
+  font-weight: 600;
+}
+.auth__demo {
+  margin-top: 22px;
+  padding: 14px;
+  border-radius: var(--s-r);
+  background: var(--s-panel);
+  border: 1px dashed var(--s-line-2);
+}
+.auth__demo-head {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+  margin-bottom: 10px;
+}
+.auth__demo-row {
+  display: flex;
+  gap: 8px;
+}
+.auth__demo-btn {
+  flex: 1;
+  height: 34px;
+  border-radius: var(--s-r-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--s-text);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  transition: background var(--s-dur) var(--s-ease);
+}
+.auth__demo-btn:hover {
+  background: var(--s-hover);
+}
+.auth__back {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  font-size: 13px;
+  color: var(--s-text-3);
+  z-index: 2;
+}
+.auth__back:hover {
+  color: var(--s-text);
+}
+
+@media (max-width: 860px) {
+  .auth {
+    grid-template-columns: 1fr;
+  }
+  .auth__brand {
+    display: none;
+  }
+}

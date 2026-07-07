@@ -4,8 +4,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/global.css'
 import { App } from './App'
 import { initTheme } from './suite/theme'
-
-initTheme()
+import { StoreProvider } from './suite/data/store'
+import { AuthProvider, RequireAuth, RequireAdmin } from './suite/auth/auth'
+import { ToastProvider } from './suite/components/ui/Toast'
+import { Login } from './suite/pages/Auth/Login'
+import { Signup } from './suite/pages/Auth/Signup'
 import { SuiteApp } from './suite/SuiteApp'
 import { Dashboard } from './suite/pages/Dashboard/Dashboard'
 import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'
@@ -19,35 +22,84 @@ import { Community } from './suite/pages/Community/Community'
 import { Marketplace } from './suite/pages/Marketplace/Marketplace'
 import { Analytics } from './suite/pages/Analytics/Analytics'
 import { Settings } from './suite/pages/Settings/Settings'
+import { AdminApp } from './suite/admin/AdminApp'
+import { AdminOverview } from './suite/admin/pages/AdminOverview'
+import { AdminUsers } from './suite/admin/pages/AdminUsers'
+import { AdminDesigns } from './suite/admin/pages/AdminDesigns'
+import { AdminManufacturers } from './suite/admin/pages/AdminManufacturers'
+import { AdminOrders } from './suite/admin/pages/AdminOrders'
+import { AdminSettings } from './suite/admin/pages/AdminSettings'
+
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <Routes>
-        {/* Marketing site */}
-        <Route path="/" element={<App />} />
+      <StoreProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              {/* Public */}
+              <Route path="/" element={<App />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-        {/* Full-screen editor (no dashboard chrome) */}
-        <Route path="/suite/design" element={<DesignStudio />} />
+              {/* Full-screen editor (auth required) */}
+              <Route
+                path="/suite/design"
+                element={
+                  <RequireAuth>
+                    <DesignStudio />
+                  </RequireAuth>
+                }
+              />
 
-        {/* Dashboard suite shell */}
-        <Route path="/suite" element={<SuiteApp />}>
-          <Route index element={<Dashboard />} />
-          <Route path="pattern" element={<PatternStudio />} />
-          <Route path="ai" element={<AIDesigner />} />
-          <Route path="tech-packs" element={<TechPacks />} />
-          <Route path="manufacturers" element={<Manufacturers />} />
-          <Route path="production" element={<Production />} />
-          <Route path="collections" element={<Collections />} />
-          <Route path="community" element={<Community />} />
-          <Route path="marketplace" element={<Marketplace />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/suite" replace />} />
-        </Route>
+              {/* Suite (auth required) */}
+              <Route
+                path="/suite"
+                element={
+                  <RequireAuth>
+                    <SuiteApp />
+                  </RequireAuth>
+                }
+              >
+                <Route index element={<Dashboard />} />
+                <Route path="pattern" element={<PatternStudio />} />
+                <Route path="ai" element={<AIDesigner />} />
+                <Route path="tech-packs" element={<TechPacks />} />
+                <Route path="manufacturers" element={<Manufacturers />} />
+                <Route path="production" element={<Production />} />
+                <Route path="collections" element={<Collections />} />
+                <Route path="community" element={<Community />} />
+                <Route path="marketplace" element={<Marketplace />} />
+                <Route path="analytics" element={<Analytics />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/suite" replace />} />
+              </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+              {/* Admin (admin role required) */}
+              <Route
+                path="/admin"
+                element={
+                  <RequireAdmin>
+                    <AdminApp />
+                  </RequireAdmin>
+                }
+              >
+                <Route index element={<AdminOverview />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="designs" element={<AdminDesigns />} />
+                <Route path="manufacturers" element={<AdminManufacturers />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="settings" element={<AdminSettings />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+              </Route>
+
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
+      </StoreProvider>
     </BrowserRouter>
   </StrictMode>,
 )

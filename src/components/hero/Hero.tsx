@@ -30,11 +30,11 @@ export function Hero() {
           </p>
 
           <div className="hero__ctas">
-            <a className="btn btn--accent btn--lg" href="/suite">
+            <a className="btn btn--accent btn--lg" href="/signup">
               Kostenlos starten
               <ArrowRight width="19" height="19" />
             </a>
-            <a className="btn btn--dark btn--lg" href="/suite">
+            <a className="btn btn--dark btn--lg" href="/login">
               Demo ansehen
               <span className="hero__play" aria-hidden="true">
                 <Play width="13" height="13" />

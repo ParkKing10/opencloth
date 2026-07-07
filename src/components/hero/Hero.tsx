@@ -3,9 +3,9 @@ import { HeroVisual } from './HeroVisual'
 import './hero.css'
 
 const TRUST = [
-  { icon: Shield, label: 'Keine Designkenntnisse erforderlich' },
-  { icon: Bolt, label: 'Von der Idee bis zur Produktion' },
-  { icon: Users, label: 'Alles auf einer Plattform' },
+  { icon: Shield, label: 'Ohne Designkenntnisse' },
+  { icon: Bolt, label: 'Von Idee bis Produktion' },
+  { icon: Users, label: 'Alles an einem Ort' },
 ]
 
 export function Hero() {

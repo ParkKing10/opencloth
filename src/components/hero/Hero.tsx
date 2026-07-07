@@ -3,9 +3,9 @@ import { HeroVisual } from './HeroVisual'
 import './hero.css'
 
 const TRUST = [
-  { icon: Shield, label: 'Keine Kreditkarte' },
-  { icon: Bolt, label: 'Kostenloser Einstieg' },
-  { icon: Users, label: 'Über 10.000+ Creator' },
+  { icon: Shield, label: 'Keine Designkenntnisse erforderlich' },
+  { icon: Bolt, label: 'Von der Idee bis zur Produktion' },
+  { icon: Users, label: 'Alles auf einer Plattform' },
 ]
 
 export function Hero() {
@@ -15,19 +15,18 @@ export function Hero() {
         <div className="hero__copy">
           <span className="hero__badge">
             <Bolt width="15" height="15" />
-            Die All-in-One Fashion Plattform
+            The Operating System for Fashion Brands
           </span>
 
           <h1 id="hero-heading" className="hero__headline">
-            <span className="hero__line hero__line--light">Entwirf.</span>
-            <span className="hero__line hero__line--light">Produziere.</span>
-            <span className="hero__line hero__line--accent">Skaliere.</span>
+            <span className="hero__line hero__line--light">Design.</span>
+            <span className="hero__line hero__line--light">Produce.</span>
+            <span className="hero__line hero__line--accent">Launch.</span>
           </h1>
 
           <p className="hero__lead">
-            Von der ersten Idee bis zur Produktion.
-            <br />
-            Design, Tech Packs, Hersteller &amp; mehr – alles an einem Ort.
+            Die erste All-in-One Fashion Software, mit der jeder Kleidung
+            entwerfen und produzieren kann – ganz ohne Designkenntnisse.
           </p>
 
           <div className="hero__ctas">

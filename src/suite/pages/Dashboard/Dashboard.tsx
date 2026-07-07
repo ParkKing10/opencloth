@@ -1,15 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import {
-  IcoArrowRight,
-  IcoPlus,
-  IcoUpload,
-  IcoAI,
-  IcoTechPack,
-} from '../../components/ui/Icons'
+import { IcoArrowRight, IcoPlus, IcoUpload, IcoAI, IcoTechPack } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { PatternWireframe, TechPackFlats, GlobePins } from './FeatureArt'
+import teeImg from '../../../assets/cards/tee.png'
+import hoodieImg from '../../../assets/cards/hoodie.png'
 import './dashboard.css'
 
-type ArtKind = GarmentKind | 'globe'
+type ArtKind = 'tee' | 'hoodie' | 'pattern' | 'techpack' | 'globe'
 type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
 
 type Feature = {
@@ -39,7 +36,7 @@ const FEATURES: Feature[] = [
     cta: 'Edit Patterns',
     to: '/suite/pattern',
     tint: 'slate',
-    art: 'hoodie',
+    art: 'pattern',
   },
   {
     title: 'AI Designer',
@@ -56,7 +53,7 @@ const FEATURES: Feature[] = [
     cta: 'Create Tech Pack',
     to: '/suite/tech-packs',
     tint: 'teal',
-    art: 'jacket',
+    art: 'techpack',
   },
   {
     title: 'Manufacturer Hub',
@@ -67,6 +64,21 @@ const FEATURES: Feature[] = [
     art: 'globe',
   },
 ]
+
+function FeatureArt({ art }: { art: ArtKind }) {
+  switch (art) {
+    case 'tee':
+      return <img className="feat-art__img" src={teeImg} alt="" loading="lazy" />
+    case 'hoodie':
+      return <img className="feat-art__img" src={hoodieImg} alt="" loading="lazy" />
+    case 'pattern':
+      return <PatternWireframe />
+    case 'techpack':
+      return <TechPackFlats />
+    case 'globe':
+      return <GlobePins />
+  }
+}
 
 type Design = { name: string; kind: GarmentKind; modified: string }
 const RECENT_DESIGNS: Design[] = [
@@ -91,23 +103,6 @@ const RECENT_TECH_PACKS = [
   { name: 'Baggy Cargo Pants', time: '3d ago' },
 ]
 
-function GlobeArt() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-      <circle cx="24" cy="24" r="16" />
-      <ellipse cx="24" cy="24" rx="7" ry="16" />
-      <path d="M9 19h30M9 29h30M8.5 24h31" />
-      <path d="M33 11.5l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3L26.7 14.6l3-.4Z" fill="currentColor" stroke="none" opacity="0.7" />
-    </svg>
-  )
-}
-
-function FeatureArt({ art }: { art: ArtKind }) {
-  if (art === 'globe') return <GlobeArt />
-  const Glyph = GARMENT_GLYPHS[art]
-  return <Glyph />
-}
-
 export function Dashboard() {
   const navigate = useNavigate()
 
@@ -131,16 +126,17 @@ export function Dashboard() {
                 className={`feat feat--${f.tint}${f.primary ? ' feat--primary' : ''}`}
                 onClick={() => navigate(f.to)}
               >
+                <div className="feat__art">
+                  <FeatureArt art={f.art} />
+                </div>
+                <div className="feat__overlay" aria-hidden="true" />
+
                 <div className="feat__copy">
                   <div className="feat__title-row">
                     <h3 className="feat__title">{f.title}</h3>
                     {f.isNew && <span className="feat__new">NEW</span>}
                   </div>
                   <p className="feat__desc">{f.desc}</p>
-                </div>
-
-                <div className="feat__art" aria-hidden="true">
-                  <FeatureArt art={f.art} />
                 </div>
 
                 <button
@@ -186,7 +182,6 @@ export function Dashboard() {
 
         {/* ---- Right rail ---- */}
         <aside className="dash-rail">
-          {/* Quick actions */}
           <section className="s-panel rail-panel">
             <div className="s-section-head">
               <h2 className="s-section-title">Quick Actions</h2>
@@ -207,7 +202,6 @@ export function Dashboard() {
             </div>
           </section>
 
-          {/* Recent tech packs */}
           <section className="s-panel rail-panel">
             <div className="s-section-head">
               <h2 className="s-section-title">Recent Tech Packs</h2>

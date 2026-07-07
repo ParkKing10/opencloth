@@ -1,0 +1,24 @@
+.page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+}
+
+/* Ambient glow bleeding from the hero product toward the top-right */
+.page__ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      60% 50% at 78% 22%,
+      rgba(209, 249, 79, 0.08) 0%,
+      rgba(209, 249, 79, 0) 60%
+    ),
+    radial-gradient(
+      70% 60% at 82% 30%,
+      rgba(120, 130, 160, 0.16) 0%,
+      rgba(120, 130, 160, 0) 55%
+    );
+}

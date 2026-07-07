@@ -1,0 +1,44 @@
+:root {
+  /* ---- Color ---- */
+  --bg: #070708;
+  --bg-elevated: #0e0e10;
+  --surface: #121214;
+  --surface-2: #17171a;
+  --surface-hover: #1d1d21;
+
+  --accent: #d1f94f;
+  --accent-dim: #b9e034;
+  --accent-hover: #dcff66;
+  --accent-ink: #0c1500;
+
+  --text: #ffffff;
+  --text-secondary: #b6b6bd;
+  --text-muted: #7a7a82;
+  --text-faint: #55555c;
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.12);
+
+  /* ---- Typography ---- */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --text-eyebrow: 0.75rem;
+  --text-body: 1.0625rem;
+  --text-lead: clamp(1.0625rem, 0.98rem + 0.4vw, 1.25rem);
+  --text-hero: clamp(3.25rem, 1.2rem + 8.4vw, 7rem);
+  --text-stat: clamp(1.9rem, 1.3rem + 1.8vw, 2.6rem);
+
+  /* ---- Layout ---- */
+  --maxw: 1360px;
+  --gutter: clamp(1.25rem, 0.5rem + 3vw, 3.5rem);
+  --space-section: clamp(3.5rem, 2.5rem + 4vw, 6rem);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 22px;
+  --radius-pill: 999px;
+
+  /* ---- Motion ---- */
+  --dur-fast: 140ms;
+  --dur: 260ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}

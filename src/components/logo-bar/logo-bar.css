@@ -1,8 +1,8 @@
 .logo-bar {
-  padding-block: clamp(1.75rem, 1.25rem + 1.5vw, 2.5rem);
+  padding-block: clamp(1.25rem, 1rem + 1vw, 1.75rem);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  margin-top: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+  margin-top: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent);
 }
 

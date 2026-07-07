@@ -1,7 +1,7 @@
 .hero {
   position: relative;
-  padding-top: clamp(2.5rem, 1rem + 5vw, 5rem);
-  padding-bottom: clamp(2rem, 1rem + 3vw, 3.5rem);
+  padding-top: clamp(1.25rem, 0.5rem + 1.6vw, 2.25rem);
+  padding-bottom: clamp(0.75rem, 0.25rem + 1vw, 1.5rem);
 }
 
 .hero__grid {
@@ -36,7 +36,7 @@
 }
 
 .hero__headline {
-  margin-top: 1.5rem;
+  margin-top: 1.1rem;
   font-size: var(--text-hero);
   font-weight: 800;
   line-height: 0.94;
@@ -60,7 +60,7 @@
 }
 
 .hero__lead {
-  margin-top: 1.75rem;
+  margin-top: 1.25rem;
   font-size: var(--text-lead);
   line-height: 1.5;
   color: var(--text-secondary);
@@ -71,7 +71,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.9rem;
-  margin-top: 2.25rem;
+  margin-top: 1.6rem;
 }
 
 .hero__play {
@@ -89,7 +89,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1.6rem;
-  margin-top: 2.5rem;
+  margin-top: 1.6rem;
   list-style: none;
   padding: 0;
 }
@@ -117,46 +117,53 @@
 
 .hero-visual__stage {
   position: relative;
-  width: 110%;
+  width: 126%;
   aspect-ratio: 3 / 2;
+  /* Push the cluster larger and toward the centre-left, like the reference */
+  transform: translateX(-9%);
 }
 
-/* Dark-grey spotlight backdrop that lifts the all-black garments off the page */
+/* Bright spotlight backdrop that lifts the all-black garments off the page */
 .hero-visual__spotlight {
   position: absolute;
-  inset: -12% -8% -8%;
+  inset: -18% -6% -10%;
   z-index: 0;
   background:
     radial-gradient(
-      54% 60% at 52% 38%,
-      rgba(150, 162, 190, 0.32) 0%,
-      rgba(120, 132, 160, 0.14) 42%,
-      transparent 70%
+      58% 66% at 50% 40%,
+      rgba(176, 188, 214, 0.5) 0%,
+      rgba(134, 146, 174, 0.2) 44%,
+      transparent 72%
     ),
     radial-gradient(
-      30% 40% at 52% 22%,
-      rgba(226, 236, 255, 0.4) 0%,
+      34% 44% at 50% 20%,
+      rgba(234, 242, 255, 0.62) 0%,
       transparent 60%
     );
-  filter: blur(8px);
+  filter: blur(10px);
   pointer-events: none;
 }
 
-/* Bright reflective platform glow at the base of the products */
+/* Bright reflective platform light at the base of the products */
 .hero-visual__floor {
   position: absolute;
-  left: 10%;
-  right: 6%;
-  bottom: 12%;
-  height: 90px;
+  left: 6%;
+  right: 4%;
+  bottom: 13%;
+  height: 120px;
   z-index: 0;
-  background: radial-gradient(
-    50% 100% at 50% 50%,
-    rgba(224, 234, 255, 0.55) 0%,
-    rgba(200, 214, 245, 0.16) 45%,
-    transparent 72%
-  );
-  filter: blur(12px);
+  background:
+    radial-gradient(
+      34% 62% at 50% 48%,
+      rgba(255, 255, 255, 0.9) 0%,
+      transparent 62%
+    ),
+    radial-gradient(
+      62% 120% at 50% 52%,
+      rgba(210, 224, 252, 0.42) 0%,
+      transparent 72%
+    );
+  filter: blur(11px);
   pointer-events: none;
 }
 
@@ -167,7 +174,8 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
-  filter: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.55));
+  /* Lift the crushed blacks so the garments read brighter and more detailed */
+  filter: brightness(1.16) contrast(1.05) drop-shadow(0 26px 42px rgba(0, 0, 0, 0.55));
 }
 
 @media (max-width: 960px) {

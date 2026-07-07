@@ -4,63 +4,67 @@ import {
   IcoPlus,
   IcoUpload,
   IcoAI,
-  IcoDesign,
-  IcoPattern,
   IcoTechPack,
-  IcoFactory,
-  IcoTrend,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
-import { ProgressChart } from './ProgressChart'
 import './dashboard.css'
 
+type ArtKind = GarmentKind | 'globe'
+type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
+
 type Feature = {
-  icon: typeof IcoDesign
   title: string
   desc: string
   cta: string
   to: string
+  tint: Tint
+  art: ArtKind
   isNew?: boolean
   primary?: boolean
 }
 
 const FEATURES: Feature[] = [
   {
-    icon: IcoDesign,
     title: 'Design Studio',
     desc: 'Create new designs with our easy drag & drop editor.',
     cta: 'Start Designing',
     to: '/suite/design',
+    tint: 'violet',
+    art: 'tee',
     primary: true,
   },
   {
-    icon: IcoPattern,
     title: 'Pattern Studio',
     desc: 'Edit patterns, seams and every detail of your garment.',
     cta: 'Edit Patterns',
     to: '/suite/pattern',
+    tint: 'slate',
+    art: 'hoodie',
   },
   {
-    icon: IcoAI,
     title: 'AI Designer',
     desc: 'Generate unique designs with the power of AI.',
     cta: 'Generate',
     to: '/suite/ai',
+    tint: 'blue',
+    art: 'hoodie',
     isNew: true,
   },
   {
-    icon: IcoTechPack,
     title: 'Tech Pack',
     desc: 'Create professional tech packs ready for manufacturing.',
     cta: 'Create Tech Pack',
     to: '/suite/tech-packs',
+    tint: 'teal',
+    art: 'jacket',
   },
   {
-    icon: IcoFactory,
     title: 'Manufacturer Hub',
     desc: 'Find the best manufacturers for your products.',
     cta: 'Find Manufacturers',
     to: '/suite/manufacturers',
+    tint: 'amber',
+    art: 'globe',
   },
 ]
 
@@ -71,14 +75,6 @@ const RECENT_DESIGNS: Design[] = [
   { name: 'Cargo Pocket Jacket', kind: 'jacket', modified: '2d ago' },
   { name: 'Baggy Cargo Pants', kind: 'pants', modified: '3d ago' },
   { name: 'Washed Cap', kind: 'cap', modified: '4d ago' },
-]
-
-type Stat = { icon: typeof IcoDesign; label: string; value: string; delta: string }
-const PROGRESS_STATS: Stat[] = [
-  { icon: IcoDesign, label: 'Designs Created', value: '47', delta: '+12%' },
-  { icon: IcoTechPack, label: 'Tech Packs', value: '23', delta: '+8%' },
-  { icon: IcoFactory, label: 'Samples Ordered', value: '12', delta: '+5%' },
-  { icon: IcoTrend, label: 'Production Orders', value: '7', delta: '+16%' },
 ]
 
 const QUICK_ACTIONS = [
@@ -95,12 +91,28 @@ const RECENT_TECH_PACKS = [
   { name: 'Baggy Cargo Pants', time: '3d ago' },
 ]
 
+function GlobeArt() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <circle cx="24" cy="24" r="16" />
+      <ellipse cx="24" cy="24" rx="7" ry="16" />
+      <path d="M9 19h30M9 29h30M8.5 24h31" />
+      <path d="M33 11.5l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3L26.7 14.6l3-.4Z" fill="currentColor" stroke="none" opacity="0.7" />
+    </svg>
+  )
+}
+
+function FeatureArt({ art }: { art: ArtKind }) {
+  if (art === 'globe') return <GlobeArt />
+  const Glyph = GARMENT_GLYPHS[art]
+  return <Glyph />
+}
+
 export function Dashboard() {
   const navigate = useNavigate()
 
   return (
     <div className="dash">
-      {/* ---- Body: main + rail ---- */}
       <div className="dash-grid">
         <div className="dash-main">
           {/* Hero */}
@@ -116,17 +128,21 @@ export function Dashboard() {
             {FEATURES.map((f) => (
               <article
                 key={f.title}
-                className={`feat${f.primary ? ' feat--primary' : ''}`}
+                className={`feat feat--${f.tint}${f.primary ? ' feat--primary' : ''}`}
                 onClick={() => navigate(f.to)}
               >
-                <div className="feat__top">
-                  <span className="feat__icon">
-                    <f.icon width="20" height="20" />
-                  </span>
-                  {f.isNew && <span className="feat__new">NEW</span>}
+                <div className="feat__copy">
+                  <div className="feat__title-row">
+                    <h3 className="feat__title">{f.title}</h3>
+                    {f.isNew && <span className="feat__new">NEW</span>}
+                  </div>
+                  <p className="feat__desc">{f.desc}</p>
                 </div>
-                <h3 className="feat__title">{f.title}</h3>
-                <p className="feat__desc">{f.desc}</p>
+
+                <div className="feat__art" aria-hidden="true">
+                  <FeatureArt art={f.art} />
+                </div>
+
                 <button
                   className={`feat__cta${f.primary ? ' feat__cta--primary' : ''}`}
                   type="button"
@@ -135,7 +151,7 @@ export function Dashboard() {
                     navigate(f.to)
                   }}
                 >
-                  {f.cta} <IcoArrowRight width="14" height="14" />
+                  {f.cta} <IcoArrowRight width="15" height="15" />
                 </button>
               </article>
             ))}
@@ -165,36 +181,6 @@ export function Dashboard() {
                 )
               })}
             </div>
-          </section>
-
-          {/* Your progress */}
-          <section className="dash-progress s-panel">
-            <div className="s-section-head">
-              <h2 className="s-section-title">Your Progress</h2>
-              <button className="dash-select" type="button">
-                Last 30 days <IcoArrowRight width="12" height="12" style={{ transform: 'rotate(90deg)' }} />
-              </button>
-            </div>
-            <div className="dash-progress__stats">
-              {PROGRESS_STATS.map((s) => (
-                <div className="pstat" key={s.label}>
-                  <div className="pstat__head">
-                    <span className="pstat__label">{s.label}</span>
-                    <span className="pstat__ico">
-                      <s.icon width="15" height="15" />
-                    </span>
-                  </div>
-                  <div className="pstat__row">
-                    <span className="pstat__value">{s.value}</span>
-                    <span className="s-delta">
-                      <IcoTrend width="12" height="12" /> {s.delta}
-                    </span>
-                  </div>
-                  <span className="pstat__note">vs last 30 days</span>
-                </div>
-              ))}
-            </div>
-            <ProgressChart />
           </section>
         </div>
 
@@ -242,42 +228,6 @@ export function Dashboard() {
                   <span className="s-dot" style={{ background: 'var(--s-good)' }} />
                 </button>
               ))}
-            </div>
-          </section>
-
-          {/* Notifications */}
-          <section className="s-panel rail-panel">
-            <div className="s-section-head">
-              <h2 className="s-section-title">Notifications</h2>
-              <a className="s-link" href="#">
-                View all
-              </a>
-            </div>
-            <div className="notif-list">
-              <div className="notif">
-                <span className="notif__dot" style={{ background: 'var(--s-accent)' }} />
-                <span className="notif__text">
-                  <b>Your tech pack is ready</b>
-                  <small>Vintage Washed Hoodie tech pack has been generated.</small>
-                </span>
-                <span className="notif__time">2h</span>
-              </div>
-              <div className="notif">
-                <span className="notif__dot" style={{ background: 'var(--s-info)' }} />
-                <span className="notif__text">
-                  <b>Manufacturer matched</b>
-                  <small>We found 3 manufacturers for your design “Oversized Street Tee”.</small>
-                </span>
-                <span className="notif__time">5h</span>
-              </div>
-              <div className="notif">
-                <span className="notif__dot" style={{ background: 'var(--s-good)' }} />
-                <span className="notif__text">
-                  <b>Sample approved</b>
-                  <small>Your sample for “Cargo Pocket Jacket” has been approved.</small>
-                </span>
-                <span className="notif__time">1d</span>
-              </div>
             </div>
           </section>
         </aside>

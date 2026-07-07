@@ -117,18 +117,57 @@
 
 .hero-visual__stage {
   position: relative;
-  width: 108%;
+  width: 110%;
   aspect-ratio: 3 / 2;
 }
 
+/* Dark-grey spotlight backdrop that lifts the all-black garments off the page */
+.hero-visual__spotlight {
+  position: absolute;
+  inset: -12% -8% -8%;
+  z-index: 0;
+  background:
+    radial-gradient(
+      54% 60% at 52% 38%,
+      rgba(150, 162, 190, 0.32) 0%,
+      rgba(120, 132, 160, 0.14) 42%,
+      transparent 70%
+    ),
+    radial-gradient(
+      30% 40% at 52% 22%,
+      rgba(226, 236, 255, 0.4) 0%,
+      transparent 60%
+    );
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+/* Bright reflective platform glow at the base of the products */
+.hero-visual__floor {
+  position: absolute;
+  left: 10%;
+  right: 6%;
+  bottom: 12%;
+  height: 90px;
+  z-index: 0;
+  background: radial-gradient(
+    50% 100% at 50% 50%,
+    rgba(224, 234, 255, 0.55) 0%,
+    rgba(200, 214, 245, 0.16) 45%,
+    transparent 72%
+  );
+  filter: blur(12px);
+  pointer-events: none;
+}
+
 .hero-visual__img {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
-  /* Melt the left edge into the page so there is no visible image box */
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 17%, #000 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 17%, #000 100%);
+  filter: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.55));
 }
 
 @media (max-width: 960px) {

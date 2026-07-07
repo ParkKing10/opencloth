@@ -2,9 +2,9 @@
 import heroProduct from '../../assets/hero-product.png'
 
 /**
- * Hero product render — spotlit all-black streetwear collection on a
- * reflective platform. Edges are masked so the studio backdrop melts into
- * the page background instead of showing a hard image box.
+ * Hero product render — a transparent cutout of the all-black collection,
+ * floating on a CSS spotlight + glowing platform so it melts into the page
+ * with no image box.
  */
 export function HeroVisual() {
   return (
@@ -13,6 +13,8 @@ export function HeroVisual() {
       aria-label="THREADOS Kollektion: schwarzer Hoodie, T-Shirt, Cargohose und Cap im Spotlight"
     >
       <div className="hero-visual__stage">
+        <div className="hero-visual__spotlight" aria-hidden="true" />
+        <div className="hero-visual__floor" aria-hidden="true" />
         <img
           className="hero-visual__img"
           src={heroProduct}

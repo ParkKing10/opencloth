@@ -4,9 +4,7 @@
 
 .dash-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 20px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
 }
 .dash-main {
   display: flex;

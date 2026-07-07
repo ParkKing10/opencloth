@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { IcoArrowRight, IcoPlus, IcoUpload, IcoAI, IcoTechPack } from '../../components/ui/Icons'
+import { IcoArrowRight } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { PatternWireframe, TechPackFlats, GlobePins } from './FeatureArt'
 import teeImg from '../../../assets/cards/tee.png'
@@ -89,20 +89,6 @@ const RECENT_DESIGNS: Design[] = [
   { name: 'Washed Cap', kind: 'cap', modified: '4d ago' },
 ]
 
-const QUICK_ACTIONS = [
-  { icon: IcoPlus, title: 'Create New Design', sub: 'Start from scratch', to: '/suite/design' },
-  { icon: IcoUpload, title: 'Upload Design', sub: 'Import your artwork', to: '/suite/design' },
-  { icon: IcoAI, title: 'AI Design Generator', sub: 'Generate with AI', to: '/suite/ai' },
-  { icon: IcoTechPack, title: 'Create Tech Pack', sub: 'Auto-generate tech pack', to: '/suite/tech-packs' },
-]
-
-const RECENT_TECH_PACKS = [
-  { name: 'Vintage Washed Hoodie', time: '2h ago' },
-  { name: 'Oversized Street Tee', time: '1d ago' },
-  { name: 'Cargo Pocket Jacket', time: '2d ago' },
-  { name: 'Baggy Cargo Pants', time: '3d ago' },
-]
-
 export function Dashboard() {
   const navigate = useNavigate()
 
@@ -179,52 +165,6 @@ export function Dashboard() {
             </div>
           </section>
         </div>
-
-        {/* ---- Right rail ---- */}
-        <aside className="dash-rail">
-          <section className="s-panel rail-panel">
-            <div className="s-section-head">
-              <h2 className="s-section-title">Quick Actions</h2>
-            </div>
-            <div className="qa-list">
-              {QUICK_ACTIONS.map((q) => (
-                <button className="qa" type="button" key={q.title} onClick={() => navigate(q.to)}>
-                  <span className="qa__ico">
-                    <q.icon width="18" height="18" />
-                  </span>
-                  <span className="qa__text">
-                    <b>{q.title}</b>
-                    <small>{q.sub}</small>
-                  </span>
-                  <IcoArrowRight className="qa__chev" width="15" height="15" />
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="s-panel rail-panel">
-            <div className="s-section-head">
-              <h2 className="s-section-title">Recent Tech Packs</h2>
-              <a className="s-link" href="/suite/tech-packs">
-                View all
-              </a>
-            </div>
-            <div className="dtp-list">
-              {RECENT_TECH_PACKS.map((t) => (
-                <button className="dtp-row" type="button" key={t.name} onClick={() => navigate('/suite/tech-packs')}>
-                  <span className="dtp-row__ico">
-                    <IcoTechPack width="16" height="16" />
-                  </span>
-                  <span className="dtp-row__text">
-                    <b>{t.name}</b>
-                    <small>Created {t.time}</small>
-                  </span>
-                  <span className="s-dot" style={{ background: 'var(--s-good)' }} />
-                </button>
-              ))}
-            </div>
-          </section>
-        </aside>
       </div>
     </div>
   )

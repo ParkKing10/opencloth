@@ -1,0 +1,117 @@
+.tb {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--s-topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 clamp(20px, 1rem + 1.5vw, 40px);
+  background: color-mix(in oklab, var(--s-bg) 82%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--s-line);
+}
+
+.tb__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  width: min(460px, 42vw);
+  padding: 0 12px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  transition: border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.tb__search:focus-within {
+  border-color: var(--s-accent-line);
+  background: var(--s-panel-2);
+}
+.tb__search-ico {
+  color: var(--s-text-3);
+  flex-shrink: 0;
+}
+.tb__search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--s-text);
+  font-size: 13.5px;
+  font-family: inherit;
+}
+.tb__search input::placeholder {
+  color: var(--s-text-3);
+}
+.tb__kbd {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--s-text-3);
+  background: var(--s-panel-3);
+  border: 1px solid var(--s-line-2);
+  border-radius: 5px;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.tb__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.tb__coins {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: var(--s-r-pill);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--s-text);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+}
+.tb__coins-ico {
+  color: var(--s-warn);
+}
+
+.tb__bell .tb__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--s-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--s-bg);
+}
+
+.tb__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--s-line-2);
+  margin: 0 4px;
+}
+
+@media (max-width: 720px) {
+  .tb__coins,
+  .tb__new .s-btn,
+  .tb__kbd {
+    display: none;
+  }
+  .tb__search {
+    width: auto;
+    flex: 1;
+  }
+}

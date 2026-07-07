@@ -1,0 +1,130 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1360px;
+}
+.page--wide {
+  max-width: none;
+}
+
+.page__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.page__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-accent-2);
+  margin-bottom: 8px;
+}
+.page__title {
+  font-size: clamp(24px, 1.4rem + 0.9vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.page__sub {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--s-text-2);
+  max-width: 60ch;
+}
+.page__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Tabs used across sub-pages */
+.s-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+}
+.s-tab {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--s-text-3);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.s-tab:hover {
+  color: var(--s-text);
+}
+.s-tab.is-active {
+  color: var(--s-text);
+  background: var(--s-panel-3);
+}
+
+/* Generic filter pill row */
+.s-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.s-filter {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: var(--s-r-pill);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--s-text-2);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  transition: all var(--s-dur) var(--s-ease);
+}
+.s-filter:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-2);
+}
+.s-filter.is-active {
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  border-color: transparent;
+}
+
+/* Empty / coming-soon state used by scaffolded pages */
+.page-empty {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+  text-align: center;
+  border-radius: var(--s-r-lg);
+  border: 1px dashed var(--s-line-2);
+  background: var(--s-panel);
+}
+.page-empty__ico {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: 14px;
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.page-empty h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.page-empty p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--s-text-3);
+  max-width: 40ch;
+}

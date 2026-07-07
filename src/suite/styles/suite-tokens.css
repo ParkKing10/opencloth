@@ -1,0 +1,64 @@
+/*
+ * THREADOS Suite — design tokens.
+ * Scoped to .suite so the violet/charcoal system never collides with the
+ * lime-accented marketing site.
+ */
+.suite {
+  /* Surfaces — near-black graphite with a faint cool cast */
+  --s-bg: #08080b;
+  --s-bg-2: #0b0b10;
+  --s-panel: #101016;
+  --s-panel-2: #14141b;
+  --s-panel-3: #191922;
+  --s-hover: #1c1c26;
+  --s-inset: #0c0c11;
+
+  /* Lines */
+  --s-line: rgba(255, 255, 255, 0.06);
+  --s-line-2: rgba(255, 255, 255, 0.1);
+  --s-line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Text */
+  --s-text: #f4f4f6;
+  --s-text-2: #a6a6b2;
+  --s-text-3: #6f6f7c;
+  --s-text-4: #4d4d58;
+
+  /* Single premium accent — violet */
+  --s-accent: #7c5cff;
+  --s-accent-2: #9b7bff;
+  --s-accent-soft: rgba(124, 92, 255, 0.14);
+  --s-accent-line: rgba(124, 92, 255, 0.32);
+  --s-accent-glow: rgba(124, 92, 255, 0.4);
+  --s-accent-ink: #ffffff;
+
+  /* Semantic */
+  --s-good: #3ecf8e;
+  --s-good-soft: rgba(62, 207, 142, 0.14);
+  --s-warn: #f5b544;
+  --s-info: #5aa2ff;
+  --s-pink: #ff6ba6;
+
+  /* Radii */
+  --s-r-sm: 8px;
+  --s-r: 12px;
+  --s-r-lg: 16px;
+  --s-r-xl: 22px;
+  --s-r-pill: 999px;
+
+  /* Elevation */
+  --s-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --s-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.6);
+  --s-shadow-lg: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
+  --s-shadow-glow: 0 0 0 1px var(--s-accent-line), 0 12px 40px -12px var(--s-accent-glow);
+
+  /* Motion — Linear-like */
+  --s-dur: 180ms;
+  --s-dur-slow: 320ms;
+  --s-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Metrics */
+  --s-sidebar-w: 268px;
+  --s-topbar-h: 68px;
+  --s-rail-w: 64px;
+}

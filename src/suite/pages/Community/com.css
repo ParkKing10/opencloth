@@ -1,0 +1,572 @@
+/* ============================================================
+   Community — "Behance for Fashion"
+   All classes prefixed com- to avoid collisions.
+   ============================================================ */
+
+.com-root {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+/* ---- Header search (lives in page actions) ---- */
+.com-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line-2);
+  color: var(--s-text-3);
+  min-width: 230px;
+  transition:
+    border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease),
+    box-shadow var(--s-dur) var(--s-ease);
+}
+.com-search:focus-within {
+  border-color: var(--s-accent-line);
+  background: var(--s-panel-2);
+  box-shadow: 0 0 0 3px var(--s-accent-soft);
+}
+.com-search svg {
+  flex-shrink: 0;
+  color: var(--s-text-3);
+}
+.com-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--s-text);
+  font-size: 13px;
+  font-family: inherit;
+}
+.com-search input::placeholder {
+  color: var(--s-text-4);
+}
+.com-search kbd {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--s-text-4);
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--s-panel-3);
+  border: 1px solid var(--s-line);
+}
+
+/* ---- Tabs row (Designers / Collections / Trending) ---- */
+.com-tabsrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.com-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- Section head ---- */
+.com-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.com-sechead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.com-sechead__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.com-sechead__title .com-sec-ico {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.com-sechead__sub {
+  margin-top: 5px;
+  font-size: 12.5px;
+  color: var(--s-text-3);
+}
+.com-sechead__nav {
+  display: flex;
+  gap: 6px;
+}
+.com-navbtn {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--s-r-sm);
+  color: var(--s-text-2);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line-2);
+  cursor: pointer;
+  transition:
+    color var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease);
+}
+.com-navbtn:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-strong);
+  background: var(--s-panel-2);
+}
+
+/* =========================================================
+   TOP DESIGNERS — horizontal scroll row of profile cards
+   ========================================================= */
+.com-scroller {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(292px, 1fr);
+  gap: 16px;
+  overflow-x: auto;
+  padding: 4px 2px 12px;
+  margin: -4px -2px -12px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.com-scroller > * {
+  scroll-snap-align: start;
+}
+
+.com-designer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--s-r-lg);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    border-color var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease),
+    box-shadow var(--s-dur) var(--s-ease);
+}
+.com-designer:hover {
+  border-color: var(--s-line-2);
+  transform: translateY(-2px);
+  box-shadow: var(--s-shadow);
+}
+
+/* banner with subtle violet glow + garment ghost */
+.com-designer__banner {
+  position: relative;
+  height: 78px;
+  background:
+    radial-gradient(130% 130% at 20% -10%, rgba(124, 92, 255, 0.22), transparent 55%),
+    linear-gradient(140deg, var(--s-panel-3), var(--s-inset));
+  border-bottom: 1px solid var(--s-line);
+  overflow: hidden;
+}
+.com-designer__ghost {
+  position: absolute;
+  right: -10px;
+  bottom: -24px;
+  color: rgba(255, 255, 255, 0.055);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+.com-designer__top {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 16px;
+  margin-top: -26px;
+}
+.com-av {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  color: var(--s-accent-ink);
+  flex-shrink: 0;
+}
+.com-av--lg {
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  border: 2px solid var(--s-panel);
+  box-shadow: var(--s-shadow-sm);
+}
+.com-av--sm {
+  width: 24px;
+  height: 24px;
+  font-size: 9px;
+}
+.com-designer__ident {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 3px;
+  min-width: 0;
+}
+.com-designer__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.com-verify {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  flex-shrink: 0;
+}
+.com-designer__role {
+  font-size: 12px;
+  color: var(--s-text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.com-designer__meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px 0;
+  font-size: 11.5px;
+  color: var(--s-text-3);
+}
+.com-designer__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.com-designer__meta b {
+  color: var(--s-text);
+  font-weight: 650;
+}
+
+/* mini project thumbnails */
+.com-thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 14px 16px 0;
+}
+.com-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--s-r-sm);
+  color: var(--s-text-3);
+  background:
+    radial-gradient(120% 120% at 50% 0%, rgba(124, 92, 255, 0.1), transparent 62%),
+    var(--s-inset);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  transition:
+    color var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease);
+}
+.com-designer:hover .com-thumb {
+  color: var(--s-text-2);
+}
+.com-thumb:hover {
+  border-color: var(--s-accent-line);
+  color: var(--s-accent-2);
+  transform: translateY(-2px);
+}
+
+.com-designer__actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding: 16px;
+  margin-top: auto;
+}
+.com-follow {
+  height: 36px;
+  width: 100%;
+}
+.com-hire {
+  height: 36px;
+  padding: 0 16px;
+}
+.com-follow.is-following {
+  background: var(--s-panel-3);
+  color: var(--s-text-2);
+  border-color: var(--s-line-2);
+}
+.com-follow.is-following:hover {
+  border-color: var(--s-accent-line);
+  color: var(--s-text);
+  box-shadow: none;
+}
+
+/* =========================================================
+   TRENDING PROJECTS — masonry gallery
+   ========================================================= */
+.com-gallery {
+  columns: 3;
+  column-gap: 18px;
+}
+
+.com-proj {
+  display: block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 18px;
+  border-radius: var(--s-r-lg);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  transition:
+    border-color var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease),
+    box-shadow var(--s-dur) var(--s-ease);
+}
+.com-proj:hover {
+  border-color: var(--s-line-2);
+  transform: translateY(-3px);
+  box-shadow: var(--s-shadow-lg);
+}
+
+.com-proj__cover {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: var(--s-text-2);
+  border-bottom: 1px solid var(--s-line);
+  overflow: hidden;
+}
+.com-proj__cover--tall {
+  height: 268px;
+}
+.com-proj__cover--mid {
+  height: 216px;
+}
+.com-proj__cover--short {
+  height: 176px;
+}
+.com-proj__glyph {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.4));
+  transition: transform var(--s-dur-slow) var(--s-ease);
+}
+.com-proj:hover .com-proj__glyph {
+  transform: scale(1.06) rotate(-1.5deg);
+}
+.com-proj__cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 8%, rgba(124, 92, 255, 0.14), transparent 60%);
+  opacity: 0.7;
+  transition: opacity var(--s-dur-slow) var(--s-ease);
+}
+.com-proj:hover .com-proj__cover::after {
+  opacity: 1;
+}
+
+/* cover tints — violet + neutral family only */
+.com-proj__cover--a {
+  background: linear-gradient(155deg, #171522, #0c0c11);
+}
+.com-proj__cover--b {
+  background: linear-gradient(155deg, #14161f, #0b0c10);
+}
+.com-proj__cover--c {
+  background: linear-gradient(155deg, #191521, #0d0b11);
+}
+
+.com-proj__tag {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+}
+.com-proj__save {
+  position: absolute;
+  z-index: 2;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--s-text-2);
+  background: rgba(8, 8, 11, 0.55);
+  border: 1px solid var(--s-line-2);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  transform: translateY(-4px);
+  cursor: pointer;
+  transition:
+    opacity var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease);
+}
+.com-proj:hover .com-proj__save {
+  opacity: 1;
+  transform: translateY(0);
+}
+.com-proj__save:hover {
+  color: var(--s-accent-2);
+  border-color: var(--s-accent-line);
+}
+.com-proj__save.is-saved {
+  color: var(--s-accent-2);
+  border-color: var(--s-accent-line);
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.com-proj__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 15px 15px;
+}
+.com-proj__title {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.com-proj__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.com-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.com-author__name {
+  font-size: 12px;
+  color: var(--s-text-2);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.com-proj__stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--s-text-3);
+  flex-shrink: 0;
+}
+.com-proj__stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.com-proj__stat svg {
+  color: var(--s-text-4);
+  transition: color var(--s-dur) var(--s-ease);
+}
+.com-proj__stat.is-liked {
+  color: var(--s-pink);
+}
+.com-proj__stat.is-liked svg {
+  color: var(--s-pink);
+}
+.com-proj__stat--like:hover,
+.com-proj__stat--like:hover svg {
+  color: var(--s-pink);
+}
+.com-proj:hover .com-proj__stat svg {
+  color: var(--s-text-3);
+}
+.com-proj:hover .com-proj__stat.is-liked svg {
+  color: var(--s-pink);
+}
+
+/* =========================================================
+   Avatar gradient variants — violet family, disciplined
+   ========================================================= */
+.com-grad-1 {
+  background: linear-gradient(140deg, #7c5cff, #5b3fd6);
+}
+.com-grad-2 {
+  background: linear-gradient(140deg, #9b7bff, #6a4bff);
+}
+.com-grad-3 {
+  background: linear-gradient(140deg, #5aa2ff, #6a4bff);
+}
+.com-grad-4 {
+  background: linear-gradient(140deg, #ff6ba6, #b14bff);
+}
+.com-grad-5 {
+  background: linear-gradient(140deg, #3ecf8e, #4b8fff);
+}
+.com-grad-6 {
+  background: linear-gradient(140deg, #a78bff, #7c5cff);
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+@media (max-width: 1100px) {
+  .com-gallery {
+    columns: 2;
+  }
+}
+@media (max-width: 640px) {
+  .com-gallery {
+    columns: 1;
+  }
+  .com-scroller {
+    grid-auto-columns: minmax(84%, 1fr);
+  }
+  .com-search {
+    min-width: 0;
+    flex: 1;
+  }
+}

@@ -135,59 +135,17 @@
   transform: translateX(-9%);
 }
 
-/* Bright spotlight backdrop that lifts the all-black garments off the page */
-.hero-visual__spotlight {
-  position: absolute;
-  inset: -18% -6% -10%;
-  z-index: 0;
-  background:
-    radial-gradient(
-      58% 66% at 50% 40%,
-      rgba(176, 188, 214, 0.5) 0%,
-      rgba(134, 146, 174, 0.2) 44%,
-      transparent 72%
-    ),
-    radial-gradient(
-      34% 44% at 50% 20%,
-      rgba(234, 242, 255, 0.62) 0%,
-      transparent 60%
-    );
-  filter: blur(10px);
-  pointer-events: none;
-}
-
-/* Bright reflective platform light at the base of the products */
-.hero-visual__floor {
-  position: absolute;
-  left: 6%;
-  right: 4%;
-  bottom: 13%;
-  height: 120px;
-  z-index: 0;
-  background:
-    radial-gradient(
-      34% 62% at 50% 48%,
-      rgba(255, 255, 255, 0.9) 0%,
-      transparent 62%
-    ),
-    radial-gradient(
-      62% 120% at 50% 52%,
-      rgba(210, 224, 252, 0.42) 0%,
-      transparent 72%
-    );
-  filter: blur(11px);
-  pointer-events: none;
-}
-
 .hero-visual__img {
   position: relative;
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   object-position: center;
-  /* Lift the crushed blacks so the garments read brighter and more detailed */
-  filter: brightness(1.16) contrast(1.05) drop-shadow(0 26px 42px rgba(0, 0, 0, 0.55));
+  filter: brightness(1.12) contrast(1.04);
+  /* Feather the studio backdrop's edges so it melts into the page — no box seam */
+  -webkit-mask-image: radial-gradient(ellipse 82% 86% at 52% 46%, #000 50%, transparent 88%);
+  mask-image: radial-gradient(ellipse 82% 86% at 52% 46%, #000 50%, transparent 88%);
 }
 
 @media (max-width: 960px) {

@@ -13,8 +13,6 @@ export function HeroVisual() {
       aria-label="THREADOS Kollektion: schwarzer Hoodie, T-Shirt, Cargohose und Cap im Spotlight"
     >
       <div className="hero-visual__stage">
-        <div className="hero-visual__spotlight" aria-hidden="true" />
-        <div className="hero-visual__floor" aria-hidden="true" />
         <img
           className="hero-visual__img"
           src={heroProduct}

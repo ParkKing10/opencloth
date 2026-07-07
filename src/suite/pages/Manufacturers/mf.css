@@ -229,10 +229,10 @@
   opacity: 0.9;
 }
 /* Per-hue banner washes — all violet-family/neutral, never rainbow */
-.mf-banner--a { background: radial-gradient(130% 120% at 12% 0%, rgba(124, 92, 255, 0.28), transparent 55%), linear-gradient(155deg, #14121f, #0c0c11); }
-.mf-banner--b { background: radial-gradient(130% 120% at 85% 0%, rgba(124, 92, 255, 0.2), transparent 58%), linear-gradient(155deg, #171420, #0b0b10); }
+.mf-banner--a { background: radial-gradient(130% 120% at 12% 0%, rgba(209, 249, 79, 0.28), transparent 55%), linear-gradient(155deg, #14121f, #0c0c11); }
+.mf-banner--b { background: radial-gradient(130% 120% at 85% 0%, rgba(209, 249, 79, 0.2), transparent 58%), linear-gradient(155deg, #171420, #0b0b10); }
 .mf-banner--c { background: radial-gradient(120% 120% at 50% -10%, rgba(155, 123, 255, 0.22), transparent 60%), linear-gradient(155deg, #12131c, #0b0b10); }
-.mf-banner--d { background: radial-gradient(140% 130% at 10% 110%, rgba(124, 92, 255, 0.24), transparent 55%), linear-gradient(155deg, #16121d, #0c0c11); }
+.mf-banner--d { background: radial-gradient(140% 130% at 10% 110%, rgba(209, 249, 79, 0.24), transparent 55%), linear-gradient(155deg, #16121d, #0c0c11); }
 
 .mf-banner__top {
   position: absolute;

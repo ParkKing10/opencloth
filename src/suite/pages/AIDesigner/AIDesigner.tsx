@@ -39,10 +39,10 @@ const REF_SLOTS = ['Fabric', 'Silhouette', 'Palette'] as const
 
 /* ---- Rich per-card gradient tints (violet-forward, restrained) ---- */
 const TINTS = [
-  'radial-gradient(130% 120% at 30% 12%, rgba(124,92,255,0.30), transparent 58%), linear-gradient(160deg, #14121f, #0b0b10)',
+  'radial-gradient(130% 120% at 30% 12%, rgba(209,249,79,0.30), transparent 58%), linear-gradient(160deg, #14121f, #0b0b10)',
   'radial-gradient(130% 120% at 70% 14%, rgba(155,123,255,0.26), transparent 60%), linear-gradient(160deg, #171320, #0b0b10)',
-  'radial-gradient(120% 130% at 50% 0%, rgba(124,92,255,0.22), transparent 62%), linear-gradient(200deg, #100f19, #0a0a0f)',
-  'radial-gradient(130% 120% at 20% 20%, rgba(124,92,255,0.24), rgba(255,107,166,0.06) 45%, transparent 66%), linear-gradient(150deg, #15121d, #0b0b10)',
+  'radial-gradient(120% 130% at 50% 0%, rgba(209,249,79,0.22), transparent 62%), linear-gradient(200deg, #100f19, #0a0a0f)',
+  'radial-gradient(130% 120% at 20% 20%, rgba(209,249,79,0.24), rgba(255,107,166,0.06) 45%, transparent 66%), linear-gradient(150deg, #15121d, #0b0b10)',
 ]
 
 type Variation = {

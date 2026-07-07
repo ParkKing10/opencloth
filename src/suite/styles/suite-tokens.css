@@ -24,13 +24,13 @@
   --s-text-3: #6f6f7c;
   --s-text-4: #4d4d58;
 
-  /* Single premium accent — violet */
-  --s-accent: #7c5cff;
-  --s-accent-2: #9b7bff;
-  --s-accent-soft: rgba(124, 92, 255, 0.14);
-  --s-accent-line: rgba(124, 92, 255, 0.32);
-  --s-accent-glow: rgba(124, 92, 255, 0.4);
-  --s-accent-ink: #ffffff;
+  /* Single premium accent — brand lime (matches the marketing site) */
+  --s-accent: #d1f94f;
+  --s-accent-2: #dcff66;
+  --s-accent-soft: rgba(209, 249, 79, 0.12);
+  --s-accent-line: rgba(209, 249, 79, 0.3);
+  --s-accent-glow: rgba(209, 249, 79, 0.35);
+  --s-accent-ink: #0c1500;
 
   /* Semantic */
   --s-good: #3ecf8e;

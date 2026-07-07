@@ -89,7 +89,7 @@
   padding: 0 4px;
   border-radius: 999px;
   background: var(--s-accent);
-  color: #fff;
+  color: var(--s-accent-ink);
   font-size: 10px;
   font-weight: 700;
   display: grid;

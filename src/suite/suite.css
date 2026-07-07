@@ -191,7 +191,7 @@
 }
 .s-chip--new {
   background: var(--s-accent);
-  color: #fff;
+  color: var(--s-accent-ink);
   letter-spacing: 0.06em;
 }
 

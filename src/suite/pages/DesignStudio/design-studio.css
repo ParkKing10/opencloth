@@ -35,7 +35,7 @@
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: #fff;
+  color: var(--s-accent-ink);
   background: linear-gradient(150deg, var(--s-accent-2), var(--s-accent));
 }
 .ds-logo__beta {
@@ -864,7 +864,7 @@
   padding: 16px;
   margin: 16px;
   border-radius: var(--s-r-lg);
-  background: linear-gradient(160deg, rgba(124, 92, 255, 0.13), rgba(124, 92, 255, 0.02));
+  background: linear-gradient(160deg, rgba(209, 249, 79, 0.13), rgba(209, 249, 79, 0.02));
   border: 1px solid var(--s-accent-line);
 }
 .ds-ai__head {

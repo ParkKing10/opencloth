@@ -273,7 +273,7 @@
   border-radius: 9px;
   color: var(--s-text-3);
   background:
-    radial-gradient(120% 120% at 50% 0%, rgba(124, 92, 255, 0.08), transparent 65%),
+    radial-gradient(120% 120% at 50% 0%, rgba(209, 249, 79, 0.08), transparent 65%),
     var(--s-inset);
   border: 1px solid var(--s-line);
   transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
@@ -359,7 +359,7 @@
   min-height: 0;
   overflow: hidden;
   background:
-    radial-gradient(140% 120% at 50% -10%, rgba(124, 92, 255, 0.06), transparent 55%),
+    radial-gradient(140% 120% at 50% -10%, rgba(209, 249, 79, 0.06), transparent 55%),
     var(--s-bg);
 }
 /* dotted + grid blueprint background */
@@ -479,7 +479,7 @@
 
 /* SVG element styles */
 .pt-seam {
-  fill: rgba(124, 92, 255, 0.05);
+  fill: rgba(209, 249, 79, 0.05);
   stroke: var(--s-accent);
   stroke-width: 2;
   stroke-linejoin: round;
@@ -622,7 +622,7 @@
   margin: 16px 4px 4px;
   padding: 14px;
   border-radius: var(--s-r-lg);
-  background: linear-gradient(160deg, rgba(124, 92, 255, 0.1), rgba(124, 92, 255, 0.01));
+  background: linear-gradient(160deg, rgba(209, 249, 79, 0.1), rgba(209, 249, 79, 0.01));
   border: 1px solid var(--s-accent-line);
 }
 .pt-grade__head {

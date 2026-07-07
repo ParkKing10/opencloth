@@ -48,7 +48,7 @@ const AUTHORS = {
 } satisfies Record<string, Author>
 
 const TINT = {
-  violet: 'rgba(124, 92, 255, 0.18)',
+  violet: 'rgba(209, 249, 79, 0.18)',
   pink: 'rgba(255, 107, 166, 0.16)',
   info: 'rgba(90, 162, 255, 0.16)',
   good: 'rgba(62, 207, 142, 0.14)',

@@ -175,7 +175,7 @@
   position: relative;
   height: 78px;
   background:
-    radial-gradient(130% 130% at 20% -10%, rgba(124, 92, 255, 0.22), transparent 55%),
+    radial-gradient(130% 130% at 20% -10%, rgba(209, 249, 79, 0.22), transparent 55%),
     linear-gradient(140deg, var(--s-panel-3), var(--s-inset));
   border-bottom: 1px solid var(--s-line);
   overflow: hidden;
@@ -286,7 +286,7 @@
   border-radius: var(--s-r-sm);
   color: var(--s-text-3);
   background:
-    radial-gradient(120% 120% at 50% 0%, rgba(124, 92, 255, 0.1), transparent 62%),
+    radial-gradient(120% 120% at 50% 0%, rgba(209, 249, 79, 0.1), transparent 62%),
     var(--s-inset);
   border: 1px solid var(--s-line);
   cursor: pointer;
@@ -392,7 +392,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(120% 90% at 50% 8%, rgba(124, 92, 255, 0.14), transparent 60%);
+  background: radial-gradient(120% 90% at 50% 8%, rgba(209, 249, 79, 0.14), transparent 60%);
   opacity: 0.7;
   transition: opacity var(--s-dur-slow) var(--s-ease);
 }
@@ -532,13 +532,13 @@
    Avatar gradient variants — violet family, disciplined
    ========================================================= */
 .com-grad-1 {
-  background: linear-gradient(140deg, #7c5cff, #5b3fd6);
+  background: linear-gradient(140deg, #d1f94f, #9fd42a);
 }
 .com-grad-2 {
-  background: linear-gradient(140deg, #9b7bff, #6a4bff);
+  background: linear-gradient(140deg, #dcff66, #b6e63e);
 }
 .com-grad-3 {
-  background: linear-gradient(140deg, #5aa2ff, #6a4bff);
+  background: linear-gradient(140deg, #5aa2ff, #b6e63e);
 }
 .com-grad-4 {
   background: linear-gradient(140deg, #ff6ba6, #b14bff);
@@ -547,7 +547,7 @@
   background: linear-gradient(140deg, #3ecf8e, #4b8fff);
 }
 .com-grad-6 {
-  background: linear-gradient(140deg, #a78bff, #7c5cff);
+  background: linear-gradient(140deg, #e6ff96, #d1f94f);
 }
 
 /* =========================================================

@@ -42,8 +42,8 @@ const COUNTRY_FLAGS: Record<string, string> = {
   Turkey: '#ff6ba6',
   Vietnam: '#f5b544',
   Italy: '#5aa2ff',
-  China: '#9b7bff',
-  India: '#7c5cff',
+  China: '#dcff66',
+  India: '#d1f94f',
 }
 
 const CAPABILITIES: Capability[] = ['Knitwear', 'Cut & Sew', 'Denim', 'Outerwear', 'Accessories']

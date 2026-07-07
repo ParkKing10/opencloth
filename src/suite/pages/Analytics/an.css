@@ -324,7 +324,7 @@
 .an-bar__fill {
   width: 100%;
   border-radius: 6px 6px 3px 3px;
-  background: linear-gradient(180deg, var(--s-accent) 0%, rgba(124, 92, 255, 0.5) 100%);
+  background: linear-gradient(180deg, var(--s-accent) 0%, rgba(209, 249, 79, 0.5) 100%);
   transition:
     filter var(--s-dur) var(--s-ease),
     transform var(--s-dur) var(--s-ease);

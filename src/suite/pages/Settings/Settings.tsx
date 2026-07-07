@@ -45,7 +45,7 @@ const NAV: NavItem[] = [
 ]
 
 const ACCENTS: { id: string; hex: string }[] = [
-  { id: 'violet', hex: '#7c5cff' },
+  { id: 'violet', hex: '#d1f94f' },
   { id: 'indigo', hex: '#5aa2ff' },
   { id: 'emerald', hex: '#3ecf8e' },
   { id: 'amber', hex: '#f5b544' },

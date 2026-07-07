@@ -195,7 +195,7 @@
   overflow: hidden;
   color: var(--s-text-2);
   background:
-    radial-gradient(120% 90% at 50% -10%, rgba(124, 92, 255, 0.1), transparent 60%),
+    radial-gradient(120% 90% at 50% -10%, rgba(209, 249, 79, 0.1), transparent 60%),
     linear-gradient(180deg, var(--s-panel-3), var(--s-inset));
 }
 .tp-card__preview::before {
@@ -226,7 +226,7 @@
 .tp-card__preview--light {
   color: #1a1a22;
   background:
-    radial-gradient(120% 90% at 50% -10%, rgba(124, 92, 255, 0.14), transparent 55%),
+    radial-gradient(120% 90% at 50% -10%, rgba(209, 249, 79, 0.14), transparent 55%),
     linear-gradient(180deg, #e9e9ef, #cfcfd8);
 }
 .tp-card__preview--light::before {

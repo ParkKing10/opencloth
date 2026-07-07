@@ -13,9 +13,9 @@ const BRANDS = [
 
 export function LogoBar() {
   return (
-    <section className="logo-bar" aria-label="Vertraut von Top Marken und Designern">
+    <section className="logo-bar" aria-label="Geliebt von über 1 Million Creators, Marken und Studios weltweit">
       <div className="shell logo-bar__inner">
-        <p className="logo-bar__label">Vertraut von Top Marken &amp; Designern</p>
+        <p className="logo-bar__label">Loved by 1M+ creators, brands &amp; studios worldwide</p>
         <ul className="logo-bar__list">
           {BRANDS.map((brand) => (
             <li className={`logo-bar__brand logo-bar__brand--${brand.style}`} key={brand.name}>

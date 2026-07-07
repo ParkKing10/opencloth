@@ -1,5 +1,5 @@
-/* Served from /public — referenced by root-absolute path, not imported. */
-const heroProduct = '/hero-product.png'
+// Imported so Vite fingerprints the file — busts caches on every update.
+import heroProduct from '../../assets/hero-product.png'
 
 /**
  * Hero product render — spotlit all-black streetwear collection on a
@@ -17,7 +17,7 @@ export function HeroVisual() {
           className="hero-visual__img"
           src={heroProduct}
           alt="THREADOS Kollektion – Hoodie, T-Shirt, Cargohose und Cap in Schwarz, dramatisch beleuchtet"
-          width={1024}
+          width={1536}
           height={1024}
           loading="eager"
           decoding="async"

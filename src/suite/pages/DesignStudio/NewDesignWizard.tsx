@@ -15,6 +15,49 @@ export type WizardResult = {
 
 type GarmentOption = { kind: GarmentKind; name: string; vibe: string }
 type FitOption = { name: string; note: string }
+
+/** Proportions of the fit silhouette — same tee, different cut. */
+type FitShape = { body: number; hem: number; shoulder: number; sleeveX: number; sleeveY: number }
+
+const FIT_SHAPES: Record<string, FitShape> = {
+  Oversized: { body: 30, hem: 76, shoulder: 27, sleeveX: 13, sleeveY: 12 },
+  Regular: { body: 23, hem: 71, shoulder: 22, sleeveX: 10, sleeveY: 9 },
+  Boxy: { body: 30, hem: 58, shoulder: 27, sleeveX: 12, sleeveY: 9 },
+  Cropped: { body: 23, hem: 52, shoulder: 22, sleeveX: 10, sleeveY: 9 },
+  Slim: { body: 17, hem: 71, shoulder: 18, sleeveX: 8, sleeveY: 8 },
+}
+
+/** A tee outline whose cut changes with the fit — the shape IS the explanation. */
+function FitSilhouette({ fit }: { fit: string }) {
+  const s = FIT_SHAPES[fit] ?? FIT_SHAPES.Regular
+  const cx = 50
+  const top = 14
+  const cuffY = top + s.sleeveY + 9
+  const d = [
+    // right half: neck → shoulder → sleeve → underarm → hem
+    `M ${cx + 8} ${top}`,
+    `L ${cx + s.shoulder} ${top + 2}`,
+    `L ${cx + s.shoulder + s.sleeveX} ${top + 2 + s.sleeveY}`,
+    `L ${cx + s.body + 1} ${cuffY}`,
+    `L ${cx + s.body} ${s.hem - 4}`,
+    `Q ${cx + s.body} ${s.hem} ${cx + s.body - 4} ${s.hem}`,
+    // hem
+    `L ${cx - s.body + 4} ${s.hem}`,
+    `Q ${cx - s.body} ${s.hem} ${cx - s.body} ${s.hem - 4}`,
+    // left half mirrored back up
+    `L ${cx - s.body - 1} ${cuffY}`,
+    `L ${cx - s.shoulder - s.sleeveX} ${top + 2 + s.sleeveY}`,
+    `L ${cx - s.shoulder} ${top + 2}`,
+    `L ${cx - 8} ${top}`,
+    // neckline
+    `Q ${cx} ${top + 9} ${cx + 8} ${top}`,
+  ].join(' ')
+  return (
+    <svg className="wz-fit-svg" viewBox="0 0 100 84" fill="none" aria-hidden="true">
+      <path d={d} stroke="currentColor" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  )
+}
 type FabricOption = { weight: string; name: string; note: string; popular?: boolean }
 type ColorOption = { name: string; hex: string }
 
@@ -232,7 +275,7 @@ export function NewDesignWizard({
                       aria-pressed={selected}
                     >
                       <span className="wz-card__figure">
-                        <span className={`wz-card__fitshape wz-card__fitshape--${f.name.toLowerCase()}`} aria-hidden="true" />
+                        <FitSilhouette fit={f.name} />
                       </span>
                       <span className="wz-card__name">{f.name}</span>
                       <span className="wz-card__vibe">{f.note}</span>

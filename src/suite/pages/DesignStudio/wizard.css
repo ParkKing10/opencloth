@@ -301,45 +301,21 @@
   color: var(--s-text-3);
 }
 
-/* Fit silhouettes — width-varying rounded rectangles */
-.wz-card__fitshape {
-  display: block;
-  border: 1.5px solid var(--s-text-3);
-  border-radius: 7px;
-  transition: border-color var(--s-dur) var(--s-ease);
+/* Fit silhouettes — the same tee drawn in each cut; the shape explains the fit */
+.wz-fit-svg {
+  width: 84px;
+  height: 74px;
+  color: var(--s-text-3);
+  transition: color var(--s-dur) var(--s-ease), transform var(--s-dur-slow) var(--s-ease);
 }
 
-.wz-card:hover .wz-card__fitshape {
-  border-color: var(--s-text-2);
+.wz-card:hover .wz-fit-svg {
+  color: var(--s-text);
+  transform: translateY(-2px);
 }
 
-.wz-card.is-selected .wz-card__fitshape {
-  border-color: var(--s-accent);
-}
-
-.wz-card__fitshape--oversized {
-  width: 50px;
-  height: 56px;
-}
-
-.wz-card__fitshape--regular {
-  width: 36px;
-  height: 54px;
-}
-
-.wz-card__fitshape--boxy {
-  width: 48px;
-  height: 40px;
-}
-
-.wz-card__fitshape--cropped {
-  width: 38px;
-  height: 34px;
-}
-
-.wz-card__fitshape--slim {
-  width: 26px;
-  height: 58px;
+.wz-card.is-selected .wz-fit-svg {
+  color: var(--s-accent);
 }
 
 /* Fabric cards — typographic weight treatment */
@@ -526,7 +502,7 @@
 
   .wz-card,
   .wz-card__glyph,
-  .wz-card__fitshape,
+  .wz-fit-svg,
   .wz-swatch,
   .wz-swatch__dot,
   .wz-progress__seg,

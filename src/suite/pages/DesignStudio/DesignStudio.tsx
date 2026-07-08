@@ -6,9 +6,7 @@ import {
   IcoTechPack,
   IcoFactory,
   IcoSearch,
-  IcoPlus,
   IcoDots,
-  IcoEye,
   IcoSparkle,
   IcoChevron,
   IcoUpload,
@@ -32,6 +30,8 @@ import {
 import { StudioCanvas } from './StudioCanvas'
 import { CommandBar, type StudioMode } from './CommandBar'
 import { AICompanion } from './AICompanion'
+import { LayersPanel, type Layer } from './LayersPanel'
+import { ContextPanel, defaultFieldsFor, type ContextField } from './ContextPanel'
 import {
   INITIAL_CONFIG,
   buildSuggestions,
@@ -80,7 +80,7 @@ const GARMENTS: Garment[] = [
   { name: 'Dad Cap', kind: 'cap', cat: 'Accessories', fit: 'Adjustable' },
 ]
 
-type Layer = { id: string; name: string; type: string }
+// Layer model lives with the panel (Figma-grade: lock, color labels, groups).
 
 /** A single undoable snapshot of the editable canvas state. */
 type Snapshot = {
@@ -255,34 +255,138 @@ export function DesignStudio() {
     toast('Layer added — drop a graphic or type onto it.', 'success')
   }
 
-  function removeLayer(layer: Layer) {
-    const nextHidden = { ...hidden }
-    delete nextHidden[layer.id]
-    commit({ layers: layers.filter((l) => l.id !== layer.id), hidden: nextHidden })
-    toast(`Removed “${layer.name}”.`)
-  }
+  // ---- Selection + smart context panel ----
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [layerFields, setLayerFields] = useState<Record<string, ContextField[]>>({})
 
-  function toggleLayer(layer: Layer) {
-    commit({ layers, hidden: { ...hidden, [layer.id]: !hidden[layer.id] } })
-  }
+  // Selection follows the stack: drop ids that no longer exist (undo/redo/delete).
+  const liveSelected = useMemo(() => {
+    const alive = new Set(layers.map((l) => l.id))
+    return selectedIds.filter((id) => alive.has(id))
+  }, [layers, selectedIds])
 
-  function undo() {
-    if (!canUndo) return
+  // Prune context fields of deleted layers so the map never accumulates orphans.
+  useEffect(() => {
+    const alive = new Set(layers.map((l) => l.id))
+    setLayerFields((prev) => {
+      const stale = Object.keys(prev).filter((id) => !alive.has(id))
+      if (stale.length === 0) return prev
+      const next = { ...prev }
+      stale.forEach((id) => delete next[id])
+      return next
+    })
+  }, [layers])
+
+  const activeLayer = useMemo(
+    () => (liveSelected.length === 1 ? layers.find((l) => l.id === liveSelected[0]) ?? null : null),
+    [liveSelected, layers],
+  )
+
+  const activeFields = useMemo(
+    () => (activeLayer ? layerFields[activeLayer.id] ?? defaultFieldsFor(activeLayer) : []),
+    [activeLayer, layerFields],
+  )
+
+  const editContextField = useCallback(
+    (field: ContextField) => {
+      if (!activeLayer || activeLayer.locked) return
+      const next = window.prompt(`Edit ${field.label}`, field.value)
+      if (next == null) return
+      const trimmed = next.trim()
+      if (!trimmed || trimmed === field.value) return
+      setLayerFields((prev) => ({
+        ...prev,
+        [activeLayer.id]: (prev[activeLayer.id] ?? defaultFieldsFor(activeLayer)).map((f) =>
+          f.id === field.id ? { ...f, value: trimmed } : f,
+        ),
+      }))
+      if (field.id === 'cx-technique') rememberChoice('technique', trimmed)
+      toast(`${field.label} set to ${trimmed}.`, 'success')
+    },
+    [activeLayer, rememberChoice, toast],
+  )
+
+  const commitLayers = useCallback(
+    (nextLayers: Layer[], nextHidden: Record<string, boolean>) => {
+      commit({ layers: nextLayers, hidden: nextHidden })
+    },
+    [commit],
+  )
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return
     const previous = past[past.length - 1]
     setPast((prev) => prev.slice(0, -1))
     setFuture((prev) => [present, ...prev])
     setPresent(previous)
     toast('Undid last change.')
-  }
+  }, [past, present, toast])
 
-  function redo() {
-    if (!canRedo) return
+  const redo = useCallback(() => {
+    if (future.length === 0) return
     const next = future[0]
     setFuture((prev) => prev.slice(1))
     setPast((prev) => [...prev, present])
     setPresent(next)
     toast('Redid change.')
-  }
+  }, [future, present, toast])
+
+  // ---- Keyboard shortcuts (skipped while typing) ----
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const mod = e.metaKey || e.ctrlKey
+
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'd' && liveSelected.length > 0) {
+        e.preventDefault()
+        const src = layers.find((l) => l.id === liveSelected[0])
+        if (!src || src.type === 'Group') return
+        const copy: Layer = { ...src, id: `l-${Date.now().toString(36)}`, name: `${src.name} copy`, locked: false }
+        const at = layers.findIndex((l) => l.id === src.id)
+        commit({ layers: [...layers.slice(0, at), copy, ...layers.slice(at)], hidden })
+        setSelectedIds([copy.id])
+        toast(`Duplicated “${src.name}”.`, 'success')
+        return
+      }
+      if ((e.key === 'Delete' || e.key === 'Backspace') && liveSelected.length > 0) {
+        e.preventDefault()
+        const removable = new Set(
+          liveSelected.filter((id) => {
+            const l = layers.find((x) => x.id === id)
+            return l && !l.locked && !(l.groupId && layers.find((g) => g.id === l.groupId)?.locked)
+          }),
+        )
+        // deleting a group takes its unlocked members with it
+        layers.forEach((l) => {
+          if (l.groupId && removable.has(l.groupId) && !l.locked) removable.add(l.id)
+        })
+        if (removable.size === 0) return
+        const nextHidden = { ...hidden }
+        removable.forEach((id) => delete nextHidden[id])
+        commit({ layers: layers.filter((l) => !removable.has(l.id)), hidden: nextHidden })
+        setSelectedIds([])
+        toast(`Removed ${removable.size} ${removable.size === 1 ? 'layer' : 'layers'}.`)
+        return
+      }
+      if (e.key === 'Escape' && liveSelected.length > 0) {
+        setSelectedIds([])
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [layers, hidden, liveSelected, commit, undo, redo, toast])
 
   // The design's identity, handed to the Manufacturing Export System.
   const exportInput: ProjectInput = useMemo(
@@ -645,53 +749,15 @@ export function DesignStudio() {
             )}
           </div>
 
-          {/* Layers */}
-          <div className="ds-layers">
-            <div className="ds-panel-head ds-panel-head--tight">
-              <h2>Layers</h2>
-              <button
-                className="ds-mini"
-                type="button"
-                aria-label="Add layer"
-                title="Add a new layer"
-                onClick={addLayer}
-              >
-                <IcoPlus width="15" height="15" />
-              </button>
-            </div>
-            <div className="ds-layer-list">
-              {layers.map((l) => (
-                <div className="ds-layer" key={l.id}>
-                  <span className="ds-layer__thumb" />
-                  <span className="ds-layer__text">
-                    <b>{l.name}</b>
-                    <small>{l.type}</small>
-                  </span>
-                  <button
-                    className={`ds-layer__eye${hidden[l.id] ? ' is-off' : ''}`}
-                    type="button"
-                    aria-label={hidden[l.id] ? 'Show layer' : 'Hide layer'}
-                    title={hidden[l.id] ? 'Show layer' : 'Hide layer'}
-                    onClick={() => toggleLayer(l)}
-                  >
-                    <IcoEye width="15" height="15" />
-                  </button>
-                  <button
-                    className="ds-layer__more"
-                    type="button"
-                    aria-label="Remove layer"
-                    title="Remove layer"
-                    onClick={() => removeLayer(l)}
-                  >
-                    <IcoDots width="14" height="14" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button className="ds-add-layer" type="button" onClick={addLayer}>
-              <IcoPlus width="15" height="15" /> Add Layer
-            </button>
-          </div>
+          {/* Layers — Figma-grade: multi-select, rename, lock, groups, reorder */}
+          <LayersPanel
+            layers={layers}
+            hidden={hidden}
+            selectedIds={liveSelected}
+            onCommit={commitLayers}
+            onSelect={setSelectedIds}
+            onAddLayer={addLayer}
+          />
             </>
           )}
         </aside>
@@ -718,6 +784,21 @@ export function DesignStudio() {
 
         {/* Properties */}
         <aside className="ds-right">
+          {activeLayer ? (
+            /* Smart context panel — only controls for the selected object */
+            <div className="ds-right__scroll">
+              <ContextPanel
+                layer={activeLayer}
+                fields={activeFields}
+                memberCount={
+                  activeLayer.type === 'Group' ? layers.filter((l) => l.groupId === activeLayer.id).length : undefined
+                }
+                onEdit={editContextField}
+                onBack={() => setSelectedIds([])}
+              />
+            </div>
+          ) : (
+            <>
           <div className="ds-proptabs">
             {(['Properties', 'Materials', 'Colors'] as const).map((t) => (
               <button
@@ -838,6 +919,8 @@ export function DesignStudio() {
               onDismiss={dismissSuggestion}
             />
           </div>
+            </>
+          )}
         </aside>
       </div>
     </div>

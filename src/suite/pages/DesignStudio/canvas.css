@@ -1,0 +1,124 @@
+/*
+ * DesignStudio canvas — viewport interaction layer (zoom / pan / safe print area).
+ * All new classes are prefixed cv-. Colors, radii, shadows and motion come from
+ * the --s-* suite tokens; existing ds-* styles remain untouched.
+ */
+
+/* ---- Viewport interaction ---- */
+.cv-viewport {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cv-viewport--pan {
+  cursor: grab;
+}
+.cv-viewport--panning,
+.cv-viewport--panning * {
+  cursor: grabbing;
+}
+
+/* ---- World container: a single transform carries pan + zoom ---- */
+.cv-world {
+  display: grid;
+  place-items: center;
+  transition: transform var(--s-dur) var(--s-ease);
+}
+.cv-world.is-interacting {
+  transition: none;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-world {
+    transition: none;
+  }
+}
+
+/* ---- Zoom chip ---- */
+.cv-zoom-chip {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  height: 26px;
+  padding: 0 11px;
+  border-radius: var(--s-r-pill);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--s-text-2);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line-2);
+  box-shadow: var(--s-shadow-sm);
+  cursor: pointer;
+  transition:
+    color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease);
+}
+.cv-zoom-chip:hover {
+  color: var(--s-text);
+  background: var(--s-hover);
+  border-color: var(--s-line-strong);
+}
+
+/* ---- Safe-area toolbar toggle (extends the ds- toolbar button styling) ---- */
+.ds-canvas-toolbar .cv-safe-toggle.is-active,
+.ds-canvas-toolbar .cv-safe-toggle.is-active:hover {
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+}
+
+/* ---- Safe print area overlay (inside the transformed world, over the chest) ---- */
+.cv-safe {
+  position: absolute;
+  left: 50%;
+  top: 116px;
+  width: 150px;
+  height: 132px;
+  transform: translateX(-50%);
+  border: 1px dashed var(--s-accent);
+  border-radius: var(--s-r-sm);
+  opacity: 0.75;
+  pointer-events: none;
+}
+.cv-safe__label {
+  position: absolute;
+  top: -15px;
+  left: 1px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--s-accent);
+  white-space: nowrap;
+}
+.cv-safe__embroidery {
+  position: absolute;
+  top: 9px;
+  left: 9px;
+  width: 46px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border: 1px dotted var(--s-text-3);
+  border-radius: calc(var(--s-r-sm) / 2);
+}
+.cv-safe__embroidery span {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--s-text-3);
+  white-space: nowrap;
+}
+
+/* ---- Smart-guide centre line through the garment ---- */
+.cv-centerline {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  bottom: 4%;
+  width: 1px;
+  background: var(--s-accent);
+  opacity: 0.18;
+  pointer-events: none;
+}

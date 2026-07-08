@@ -1,18 +1,37 @@
 import { useEffect, useRef, useState } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify, svgElementToPngBlob } from '../../lib/download'
 import { downloadTechPackPdf } from '../../lib/exporters'
+import './canvas.css'
 
 const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
 const VIEWS = ['Front', 'Angle', 'Side', 'Hood']
 const FLATS = ['Front', 'Back', 'Side', 'Details']
 const CANVAS_TOOLS = ['orbit', 'zoom', 'fit', 'grid', 'measure', 'light']
 
-const ZOOM_STEP = 0.15
-const ZOOM_MIN = 0.5
-const ZOOM_MAX = 2.5
+const ZOOM_MIN = 0.4
+const ZOOM_MAX = 3
+/** Multiplicative step used by the toolbar zoom in/out buttons. */
+const ZOOM_BTN_STEP = 1.2
+/** Exponential sensitivity for wheel zooming. */
+const ZOOM_WHEEL_SENSITIVITY = 0.0015
+/** How long after the last wheel tick the world keeps its no-transition state. */
+const INTERACT_SETTLE_MS = 160
+
+type Pan = { x: number; y: number }
+
+function clampZoom(z: number): number {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z * 10000) / 10000))
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+}
 
 const SIZE_ROWS: [string, string[]][] = [
   ['Chest', ['58', '60', '62', '64', '66']],
@@ -34,17 +53,96 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
   const [tool, setTool] = useState('move')
   const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
   const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(true)
+  const [showSafeArea, setShowSafeArea] = useState(true)
   const [isRendering, setIsRendering] = useState(false)
+  const [spaceHeld, setSpaceHeld] = useState(false)
+  const [isPanning, setIsPanning] = useState(false)
+  // True while actively wheeling — suppresses the world transform transition.
+  const [isInteracting, setIsInteracting] = useState(false)
   // Editable design title, seeded from the active blank and re-synced when it changes.
   const [designName, setDesignName] = useState(garmentName)
 
   // Ref to the wrapper so we can grab the live <svg> and rasterise it to PNG.
   const stageRef = useRef<HTMLDivElement>(null)
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const worldRef = useRef<HTMLDivElement>(null)
+  // Mirrors of zoom/pan so window/wheel listeners never read stale closures.
+  const zoomRef = useRef(1)
+  const panRef = useRef<Pan>({ x: 0, y: 0 })
+  const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
+  const interactTimerRef = useRef<number | null>(null)
+
+  // Single entry point for view changes keeps refs and state in lockstep.
+  function applyView(nextZoom: number, nextPan: Pan) {
+    zoomRef.current = nextZoom
+    panRef.current = nextPan
+    setZoom(nextZoom)
+    setPan(nextPan)
+  }
+
+  function markInteracting() {
+    setIsInteracting(true)
+    if (interactTimerRef.current != null) window.clearTimeout(interactTimerRef.current)
+    interactTimerRef.current = window.setTimeout(() => setIsInteracting(false), INTERACT_SETTLE_MS)
+  }
 
   useEffect(() => {
     setDesignName(garmentName)
   }, [garmentName])
+
+  // Wheel zoom, attached non-passively so the page never scrolls under the canvas.
+  // Zoom-to-cursor: the world point under the pointer stays put via pan compensation.
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    function handleWheel(e: WheelEvent) {
+      e.preventDefault()
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      // Cursor offset from the viewport centre — the world's untransformed origin.
+      const mx = e.clientX - (rect.left + rect.width / 2)
+      const my = e.clientY - (rect.top + rect.height / 2)
+      const current = zoomRef.current
+      const next = clampZoom(current * Math.exp(-e.deltaY * ZOOM_WHEEL_SENSITIVITY))
+      if (next !== current) {
+        const ratio = next / current
+        const p = panRef.current
+        applyView(next, { x: mx - (mx - p.x) * ratio, y: my - (my - p.y) * ratio })
+      }
+      markInteracting()
+    }
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+    // applyView/markInteracting only touch refs and stable state setters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Space-to-pan, ignored while typing in form fields.
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.code !== 'Space' || isTypingTarget(e.target)) return
+      e.preventDefault()
+      setSpaceHeld(true)
+    }
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.code === 'Space') setSpaceHeld(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [])
+
+  // Reap the interaction-settle timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (interactTimerRef.current != null) window.clearTimeout(interactTimerRef.current)
+    }
+  }, [])
 
   const Glyph = GARMENT_GLYPHS[garmentKind]
 
@@ -79,11 +177,11 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
   function handleCanvasTool(t: string) {
     switch (t) {
       case 'zoom':
-        setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))
+        applyView(clampZoom(zoomRef.current * ZOOM_BTN_STEP), panRef.current)
         toast('Zoomed in.')
         break
       case 'fit':
-        setZoom(1)
+        applyView(1, { x: 0, y: 0 })
         toast('Fit to view.')
         break
       case 'grid':
@@ -91,13 +189,66 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
         toast(showGrid ? 'Grid hidden.' : 'Grid shown.')
         break
       case 'orbit':
-        setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))
+        applyView(clampZoom(zoomRef.current / ZOOM_BTN_STEP), panRef.current)
         toast('Zoomed out.')
         break
       default:
         setTool(t)
         toast(`${t.charAt(0).toUpperCase() + t.slice(1)} tool`)
     }
+  }
+
+  function toggleSafeArea() {
+    setShowSafeArea((s) => !s)
+    toast(showSafeArea ? 'Safe area hidden.' : 'Safe area shown.')
+  }
+
+  // Snap back to 100% while keeping the viewport-centre point stable.
+  function resetZoom() {
+    const z = zoomRef.current
+    if (z === 1) return
+    const p = panRef.current
+    applyView(1, { x: p.x / z, y: p.y / z })
+    toast('Zoom reset to 100%.')
+  }
+
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    const panIntent = e.button === 1 || (e.button === 0 && (tool === 'pan' || spaceHeld))
+    if (!panIntent) return
+    e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      originX: panRef.current.x,
+      originY: panRef.current.y,
+    }
+    setIsPanning(true)
+  }
+
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current
+    if (!drag || e.pointerId !== drag.pointerId) return
+    applyView(zoomRef.current, {
+      x: drag.originX + (e.clientX - drag.startX),
+      y: drag.originY + (e.clientY - drag.startY),
+    })
+  }
+
+  function endPan(e: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current
+    if (!drag || e.pointerId !== drag.pointerId) return
+    dragRef.current = null
+    setIsPanning(false)
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  // Double-clicking empty canvas (not the garment) fits the view.
+  function handleDoubleClick(e: ReactMouseEvent<HTMLDivElement>) {
+    if (worldRef.current && worldRef.current.contains(e.target as Node)) return
+    applyView(1, { x: 0, y: 0 })
+    toast('Fit to view.')
   }
 
   function openFlat(flat: string) {
@@ -150,12 +301,46 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
           ))}
         </div>
 
-        <div className="ds-viewport">
+        <div
+          ref={viewportRef}
+          className={`ds-viewport cv-viewport${tool === 'pan' || spaceHeld ? ' cv-viewport--pan' : ''}${isPanning ? ' cv-viewport--panning' : ''}`}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPan}
+          onPointerCancel={endPan}
+          onDoubleClick={handleDoubleClick}
+        >
           {showGrid && <div className="ds-viewport__grid" aria-hidden="true" />}
-          <div className="ds-garment-3d" ref={stageRef} style={{ transform: `scale(${zoom})` }}>
-            <Glyph width="340" height="340" />
-            <span className="ds-print">VISIONARY</span>
+          <div
+            ref={worldRef}
+            className={`cv-world${isInteracting || isPanning ? ' is-interacting' : ''}`}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            <div className="ds-garment-3d" ref={stageRef}>
+              <Glyph width="340" height="340" />
+              <span className="ds-print">VISIONARY</span>
+              {showSafeArea && (
+                <>
+                  <div className="cv-centerline" aria-hidden="true" />
+                  <div className="cv-safe" aria-hidden="true">
+                    <span className="cv-safe__label">SAFE PRINT AREA</span>
+                    <div className="cv-safe__embroidery">
+                      <span>EMBROIDERY</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
+          <button
+            type="button"
+            className="cv-zoom-chip"
+            title="Reset zoom to 100%"
+            aria-label={`Zoom ${Math.round(zoom * 100)} percent — click to reset to 100%`}
+            onClick={resetZoom}
+          >
+            {Math.round(zoom * 100)}%
+          </button>
         </div>
 
         <div className="ds-views">
@@ -189,6 +374,27 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
                 <ToolGlyph i={i} small />
               </button>
             ))}
+            <button
+              type="button"
+              className={`cv-safe-toggle${showSafeArea ? ' is-active' : ''}`}
+              aria-label="Safe area"
+              aria-pressed={showSafeArea}
+              title="Safe area"
+              onClick={toggleSafeArea}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="4.5" y="4.5" width="15" height="15" rx="3" strokeDasharray="3 3" />
+              </svg>
+            </button>
           </div>
           <button
             className="ds-render"

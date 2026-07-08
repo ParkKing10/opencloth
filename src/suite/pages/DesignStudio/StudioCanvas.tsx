@@ -44,9 +44,11 @@ type Props = {
   garmentName: string
   garmentKind: GarmentKind
   garmentFit: string
+  /** Show the gentle "what next" hints (when nothing is selected). */
+  showHints?: boolean
 }
 
-export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
+export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }: Props) {
   const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
   const [view, setView] = useState('Front')
@@ -341,6 +343,15 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
           >
             {Math.round(zoom * 100)}%
           </button>
+          {showHints && (
+            <div className="cv-hints" aria-hidden="true">
+              <span>Select a layer to edit it</span>
+              <i>or</i>
+              <span>Ask THREADOS AI above</span>
+              <i>or</i>
+              <span>Drag an asset from the Library</span>
+            </div>
+          )}
         </div>
 
         <div className="ds-views">

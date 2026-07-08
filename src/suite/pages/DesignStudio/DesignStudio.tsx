@@ -1,17 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  IcoDesign,
-  IcoPattern,
-  IcoTechPack,
-  IcoFactory,
-  IcoSearch,
-  IcoDots,
-  IcoSparkle,
-  IcoChevron,
-  IcoUpload,
-  IcoArrowRight,
-} from '../../components/ui/Icons'
+import { IcoDesign, IcoSearch, IcoDots, IcoUpload, IcoArrowRight } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import type { ProjectInput } from '../../export/project'
@@ -32,11 +21,17 @@ import { CommandBar, type StudioMode } from './CommandBar'
 import { AICompanion } from './AICompanion'
 import { LayersPanel, type Layer } from './LayersPanel'
 import { ContextPanel, defaultFieldsFor, type ContextField } from './ContextPanel'
+import { GarmentInspector, type PropField } from './GarmentInspector'
+import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
+import { GraphicsPanel } from './GraphicsPanel'
+import { MaterialsPanel } from './MaterialsPanel'
 import {
   INITIAL_CONFIG,
   buildSuggestions,
   deriveReadiness,
   interpretCommand,
+  objectNote,
+  type ObjectNote,
   type Proposal,
   type StudioAction,
   type StudioConfig,
@@ -49,10 +44,8 @@ import './design-studio.css'
 // so the manufacturing-export weight never lands in the initial bundle.
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
-const RAIL = ['Catalog', 'Drive', 'Brand Kit', 'Templates', 'Graphics', 'Fabrics', 'Colors', 'Trims', 'Text', 'AI Tools']
-
-/** Rail items that open a real panel (everything else is on the roadmap). */
-const RAIL_PANELS = new Set(['Catalog', 'Drive', 'Brand Kit'])
+/** The Library — five human categories, every one opens a real panel. */
+const RAIL = ['Garments', 'Graphics', 'Materials', 'Brand', 'Assets']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -99,8 +92,6 @@ const INITIAL_LAYERS: Layer[] = [
 const INITIAL_SNAPSHOT: Snapshot = { layers: INITIAL_LAYERS, hidden: {} }
 
 /** Editable property fields, keyed by a stable id so edits target the right row. */
-type PropField = { id: string; label: string; value: string; swatch?: boolean }
-
 const INITIAL_FIELDS: Record<string, PropField[]> = {
   details: [
     { id: 'd-size', label: 'Size', value: 'M' },
@@ -142,11 +133,19 @@ const INITIAL_FIELDS: Record<string, PropField[]> = {
 export function DesignStudio() {
   const navigate = useNavigate()
   const toast = useToast()
-  const [rail, setRail] = useState('Catalog')
+  const [rail, setRail] = useState('Garments')
+
+  // New-design wizard: guide the first steps instead of an empty editor.
+  const [wizardOpen, setWizardOpen] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('threados-studio-configured') !== '1'
+    } catch {
+      return true
+    }
+  })
   const [cat, setCat] = useState<Cat>('All')
   const [query, setQuery] = useState('')
   const [activeName, setActiveName] = useState('Hoodie')
-  const [propTab, setPropTab] = useState<'Properties' | 'Materials' | 'Colors'>('Properties')
 
   // Undo/redo history: `past` and `future` are real snapshot stacks, `present` is live.
   const [past, setPast] = useState<Snapshot[]>([])
@@ -229,7 +228,6 @@ export function DesignStudio() {
 
   function selectRail(name: string) {
     setRail(name)
-    if (!RAIL_PANELS.has(name)) toast(`${name} panel — coming to your workspace soon.`, 'info')
   }
 
   /** Drop a Drive asset onto the design: becomes a real, undoable layer. */
@@ -287,23 +285,47 @@ export function DesignStudio() {
     [activeLayer, layerFields],
   )
 
-  const editContextField = useCallback(
-    (field: ContextField) => {
+  /** Set a property of the selected object (picker-driven — no dialogs). */
+  const setContextField = useCallback(
+    (fieldId: string, value: string) => {
       if (!activeLayer || activeLayer.locked) return
-      const next = window.prompt(`Edit ${field.label}`, field.value)
-      if (next == null) return
-      const trimmed = next.trim()
-      if (!trimmed || trimmed === field.value) return
       setLayerFields((prev) => ({
         ...prev,
         [activeLayer.id]: (prev[activeLayer.id] ?? defaultFieldsFor(activeLayer)).map((f) =>
-          f.id === field.id ? { ...f, value: trimmed } : f,
+          f.id === fieldId ? { ...f, value } : f,
         ),
       }))
-      if (field.id === 'cx-technique') rememberChoice('technique', trimmed)
-      toast(`${field.label} set to ${trimmed}.`, 'success')
+      if (fieldId === 'cx-technique') rememberChoice('technique', value)
     },
-    [activeLayer, rememberChoice, toast],
+    [activeLayer, rememberChoice],
+  )
+
+  // The AI reads the selected object and gives one precise, applyable note.
+  const garmentWeight = fields.details.find((f) => f.id === 'd-weight')?.value ?? ''
+  const activeNote = useMemo<ObjectNote | null>(
+    () => (activeLayer && !activeLayer.locked ? objectNote(activeLayer.type, activeLayer.name, activeFields, garmentWeight) : null),
+    [activeLayer, activeFields, garmentWeight],
+  )
+
+  const applyObjectNote = useCallback(
+    (note: ObjectNote) => {
+      if (note.fieldChanges.length > 0) {
+        note.fieldChanges.forEach(([id, value]) => setContextField(id, value))
+      } else {
+        // garment-level recommendation (e.g. "switch to 450 GSM") — keep fabric + weight consistent
+        setFields((prev) => ({
+          ...prev,
+          details: prev.details.map((f) => {
+            if (f.id === 'd-weight') return { ...f, value: '450 GSM' }
+            if (f.id === 'd-fabric') return { ...f, value: 'Heavy French Terry 450 GSM' }
+            return f
+          }),
+        }))
+        rememberChoice('weight', '450 GSM')
+      }
+      toast('Applied — the spec is updated.', 'accent')
+    },
+    [setContextField, rememberChoice, toast],
   )
 
   const commitLayers = useCallback(
@@ -527,27 +549,66 @@ export function DesignStudio() {
     [applyAction, toast],
   )
 
-  function changeGarment() {
-    const idx = GARMENTS.findIndex((g) => g.name === activeGarment.name)
-    const next = GARMENTS[(idx + 1) % GARMENTS.length]
-    setRail('Catalog')
-    setActiveName(next.name)
-    toast(`Switched to ${next.name}.`, 'success')
-  }
+  /** Set a garment property (picker-driven — no dialogs anywhere). */
+  const setField = useCallback(
+    (group: string, fieldId: string, value: string) => {
+      setFields((prev) => ({
+        ...prev,
+        [group]: (prev[group] ?? []).map((f) => (f.id === fieldId ? { ...f, value } : f)),
+      }))
+      const dim = MEMORY_DIMS[fieldId]
+      if (dim) rememberChoice(dim, value)
+    },
+    [MEMORY_DIMS, rememberChoice],
+  )
 
-  function editField(group: string, field: PropField) {
-    const next = window.prompt(`Edit ${field.label}`, field.value)
-    if (next == null) return
-    const trimmed = next.trim()
-    if (!trimmed || trimmed === field.value) return
-    setFields((prev) => ({
-      ...prev,
-      [group]: prev[group].map((f) => (f.id === field.id ? { ...f, value: trimmed } : f)),
-    }))
-    const dim = MEMORY_DIMS[field.id]
-    if (dim) rememberChoice(dim, trimmed)
-    toast(`${field.label} set to ${trimmed}.`, 'success')
-  }
+  /** Switch the garment blank by name (from the object-first "Garment" picker). */
+  const selectGarmentByName = useCallback(
+    (name: string) => {
+      const g = GARMENTS.find((x) => x.name === name)
+      if (!g) return
+      setActiveName(g.name)
+      toast(`Switched to ${g.name}.`, 'success')
+    },
+    [toast],
+  )
+
+  /** The wizard hands over a configured design — no empty editor, ever. */
+  const completeWizard = useCallback(
+    (r: WizardResult) => {
+      setActiveName(GARMENTS.some((g) => g.name === r.garmentName) ? r.garmentName : 'Hoodie')
+      setFields((prev) => ({
+        ...prev,
+        details: prev.details.map((f) => {
+          if (f.id === 'd-fit') return { ...f, value: r.fit }
+          if (f.id === 'd-fabric') return { ...f, value: r.fabric }
+          if (f.id === 'd-weight') return { ...f, value: r.weight }
+          if (f.id === 'd-color') return { ...f, value: r.colorHex }
+          return f
+        }),
+      }))
+      rememberChoice('fit', r.fit)
+      rememberChoice('weight', r.weight)
+      rememberChoice('color', r.colorName)
+      try {
+        sessionStorage.setItem('threados-studio-configured', '1')
+      } catch {
+        /* ignore */
+      }
+      setWizardOpen(false)
+      toast(`Your ${r.garmentName.toLowerCase()} is ready — ${r.colorName}, ${r.fit.toLowerCase()}, ${r.weight}.`, 'accent')
+    },
+    [rememberChoice, toast],
+  )
+
+  const skipWizard = useCallback(() => {
+    try {
+      sessionStorage.setItem('threados-studio-configured', '1')
+    } catch {
+      /* ignore */
+    }
+    setWizardOpen(false)
+  }, [])
 
   /** Apply the Brand Kit defaults to this design (fabric, fit, weight). */
   const applyBrandKit = useCallback(
@@ -589,20 +650,28 @@ export function DesignStudio() {
           </button>
         </div>
 
-        <div className="ds-top__tabs">
-          <button className="ds-tab is-active" type="button">
-            <IcoDesign width="15" height="15" /> Design
-          </button>
-          <button className="ds-tab" type="button" onClick={() => navigate('/suite/pattern')}>
-            <IcoPattern width="15" height="15" /> Pattern
-          </button>
-          <button className="ds-tab" type="button" onClick={() => navigate('/suite/tech-packs')}>
-            <IcoTechPack width="15" height="15" /> Tech Pack
-          </button>
-          <button className="ds-tab" type="button" onClick={() => navigate('/suite/manufacturers')}>
-            <IcoFactory width="15" height="15" /> Manufacturer
-          </button>
-        </div>
+        {/* Journey progress — the user always knows where they are */}
+        <button
+          className="ds-progress"
+          type="button"
+          title={readiness.missing.length > 0 ? `Next: ${readiness.missing[0].label}` : 'Ready for production'}
+          onClick={() => readiness.missing.length > 0 && fixCheck(readiness.missing[0].id)}
+        >
+          <span className="ds-progress__label">Design</span>
+          <span className="ds-progress__track">
+            <span className="ds-progress__fill" style={{ width: `${readiness.score}%` }} />
+          </span>
+          <span className="ds-progress__pct">{readiness.score}%</span>
+          <span className="ds-progress__next">
+            {readiness.missing.length > 0 ? (
+              <>
+                Next · <b>{readiness.missing[0].label}</b>
+              </>
+            ) : (
+              <b className="is-done">Ready ✓</b>
+            )}
+          </span>
+        </button>
 
         <div className="ds-top__right">
           <button
@@ -626,6 +695,9 @@ export function DesignStudio() {
             <IcoArrowRight width="17" height="17" />
           </button>
           <span className="ds-sep" />
+          <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
+            New
+          </button>
           <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
             <IcoUpload width="16" height="16" /> Share
           </button>
@@ -653,8 +725,9 @@ export function DesignStudio() {
 
       {/* ---- Body ---- */}
       <div className="ds-body">
-        {/* Icon rail */}
-        <nav className="ds-rail" aria-label="Tools">
+        {/* Library rail — five human categories, all real */}
+        <nav className="ds-rail" aria-label="Library">
+          <span className="ds-rail__eyebrow">Library</span>
           {RAIL.map((r) => (
             <button
               key={r}
@@ -668,11 +741,26 @@ export function DesignStudio() {
           ))}
         </nav>
 
-        {/* Left panel: Catalog (default), THREADOS Drive, or Brand Kit */}
+        {/* Left panel — the Library category currently open */}
         <aside className="ds-left">
-          {rail === 'Drive' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
-          {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
-          {rail !== 'Drive' && rail !== 'Brand Kit' && (
+          {rail === 'Assets' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
+          {rail === 'Brand' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
+          {rail === 'Graphics' && (
+            <GraphicsPanel
+              onAdd={(name) => addAssetLayer({ name, folder: 'Graphics' })}
+            />
+          )}
+          {rail === 'Materials' && (
+            <MaterialsPanel
+              onApply={(m) => {
+                setField('details', 'd-fabric', m.fabric)
+                setField('details', 'd-weight', m.weight)
+                setField('detailsAdvanced', 'da-composition', m.composition)
+                toast(`${m.fabric} applied — specs updated everywhere.`, 'success')
+              }}
+            />
+          )}
+          {rail === 'Garments' && (
             <>
           <div className="ds-left__scroll">
             <div className="ds-panel-head">
@@ -762,30 +850,37 @@ export function DesignStudio() {
           )}
         </aside>
 
-        {/* Canvas — also a drop target for Drive assets */}
+        {/* Canvas — also a drop target for Drive assets and starter graphics */}
         <div
           style={{ display: 'contents' }}
           onDragOver={(e) => {
-            if (e.dataTransfer.types.includes('application/x-threados-asset')) e.preventDefault()
+            const t = e.dataTransfer.types
+            if (t.includes('application/x-threados-asset') || t.includes('application/x-threados-graphic')) e.preventDefault()
           }}
           onDrop={(e) => {
-            const raw = e.dataTransfer.getData('application/x-threados-asset')
-            if (!raw) return
+            const asset = e.dataTransfer.getData('application/x-threados-asset')
+            const graphic = e.dataTransfer.getData('application/x-threados-graphic')
+            if (!asset && !graphic) return
             e.preventDefault()
             try {
-              addAssetLayer(JSON.parse(raw) as { name: string; folder: string })
+              if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string })
+              else addAssetLayer({ name: graphic, folder: 'Graphics' })
             } catch {
               /* malformed payload — ignore */
             }
           }}
         >
-          <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} garmentFit={activeGarment.fit} />
+          <StudioCanvas
+            garmentName={activeGarment.name}
+            garmentKind={activeGarment.kind}
+            garmentFit={activeGarment.fit}
+            showHints={liveSelected.length === 0}
+          />
         </div>
 
-        {/* Properties */}
+        {/* Inspector — the selected object, or the garment itself */}
         <aside className="ds-right">
           {activeLayer ? (
-            /* Smart context panel — only controls for the selected object */
             <div className="ds-right__scroll">
               <ContextPanel
                 layer={activeLayer}
@@ -793,180 +888,67 @@ export function DesignStudio() {
                 memberCount={
                   activeLayer.type === 'Group' ? layers.filter((l) => l.groupId === activeLayer.id).length : undefined
                 }
-                onEdit={editContextField}
+                aiNote={activeNote}
+                onFieldChange={setContextField}
+                onApplyNote={applyObjectNote}
                 onBack={() => setSelectedIds([])}
               />
             </div>
           ) : (
-            <>
-          <div className="ds-proptabs">
-            {(['Properties', 'Materials', 'Colors'] as const).map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`ds-proptab${propTab === t ? ' is-active' : ''}`}
-                onClick={() => setPropTab(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-
-          <div className="ds-right__scroll">
-            {propTab === 'Properties' && (
-              <>
-                <section className="ds-group">
-                  <div className="ds-group__head">
-                    <span>Item</span>
-                  </div>
-                  <div className="ds-item">
-                    <span className="ds-item__thumb">
-                      <ActiveGlyph kind={activeGarment.kind} />
-                    </span>
-                    <span className="ds-item__text">
-                      <b>{activeGarment.name}</b>
-                      <small>{activeGarment.fit}</small>
-                    </span>
-                    <button
-                      className="ds-change"
-                      type="button"
-                      title="Switch to the next blank in the catalog"
-                      onClick={changeGarment}
-                    >
-                      Change
-                    </button>
-                  </div>
-                </section>
-
-                <Accordion title="Appearance" open>
-                  {fields.details.map((f) => (
-                    <Field key={f.id} field={f} onEdit={() => editField('details', f)} />
-                  ))}
-                  <Advanced open={mode === 'pro'}>
-                    {fields.detailsAdvanced.map((f) => (
-                      <Field key={f.id} field={f} onEdit={() => editField('detailsAdvanced', f)} />
-                    ))}
-                  </Advanced>
-                </Accordion>
-
-                <Accordion title="Design" open>
-                  {fields.design.map((f) => (
-                    <Field key={f.id} field={f} onEdit={() => editField('design', f)} />
-                  ))}
-                </Accordion>
-
-                <Accordion title="Brand" open={mode === 'pro'}>
-                  <ConfigToggle
-                    label="Neck Label Artwork"
-                    on={config.neckLabel}
-                    onToggle={(v) => setConfig((c) => ({ ...c, neckLabel: v }))}
-                  />
-                  <ConfigToggle
-                    label="Care Label"
-                    on={config.careLabel}
-                    onToggle={(v) => setConfig((c) => ({ ...c, careLabel: v }))}
-                  />
-                </Accordion>
-
-                <Accordion title="Construction" open={mode === 'pro'}>
-                  <ConfigToggle
-                    label="Construction confirmed"
-                    on={config.construction}
-                    onToggle={(v) => setConfig((c) => ({ ...c, construction: v }))}
-                  />
-                </Accordion>
-
-                <Accordion title="Manufacturing" open={mode === 'pro'}>
-                  <ConfigToggle
-                    label="Tolerance Table"
-                    on={config.tolerance}
-                    onToggle={(v) => setConfig((c) => ({ ...c, tolerance: v }))}
-                  />
-                  <ConfigToggle
-                    label="Production Notes"
-                    on={config.productionNotes}
-                    onToggle={(v) => setConfig((c) => ({ ...c, productionNotes: v }))}
-                  />
-                  <ConfigToggle
-                    label="Packaging"
-                    on={config.packaging}
-                    onToggle={(v) => setConfig((c) => ({ ...c, packaging: v }))}
-                  />
-                </Accordion>
-              </>
-            )}
-
-            {propTab === 'Materials' && (
-              <Accordion title="Materials" open>
-                {fields.materials.map((f) => (
-                  <Field key={f.id} field={f} onEdit={() => editField('materials', f)} />
-                ))}
-              </Accordion>
-            )}
-
-            {propTab === 'Colors' && (
-              <Accordion title="Palette" open>
-                {fields.colors.map((f) => (
-                  <Field key={f.id} field={f} onEdit={() => editField('colors', f)} />
-                ))}
-              </Accordion>
-            )}
-
-            <AICompanion
-              suggestions={allSuggestions}
-              appliedNotes={appliedNotes}
-              onApply={applySuggestion}
-              onDismiss={dismissSuggestion}
-            />
-          </div>
-            </>
+            <GarmentInspector
+              mode={mode}
+              garment={{ name: activeGarment.name, kind: activeGarment.kind, fit: activeGarment.fit }}
+              fields={fields}
+              config={config}
+              onField={setField}
+              onGarment={selectGarmentByName}
+              onConfig={(key, value) => setConfig((c) => ({ ...c, [key]: value }))}
+            >
+              <AICompanion
+                suggestions={allSuggestions}
+                appliedNotes={appliedNotes}
+                onApply={applySuggestion}
+                onDismiss={dismissSuggestion}
+              />
+            </GarmentInspector>
           )}
         </aside>
       </div>
+
+      {/* New-design wizard — nobody ever starts on an empty editor */}
+      <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
     </div>
   )
-}
-
-function ActiveGlyph({ kind }: { kind: GarmentKind }) {
-  const Glyph = GARMENT_GLYPHS[kind]
-  return <Glyph width="26" height="26" />
 }
 
 function RailIcon({ name }: { name: string }) {
   const common = { width: 20, height: 20 }
   switch (name) {
-    case 'Graphics':
-      return <IcoDesign {...common} />
-    case 'AI Tools':
-      return <IcoSparkle {...common} />
-    case 'Drive':
+    case 'Garments':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-          <path d="M3.5 8.5V6.8c0-1 .8-1.8 1.8-1.8h4l2 2.4h7.4c1 0 1.8.8 1.8 1.8v8c0 1-.8 1.8-1.8 1.8H5.3c-1 0-1.8-.8-1.8-1.8V8.5Z" />
+          <path d="M9 4.5 5 7l1.6 3.2 1.6-.9v9.2h7.6v-9.2l1.6.9L19 7l-4-2.5a3 3 0 0 1-6 0Z" />
         </svg>
       )
-    case 'Brand Kit':
+    case 'Graphics':
+      return <IcoDesign {...common} />
+    case 'Materials':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <path d="M4 7c2.7-2 5.3-2 8 0s5.3 2 8 0M4 12c2.7-2 5.3-2 8 0s5.3 2 8 0M4 17c2.7-2 5.3-2 8 0s5.3 2 8 0" />
+        </svg>
+      )
+    case 'Brand':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
           <path d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5Z" />
           <circle cx="12" cy="12" r="2.6" />
         </svg>
       )
-    case 'Uploads':
-      return <IcoUpload {...common} />
-    case 'Text':
+    case 'Assets':
       return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M6 6h12M12 6v12M9 18h6" />
-        </svg>
-      )
-    case 'Colors':
-      return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <circle cx="12" cy="12" r="8.5" />
-          <circle cx="9" cy="9.5" r="1.2" fill="currentColor" stroke="none" />
-          <circle cx="15" cy="9.5" r="1.2" fill="currentColor" stroke="none" />
-          <circle cx="10" cy="14.5" r="1.2" fill="currentColor" stroke="none" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+          <path d="M3.5 8.5V6.8c0-1 .8-1.8 1.8-1.8h4l2 2.4h7.4c1 0 1.8.8 1.8 1.8v8c0 1-.8 1.8-1.8 1.8H5.3c-1 0-1.8-.8-1.8-1.8V8.5Z" />
         </svg>
       )
     default:
@@ -976,71 +958,4 @@ function RailIcon({ name }: { name: string }) {
         </svg>
       )
   }
-}
-
-function Field({ field, onEdit }: { field: PropField; onEdit: () => void }) {
-  return (
-    <div className="ds-field">
-      <span className="ds-field__label">{field.label}</span>
-      <button className="ds-field__value" type="button" onClick={onEdit} title={`Edit ${field.label}`}>
-        {field.swatch && <span className="ds-field__swatch" style={{ background: field.value }} />}
-        <span>{field.value}</span>
-        <IcoChevron width="14" height="14" />
-      </button>
-    </div>
-  )
-}
-
-function Accordion({ title, open, children }: { title: string; open?: boolean; children?: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(!!open)
-  // Re-sync when the mode toggle flips the `open` prop.
-  useEffect(() => setIsOpen(!!open), [open])
-  return (
-    <section className="ds-group">
-      <button className="ds-group__head ds-group__head--btn" type="button" onClick={() => setIsOpen((o) => !o)}>
-        <span>{title}</span>
-        <IcoChevron width="15" height="15" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)' }} />
-      </button>
-      {isOpen && children && <div className="ds-fields">{children}</div>}
-    </section>
-  )
-}
-
-/** Progressive disclosure: a "▸ Advanced" reveal for professional controls. */
-function Advanced({ open, children }: { open?: boolean; children: React.ReactNode }) {
-  const [isOpen, setIsOpen] = useState(!!open)
-  useEffect(() => setIsOpen(!!open), [open])
-  return (
-    <div className="ds-adv">
-      <button
-        type="button"
-        className={`ds-adv__toggle${isOpen ? ' is-open' : ''}`}
-        onClick={() => setIsOpen((o) => !o)}
-        aria-expanded={isOpen}
-      >
-        <IcoChevron width="13" height="13" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)' }} />
-        Advanced
-      </button>
-      {isOpen && <div className="ds-adv__body">{children}</div>}
-    </div>
-  )
-}
-
-/** A labelled on/off switch that drives a manufacturing-config flag. */
-function ConfigToggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: (v: boolean) => void }) {
-  return (
-    <div className="ds-toggle">
-      <span className="ds-toggle__label">{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        className={`ds-switch${on ? ' is-on' : ''}`}
-        onClick={() => onToggle(!on)}
-      >
-        <span className="ds-switch__knob" />
-      </button>
-    </div>
-  )
 }

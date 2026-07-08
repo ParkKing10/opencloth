@@ -1,0 +1,200 @@
+/* THREADOS Design Studio — library panels (Graphics + Materials). Scoped to .suite tokens, lib- prefix. */
+
+.lib-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ---------- Header ---------- */
+.lib-head {
+  padding: 16px 14px 12px;
+  flex-shrink: 0;
+}
+.lib-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--s-text);
+}
+.lib-head__hint {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--s-text-3);
+}
+
+/* ---------- Scroll area ---------- */
+.lib-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 14px 14px;
+}
+
+/* ---------- Graphics grid ---------- */
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lib-gcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 13px 8px 11px;
+  border-radius: var(--s-r);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: grab;
+  transition: border-color var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease),
+    box-shadow var(--s-dur) var(--s-ease);
+}
+.lib-gcard:hover {
+  border-color: var(--s-line-2);
+  transform: translateY(-1px);
+  box-shadow: var(--s-shadow-sm);
+}
+.lib-gcard:active {
+  cursor: grabbing;
+  transform: translateY(0) scale(0.97);
+}
+.lib-gcard:focus-visible {
+  outline: 2px solid var(--s-accent-line);
+  outline-offset: 2px;
+}
+
+.lib-gcard__mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--s-text-2);
+  transition: color var(--s-dur) var(--s-ease);
+}
+.lib-gcard:hover .lib-gcard__mark,
+.lib-gcard:focus-visible .lib-gcard__mark {
+  color: var(--s-text);
+}
+
+.lib-gcard__name {
+  font-size: 11.5px;
+  font-weight: 500;
+  max-width: 100%;
+  color: var(--s-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--s-dur) var(--s-ease);
+}
+.lib-gcard:hover .lib-gcard__name {
+  color: var(--s-text);
+}
+
+/* ---------- Materials list ---------- */
+.lib-mats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lib-mat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 11px 12px 10px;
+  text-align: left;
+  border-radius: var(--s-r);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  transition: border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease);
+}
+.lib-mat:hover {
+  border-color: var(--s-line-2);
+  background: var(--s-panel-2);
+}
+.lib-mat:active {
+  transform: scale(0.985);
+}
+.lib-mat:focus-visible {
+  outline: 2px solid var(--s-accent-line);
+  outline-offset: 2px;
+}
+
+.lib-mat__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lib-mat__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--s-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Weight badge — the one place lime is allowed to sit at rest */
+.lib-badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--s-r-pill);
+  font-size: 10px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+}
+
+.lib-mat__pop {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border-radius: var(--s-r-pill);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+}
+
+.lib-mat__comp {
+  font-size: 11.5px;
+  color: var(--s-text-2);
+}
+.lib-mat__note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--s-text-3);
+}
+
+/* ---------- Footer hint ---------- */
+.lib-foot {
+  flex-shrink: 0;
+  padding: 9px 14px 11px;
+  border-top: 1px solid var(--s-line);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--s-text-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lib-gcard,
+  .lib-gcard:hover,
+  .lib-gcard:active,
+  .lib-mat:active {
+    transform: none;
+  }
+}

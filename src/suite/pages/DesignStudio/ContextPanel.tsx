@@ -1,5 +1,7 @@
-import { IcoChevron } from '../../components/ui/Icons'
+import { IcoChevron, IcoSparkle } from '../../components/ui/Icons'
 import type { Layer } from './LayersPanel'
+import { PickerField } from './PickerField'
+import type { ObjectNote } from './studioModel'
 import './context-panel.css'
 
 /** One editable property of the selected object. */
@@ -19,7 +21,7 @@ export function defaultFieldsFor(layer: Layer): ContextField[] {
       ]
     case 'Material':
       return [
-        { id: 'cx-material', label: 'Material', value: 'French Terry' },
+        { id: 'cx-material', label: 'Material', value: 'Heavy French Terry 450 GSM' },
         { id: 'cx-weight', label: 'Weight', value: '450 GSM' },
         { id: 'cx-stretch', label: 'Stretch', value: '2-way' },
         { id: 'cx-texture', label: 'Texture', value: 'Brushed back' },
@@ -60,12 +62,15 @@ type Props = {
   layer: Layer
   fields: ContextField[]
   memberCount?: number
-  onEdit: (field: ContextField) => void
+  /** The AI's note about THIS object (null = nothing to say). */
+  aiNote: ObjectNote | null
+  onFieldChange: (fieldId: string, value: string) => void
+  onApplyNote: (note: ObjectNote) => void
   onBack: () => void
 }
 
 /** Contextual inspector for the selected layer — only relevant controls, nothing else. */
-export function ContextPanel({ layer, fields, memberCount, onEdit, onBack }: Props) {
+export function ContextPanel({ layer, fields, memberCount, aiNote, onFieldChange, onApplyNote, onBack }: Props) {
   return (
     <div className="cx">
       <button className="cx__back" type="button" onClick={onBack}>
@@ -79,6 +84,21 @@ export function ContextPanel({ layer, fields, memberCount, onEdit, onBack }: Pro
         <small className="cx__hint">{TYPE_HINTS[layer.type] ?? 'Layer'}</small>
       </div>
 
+      {aiNote && (
+        <div className="cx__ai">
+          <span className="cx__ai-mark" aria-hidden>
+            <IcoSparkle width="14" height="14" />
+          </span>
+          <div className="cx__ai-body">
+            <span className="cx__ai-eyebrow">THREADOS AI</span>
+            <p>{aiNote.text}</p>
+            <button type="button" className="cx__ai-apply" onClick={() => onApplyNote(aiNote)}>
+              {aiNote.actionLabel}
+            </button>
+          </div>
+        </div>
+      )}
+
       {layer.type === 'Group' ? (
         <p className="cx__group-note">
           {memberCount ?? 0} {memberCount === 1 ? 'layer' : 'layers'} inside. Select a single layer to edit its
@@ -87,14 +107,7 @@ export function ContextPanel({ layer, fields, memberCount, onEdit, onBack }: Pro
       ) : (
         <div className="cx__fields">
           {fields.map((f) => (
-            <div className="ds-field" key={f.id}>
-              <span className="ds-field__label">{f.label}</span>
-              <button className="ds-field__value" type="button" onClick={() => onEdit(f)} title={`Edit ${f.label}`}>
-                {f.swatch && <span className="ds-field__swatch" style={{ background: f.value }} />}
-                <span>{f.value}</span>
-                <IcoChevron width="14" height="14" />
-              </button>
-            </div>
+            <PickerField key={f.id} field={f} onChange={(v) => onFieldChange(f.id, v)} disabled={!!layer.locked} />
           ))}
         </div>
       )}

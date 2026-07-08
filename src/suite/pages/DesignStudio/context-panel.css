@@ -85,6 +85,54 @@
   flex-direction: column;
 }
 
+/* The AI speaking about the selected object */
+.cx__ai {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--s-r);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.cx__ai-mark {
+  color: var(--s-accent);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.cx__ai-body {
+  flex: 1;
+  min-width: 0;
+}
+.cx__ai-eyebrow {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 720;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+  margin-bottom: 3px;
+}
+.cx__ai-body p {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--s-text-2);
+}
+.cx__ai-apply {
+  margin-top: 8px;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: var(--s-r-sm);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-size: 12px;
+  font-weight: 660;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease);
+}
+.cx__ai-apply:hover {
+  background: var(--s-accent-2);
+}
+
 .cx__group-note,
 .cx__locked {
   font-size: 12px;

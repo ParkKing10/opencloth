@@ -1,0 +1,233 @@
+/* Picker fields — real option popovers for every property. pk- prefix. */
+
+.pk {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+.pk__label {
+  font-size: 12px;
+  color: var(--s-text-3);
+  flex: 0 0 auto;
+}
+
+.pk__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 200px;
+  padding: 6px 9px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-inset);
+  color: var(--s-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.pk__value:hover:not(:disabled),
+.pk__value.is-open {
+  border-color: var(--s-accent-line);
+  background: var(--s-panel-2);
+}
+.pk__value:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pk__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.15;
+}
+.pk__text b {
+  font-weight: 560;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+.pk__text small {
+  font-size: 10.5px;
+  color: var(--s-text-3);
+}
+
+.pk__swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+  border: 1px solid var(--s-line-strong);
+  flex: 0 0 auto;
+}
+
+/* Hero rows — the object-first beginner presentation */
+.pk--hero {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  padding: 9px 0;
+}
+.pk--hero .pk__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-text-4);
+}
+.pk--hero .pk__value {
+  max-width: none;
+  width: 100%;
+  justify-content: space-between;
+  padding: 11px 12px;
+  border-radius: var(--s-r);
+  font-size: 14px;
+}
+.pk--hero .pk__text b {
+  max-width: none;
+  font-size: 14px;
+  font-weight: 620;
+}
+.pk--hero .pk__swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
+}
+
+/* ---------- popover ---------- */
+.pk__pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 260;
+  width: 236px;
+  padding: 6px;
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-r);
+  box-shadow: var(--s-shadow-lg);
+  animation: pk-pop var(--s-dur) var(--s-ease);
+  transform-origin: top right;
+}
+.pk--hero .pk__pop {
+  left: 0;
+  right: 0;
+  width: auto;
+}
+@keyframes pk-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pk__opts {
+  display: flex;
+  flex-direction: column;
+  max-height: 250px;
+  overflow-y: auto;
+}
+.pk__opt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--s-r-sm);
+  background: transparent;
+  color: var(--s-text);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease);
+}
+.pk__opt:hover {
+  background: var(--s-hover);
+}
+.pk__opt.is-active {
+  background: var(--s-accent-soft);
+}
+.pk__opt.is-active b {
+  color: var(--s-accent);
+}
+.pk__opt b {
+  font-size: 12.5px;
+  font-weight: 580;
+}
+.pk__opt small {
+  font-size: 11px;
+  color: var(--s-text-3);
+}
+
+.pk__swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+.pk__chip {
+  aspect-ratio: 1;
+  border-radius: 9px;
+  border: 1px solid var(--s-line-strong);
+  cursor: pointer;
+  transition: transform var(--s-dur) var(--s-ease), box-shadow var(--s-dur) var(--s-ease);
+}
+.pk__chip:hover {
+  transform: scale(1.08);
+}
+.pk__chip.is-active {
+  box-shadow: 0 0 0 2px var(--s-bg), 0 0 0 4px var(--s-accent);
+}
+
+.pk__custom {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-top: 1px solid var(--s-line);
+  margin-top: 4px;
+}
+.pk__custom input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-inset);
+  color: var(--s-text);
+  font-size: 12px;
+  outline: none;
+}
+.pk__custom input:focus {
+  border-color: var(--s-accent-line);
+}
+.pk__custom button {
+  padding: 7px 12px;
+  border: 0;
+  border-radius: var(--s-r-sm);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.pk__custom button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pk__pop,
+  .pk__chip {
+    animation: none;
+    transition: none;
+  }
+}

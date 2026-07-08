@@ -125,6 +125,85 @@ export function interpretCommand(text: string, _ctx: StudioContext): Proposal | 
 
 export type Suggestion = { id: string; text: string; actions: StudioAction[] }
 
+/** What the AI says about the currently selected object — always specific, never generic. */
+export type ObjectNote = {
+  text: string
+  actionLabel: string
+  /** Applied via the context-field setter: [fieldId, value] pairs. */
+  fieldChanges: [string, string][]
+}
+
+/**
+ * The senior designer reads the SELECTED object and gives one precise note.
+ * Derived from the object's live fields, so it changes as the user edits.
+ */
+export function objectNote(
+  layerType: string,
+  layerName: string,
+  fields: { id: string; value: string }[],
+  garmentWeight: string,
+): ObjectNote | null {
+  const get = (id: string) => fields.find((f) => f.id === id)?.value ?? ''
+
+  if (layerType === 'Logo') {
+    if (!/high/i.test(get('cx-placement'))) {
+      return {
+        text: 'Your logo sits slightly low. Luxury brands usually place chest marks ~4 cm higher.',
+        actionLabel: 'Move up',
+        fieldChanges: [['cx-placement', 'Left Chest · High']],
+      }
+    }
+    if (get('cx-technique') !== 'Embroidery') {
+      return {
+        text: 'Logos read as premium when stitched — embroidery outlasts print on chest marks.',
+        actionLabel: 'Use embroidery',
+        fieldChanges: [['cx-technique', 'Embroidery']],
+      }
+    }
+    return null
+  }
+
+  if (layerType === 'Graphic' || layerType === 'Text') {
+    const technique = get('cx-technique')
+    if (/puff/i.test(technique) && !/45\d|48\d|52\d/.test(garmentWeight)) {
+      return {
+        text: `You selected Puff Print. It needs a heavier base — recommended fabric: 450 GSM (current: ${garmentWeight || 'lighter'}).`,
+        actionLabel: 'Switch to 450 GSM',
+        fieldChanges: [], // applied to the garment, handled by caller
+      }
+    }
+    if (get('cx-placement') === 'Full Back' && parseInt(get('cx-scale')) < 100) {
+      return {
+        text: 'Full-back placements work best at full scale — small art gets lost on the back panel.',
+        actionLabel: 'Scale to 100%',
+        fieldChanges: [['cx-scale', '100%']],
+      }
+    }
+    if (/multiply|overlay/i.test(get('cx-blend'))) {
+      return {
+        text: 'Blend modes preview nicely but most factories print flat colors. Normal blend keeps the sample true.',
+        actionLabel: 'Set Normal',
+        fieldChanges: [['cx-blend', 'Normal']],
+      }
+    }
+    return null
+  }
+
+  if (layerType === 'Material') {
+    const weight = get('cx-weight')
+    if (/24\d|28\d|30\d|32\d/.test(weight)) {
+      return {
+        text: `${layerName} at ${weight} will drape softly — for structured oversized fits, 450 GSM holds its shape better.`,
+        actionLabel: 'Use 450 GSM',
+        fieldChanges: [['cx-weight', '450 GSM']],
+      }
+    }
+    return null
+  }
+
+  return null
+}
+
 /** The AI Companion's live read of the project — senior-designer notes, never auto-applied. */
 export function buildSuggestions(ctx: StudioContext): Suggestion[] {
   const out: Suggestion[] = []

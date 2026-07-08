@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob } from '../../lib/download'
 import { buildManufacturingProject, type ProjectInput } from '../project'
+import type { ReadinessInput } from '../readiness'
 import { EXPORT_ITEMS, type ExportItemId } from '../actions'
 import { ExportModal } from './ExportModal'
 import './export.css'
 
 /** The Export control in the studio top bar: a dropdown of 8 real export actions. */
-export function ExportMenu({ input }: { input: ProjectInput }) {
+export function ExportMenu({ input, readiness }: { input: ProjectInput; readiness?: ReadinessInput }) {
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -103,7 +104,7 @@ export function ExportMenu({ input }: { input: ProjectInput }) {
         </div>
       )}
 
-      <ExportModal open={modalOpen} project={project} onClose={() => setModalOpen(false)} />
+      <ExportModal open={modalOpen} project={project} readiness={readiness} onClose={() => setModalOpen(false)} />
     </div>
   )
 }

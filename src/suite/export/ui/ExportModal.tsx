@@ -4,6 +4,8 @@ import { useToast } from '../../components/ui/Toast'
 import { downloadBlob } from '../../lib/download'
 import { slugify } from '../../lib/download'
 import { buildManufacturingPackage } from '../generators/manufacturingPackage'
+import { computeReadiness, factoryCheck, type ReadinessInput } from '../readiness'
+import { estimatePackage } from '../summary'
 import { DEFAULT_SELECTION, type ManufacturingProject, type PackageProgress, type PackageSelection } from '../types'
 import './export.css'
 
@@ -27,10 +29,12 @@ type Phase = 'config' | 'building' | 'done'
 export function ExportModal({
   open,
   project,
+  readiness,
   onClose,
 }: {
   open: boolean
   project: ManufacturingProject
+  readiness?: ReadinessInput
   onClose: () => void
 }) {
   const toast = useToast()
@@ -40,6 +44,8 @@ export function ExportModal({
   const [lastBlob, setLastBlob] = useState<Blob | null>(null)
 
   const count = useMemo(() => ROWS.filter((r) => selection[r.key]).length, [selection])
+  const estimate = useMemo(() => estimatePackage(project, selection), [project, selection])
+  const verdict = useMemo(() => (readiness ? factoryCheck(computeReadiness(readiness)) : null), [readiness])
   const filename = `${slugify(project.meta.styleName)}-manufacturing-package.zip`
 
   if (!open) return null
@@ -103,6 +109,33 @@ export function ExportModal({
 
           {phase === 'config' && (
             <>
+              {verdict && (
+                <div className={`xp-factory xp-factory--${verdict.status}`}>
+                  <span className="xp-factory__icon" aria-hidden>
+                    {verdict.status === 'ready' ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 8v5M12 16.5v.5M10.3 3.9 2.5 18a1.7 1.7 0 0 0 1.5 2.5h16a1.7 1.7 0 0 0 1.5-2.5L13.7 3.9a1.9 1.9 0 0 0-3.4 0Z" />
+                      </svg>
+                    )}
+                  </span>
+                  <div className="xp-factory__text">
+                    <span className="xp-factory__eyebrow">THREADOS AI · Factory Check</span>
+                    <b>{verdict.headline}</b>
+                    <small>{verdict.detail}</small>
+                    {verdict.blockers.length > 0 && (
+                      <ul className="xp-factory__list">
+                        {verdict.blockers.map((b) => (
+                          <li key={b.id}>{b.label}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="xp-list">
                 {ROWS.map((r) => {
                   const on = selection[r.key]
@@ -131,9 +164,22 @@ export function ExportModal({
                 })}
               </div>
               <footer className="xp-foot">
-                <span className="xp-foot__meta">
-                  {count} {count === 1 ? 'document' : 'documents'} · ~3–5 seconds
-                </span>
+                <div className="xp-estimate">
+                  <span className="xp-estimate__eyebrow">Estimated export</span>
+                  <div className="xp-estimate__stats">
+                    <span className="xp-estimate__stat">
+                      <b>{estimate.files}</b> Files
+                    </span>
+                    <span className="xp-estimate__dot" />
+                    <span className="xp-estimate__stat">
+                      <b>{estimate.size}</b>
+                    </span>
+                    <span className="xp-estimate__dot" />
+                    <span className={`xp-estimate__ready${verdict && verdict.status !== 'ready' ? ' is-warn' : ''}`}>
+                      {verdict && verdict.status !== 'ready' ? 'Almost ready' : 'Ready for Manufacturing'}
+                    </span>
+                  </div>
+                </div>
                 <button className="xp-generate" type="button" onClick={generate} disabled={count === 0}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />

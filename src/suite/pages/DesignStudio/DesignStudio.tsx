@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IcoDesign,
@@ -17,7 +17,21 @@ import {
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import type { ProjectInput } from '../../export/project'
+import { computeReadiness } from '../../export/readiness'
 import { StudioCanvas } from './StudioCanvas'
+import { CommandBar, type StudioMode } from './CommandBar'
+import { AICompanion } from './AICompanion'
+import {
+  INITIAL_CONFIG,
+  buildSuggestions,
+  deriveReadiness,
+  interpretCommand,
+  type Proposal,
+  type StudioAction,
+  type StudioConfig,
+  type StudioContext,
+  type Suggestion,
+} from './studioModel'
 import './design-studio.css'
 
 // The export system pulls in jsPDF + JSZip; load it as its own chunk on demand
@@ -82,6 +96,14 @@ const INITIAL_FIELDS: Record<string, PropField[]> = {
     { id: 'd-weight', label: 'Weight', value: '450 GSM' },
     { id: 'd-color', label: 'Color', value: '#2A2A2A', swatch: true },
   ],
+  detailsAdvanced: [
+    { id: 'da-composition', label: 'Composition', value: '80% Cotton / 20% Poly' },
+    { id: 'da-knit', label: 'Knit / Construction', value: 'Loopback French Terry' },
+    { id: 'da-shrinkage', label: 'Shrinkage', value: '≤ 5%' },
+    { id: 'da-tolerance', label: 'Tolerance', value: '± 1.0 cm' },
+    { id: 'da-supplier', label: 'Supplier', value: 'Atelier Norte' },
+    { id: 'da-moq', label: 'MOQ', value: '50 units' },
+  ],
   design: [
     { id: 'de-technique', label: 'Technique', value: 'Puff Print' },
     { id: 'de-placement', label: 'Placement', value: 'Front Center' },
@@ -102,7 +124,6 @@ const INITIAL_FIELDS: Record<string, PropField[]> = {
   ],
 }
 
-const AI_SUGGESTION = 'Make it more vintage washed and add a small woven label on the hem.'
 
 export function DesignStudio() {
   const navigate = useNavigate()
@@ -118,13 +139,17 @@ export function DesignStudio() {
   const [present, setPresent] = useState<Snapshot>(INITIAL_SNAPSHOT)
   const [future, setFuture] = useState<Snapshot[]>([])
 
-  // Applied AI suggestions become a visible, persistent notes list on the design.
+  // Applied AI changes become a visible, persistent notes list on the design.
   const [appliedNotes, setAppliedNotes] = useState<string[]>([])
-  const [suggestionApplied, setSuggestionApplied] = useState(false)
 
   // Editable property fields — clicking a field really changes its displayed value.
   const [fields, setFields] = useState<Record<string, PropField[]>>(INITIAL_FIELDS)
   const [showCatalogHint, setShowCatalogHint] = useState(false)
+
+  // Beginner vs Pro presentation, and the manufacturing config that drives readiness.
+  const [mode, setMode] = useState<StudioMode>('beginner')
+  const [config, setConfig] = useState<StudioConfig>(INITIAL_CONFIG)
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
 
   const { layers, hidden } = present
   const canUndo = past.length > 0
@@ -212,12 +237,84 @@ export function DesignStudio() {
     }
   }
 
-  function applySuggestion() {
-    if (suggestionApplied) return
-    setAppliedNotes((prev) => [...prev, AI_SUGGESTION])
-    setSuggestionApplied(true)
-    toast('Applied AI suggestion — vintage wash + woven hem label.', 'accent')
-  }
+  // ---- Smart studio: live readiness, AI command bar & companion ----
+  const frontArt = layers.some((l) => /front/i.test(l.name) && !hidden[l.id])
+  const backArt = layers.some((l) => /back/i.test(l.name) && !hidden[l.id])
+
+  const studioCtx = useMemo<StudioContext>(
+    () => ({
+      garment: { name: activeGarment.name, kind: activeGarment.kind, fit: activeGarment.fit },
+      config,
+      fields,
+      frontArt,
+      backArt,
+    }),
+    [activeGarment, config, fields, frontArt, backArt],
+  )
+
+  const readinessInput = useMemo(() => deriveReadiness(studioCtx), [studioCtx])
+  const readiness = useMemo(() => computeReadiness(readinessInput), [readinessInput])
+  const suggestions = useMemo(
+    () => buildSuggestions(studioCtx).filter((s) => !dismissed[s.id]),
+    [studioCtx, dismissed],
+  )
+
+  const applyAction = useCallback((action: StudioAction) => {
+    if (action.kind === 'set-field') {
+      setFields((prev) => ({
+        ...prev,
+        [action.group]: (prev[action.group] ?? []).map((f) =>
+          f.id === action.fieldId ? { ...f, value: action.value } : f,
+        ),
+      }))
+    } else if (action.kind === 'toggle-config') {
+      setConfig((prev) => ({ ...prev, [action.key]: action.value }))
+    } else if (action.kind === 'add-note') {
+      setAppliedNotes((prev) => (prev.includes(action.note) ? prev : [...prev, action.note]))
+    }
+  }, [])
+
+  const applyProposal = useCallback(
+    (p: Proposal) => {
+      p.actions.forEach(applyAction)
+      toast(`Applied — ${p.title.toLowerCase()}.`, 'accent')
+    },
+    [applyAction, toast],
+  )
+
+  const applySuggestion = useCallback(
+    (s: Suggestion) => {
+      s.actions.forEach(applyAction)
+      setDismissed((prev) => ({ ...prev, [s.id]: true }))
+      toast('Applied AI suggestion.', 'accent')
+    },
+    [applyAction, toast],
+  )
+
+  const dismissSuggestion = useCallback((id: string) => setDismissed((prev) => ({ ...prev, [id]: true })), [])
+
+  const interpret = useCallback((text: string) => interpretCommand(text, studioCtx), [studioCtx])
+
+  const fixCheck = useCallback(
+    (id: string) => {
+      const map: Record<string, StudioAction | undefined> = {
+        'neck-label': { kind: 'toggle-config', key: 'neckLabel', value: true },
+        'care-label': { kind: 'toggle-config', key: 'careLabel', value: true },
+        packaging: { kind: 'toggle-config', key: 'packaging', value: true },
+        tolerance: { kind: 'toggle-config', key: 'tolerance', value: true },
+        'production-notes': { kind: 'toggle-config', key: 'productionNotes', value: true },
+        construction: { kind: 'toggle-config', key: 'construction', value: true },
+      }
+      const action = map[id]
+      if (action) {
+        applyAction(action)
+        toast('Marked ready.', 'success')
+      } else {
+        toast('Add this from the design panel on the right.', 'info')
+      }
+    },
+    [applyAction, toast],
+  )
 
   function changeGarment() {
     const idx = GARMENTS.findIndex((g) => g.name === activeGarment.name)
@@ -302,10 +399,20 @@ export function DesignStudio() {
               </button>
             }
           >
-            <ExportMenu input={exportInput} />
+            <ExportMenu input={exportInput} readiness={readinessInput} />
           </Suspense>
         </div>
       </header>
+
+      {/* ---- AI command bar (mode toggle + live readiness) ---- */}
+      <CommandBar
+        mode={mode}
+        onModeChange={setMode}
+        readiness={readiness}
+        interpret={interpret}
+        onApply={applyProposal}
+        onFix={fixCheck}
+      />
 
       {/* ---- Body ---- */}
       <div className="ds-body">
@@ -494,10 +601,15 @@ export function DesignStudio() {
                   </div>
                 </section>
 
-                <Accordion title="Details" open>
+                <Accordion title="Appearance" open>
                   {fields.details.map((f) => (
                     <Field key={f.id} field={f} onEdit={() => editField('details', f)} />
                   ))}
+                  <Advanced open={mode === 'pro'}>
+                    {fields.detailsAdvanced.map((f) => (
+                      <Field key={f.id} field={f} onEdit={() => editField('detailsAdvanced', f)} />
+                    ))}
+                  </Advanced>
                 </Accordion>
 
                 <Accordion title="Design" open>
@@ -506,9 +618,44 @@ export function DesignStudio() {
                   ))}
                 </Accordion>
 
-                <Accordion title="Stitching" />
-                <Accordion title="Labels" />
-                <Accordion title="Packaging" />
+                <Accordion title="Brand" open={mode === 'pro'}>
+                  <ConfigToggle
+                    label="Neck Label Artwork"
+                    on={config.neckLabel}
+                    onToggle={(v) => setConfig((c) => ({ ...c, neckLabel: v }))}
+                  />
+                  <ConfigToggle
+                    label="Care Label"
+                    on={config.careLabel}
+                    onToggle={(v) => setConfig((c) => ({ ...c, careLabel: v }))}
+                  />
+                </Accordion>
+
+                <Accordion title="Construction" open={mode === 'pro'}>
+                  <ConfigToggle
+                    label="Construction confirmed"
+                    on={config.construction}
+                    onToggle={(v) => setConfig((c) => ({ ...c, construction: v }))}
+                  />
+                </Accordion>
+
+                <Accordion title="Manufacturing" open={mode === 'pro'}>
+                  <ConfigToggle
+                    label="Tolerance Table"
+                    on={config.tolerance}
+                    onToggle={(v) => setConfig((c) => ({ ...c, tolerance: v }))}
+                  />
+                  <ConfigToggle
+                    label="Production Notes"
+                    on={config.productionNotes}
+                    onToggle={(v) => setConfig((c) => ({ ...c, productionNotes: v }))}
+                  />
+                  <ConfigToggle
+                    label="Packaging"
+                    on={config.packaging}
+                    onToggle={(v) => setConfig((c) => ({ ...c, packaging: v }))}
+                  />
+                </Accordion>
               </>
             )}
 
@@ -528,28 +675,12 @@ export function DesignStudio() {
               </Accordion>
             )}
 
-            <section className="ds-ai">
-              <div className="ds-ai__head">
-                <IcoSparkle width="15" height="15" />
-                <span>AI Assistant</span>
-              </div>
-              <p className="ds-ai__msg">{AI_SUGGESTION}</p>
-              <button
-                className="s-btn s-btn--accent ds-ai__apply"
-                type="button"
-                disabled={suggestionApplied}
-                onClick={applySuggestion}
-              >
-                <IcoSparkle width="15" height="15" /> {suggestionApplied ? 'Applied' : 'Apply Suggestion'}
-              </button>
-              {appliedNotes.length > 0 && (
-                <ul className="ds-ai__notes">
-                  {appliedNotes.map((note, i) => (
-                    <li key={`${note}-${i}`}>{note}</li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <AICompanion
+              suggestions={suggestions}
+              appliedNotes={appliedNotes}
+              onApply={applySuggestion}
+              onDismiss={dismissSuggestion}
+            />
           </div>
         </aside>
       </div>
@@ -610,6 +741,8 @@ function Field({ field, onEdit }: { field: PropField; onEdit: () => void }) {
 
 function Accordion({ title, open, children }: { title: string; open?: boolean; children?: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(!!open)
+  // Re-sync when the mode toggle flips the `open` prop.
+  useEffect(() => setIsOpen(!!open), [open])
   return (
     <section className="ds-group">
       <button className="ds-group__head ds-group__head--btn" type="button" onClick={() => setIsOpen((o) => !o)}>
@@ -618,5 +751,44 @@ function Accordion({ title, open, children }: { title: string; open?: boolean; c
       </button>
       {isOpen && children && <div className="ds-fields">{children}</div>}
     </section>
+  )
+}
+
+/** Progressive disclosure: a "▸ Advanced" reveal for professional controls. */
+function Advanced({ open, children }: { open?: boolean; children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(!!open)
+  useEffect(() => setIsOpen(!!open), [open])
+  return (
+    <div className="ds-adv">
+      <button
+        type="button"
+        className={`ds-adv__toggle${isOpen ? ' is-open' : ''}`}
+        onClick={() => setIsOpen((o) => !o)}
+        aria-expanded={isOpen}
+      >
+        <IcoChevron width="13" height="13" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)' }} />
+        Advanced
+      </button>
+      {isOpen && <div className="ds-adv__body">{children}</div>}
+    </div>
+  )
+}
+
+/** A labelled on/off switch that drives a manufacturing-config flag. */
+function ConfigToggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: (v: boolean) => void }) {
+  return (
+    <div className="ds-toggle">
+      <span className="ds-toggle__label">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        className={`ds-switch${on ? ' is-on' : ''}`}
+        onClick={() => onToggle(!on)}
+      >
+        <span className="ds-switch__knob" />
+      </button>
+    </div>
   )
 }

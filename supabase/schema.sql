@@ -199,6 +199,76 @@ select * from (values
 where not exists (select 1 from public.manufacturers);
 
 -- ============================================================================
+-- PHASE 2 — THREADOS Drive + Brand Kit
+-- ============================================================================
+
+-- Drive assets: metadata for files stored in the 'drive' storage bucket.
+create table if not exists public.drive_assets (
+  id           uuid primary key default gen_random_uuid(),
+  owner_id     uuid not null references auth.users(id) on delete cascade,
+  name         text not null,
+  folder       text not null default 'Graphics',
+  mime         text not null default '',
+  size_bytes   bigint not null default 0,
+  storage_path text not null,
+  created_at   timestamptz not null default now()
+);
+
+-- Brand kit: one row per account — brand defaults every new project loads.
+create table if not exists public.brand_kits (
+  owner_id       uuid primary key references auth.users(id) on delete cascade,
+  brand_name     text not null default '',
+  primary_font   text not null default 'Inter',
+  secondary_font text not null default 'Space Grotesk',
+  colors         jsonb not null default '["#D8FF3E","#14141A","#F4F4F6"]',
+  default_fabric text not null default 'French Terry 450 GSM',
+  default_fit    text not null default 'Oversized',
+  default_labels text not null default 'Woven neck label + heat-transfer care label',
+  packaging_notes text not null default '',
+  brand_notes    text not null default '',
+  memory_enabled boolean not null default true,
+  memory         jsonb not null default '{}',
+  updated_at     timestamptz not null default now()
+);
+
+alter table public.drive_assets enable row level security;
+alter table public.brand_kits   enable row level security;
+
+drop policy if exists drive_assets_owner_all on public.drive_assets;
+create policy drive_assets_owner_all on public.drive_assets
+  for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+drop policy if exists brand_kits_owner_all on public.brand_kits;
+create policy brand_kits_owner_all on public.brand_kits
+  for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+-- Tables created after the earlier GRANT need their own grants…
+grant select, insert, update, delete on public.drive_assets, public.brand_kits to authenticated;
+-- …and default privileges keep future tables covered automatically.
+alter default privileges in schema public
+  grant select, insert, update, delete on tables to authenticated;
+
+-- Storage bucket for Drive files (private; RLS on storage.objects gates access).
+insert into storage.buckets (id, name, public)
+values ('drive', 'drive', false)
+on conflict (id) do nothing;
+
+-- Files live under "<user-id>/<folder>/<filename>" — each user only touches
+-- their own prefix.
+drop policy if exists drive_objects_select on storage.objects;
+create policy drive_objects_select on storage.objects
+  for select using (bucket_id = 'drive' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists drive_objects_insert on storage.objects;
+create policy drive_objects_insert on storage.objects
+  for insert with check (bucket_id = 'drive' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists drive_objects_update on storage.objects;
+create policy drive_objects_update on storage.objects
+  for update using (bucket_id = 'drive' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists drive_objects_delete on storage.objects;
+create policy drive_objects_delete on storage.objects
+  for delete using (bucket_id = 'drive' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ============================================================================
 -- Make yourself an admin AFTER you have signed up once:
 --   update public.profiles set role = 'admin' where email = 'you@brand.com';
 -- ============================================================================

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IcoDesign,
@@ -18,6 +18,17 @@ import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import type { ProjectInput } from '../../export/project'
 import { computeReadiness } from '../../export/readiness'
+import { DrivePanel } from '../../drive/ui/DrivePanel'
+import { BrandKitPanel } from '../../drive/ui/BrandKitPanel'
+import type { DriveAsset } from '../../drive/driveClient'
+import {
+  derivePreferences,
+  loadBrandKit,
+  preferenceSummary,
+  recordChoice,
+  saveBrandKit,
+  type BrandKit,
+} from '../../drive/brandKit'
 import { StudioCanvas } from './StudioCanvas'
 import { CommandBar, type StudioMode } from './CommandBar'
 import { AICompanion } from './AICompanion'
@@ -38,7 +49,10 @@ import './design-studio.css'
 // so the manufacturing-export weight never lands in the initial bundle.
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
-const RAIL = ['Catalog', 'Templates', 'Graphics', 'Fabrics', 'Colors', 'Trims', 'Text', 'Uploads', 'AI Tools']
+const RAIL = ['Catalog', 'Drive', 'Brand Kit', 'Templates', 'Graphics', 'Fabrics', 'Colors', 'Trims', 'Text', 'AI Tools']
+
+/** Rail items that open a real panel (everything else is on the roadmap). */
+const RAIL_PANELS = new Set(['Catalog', 'Drive', 'Brand Kit'])
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -151,6 +165,43 @@ export function DesignStudio() {
   const [config, setConfig] = useState<StudioConfig>(INITIAL_CONFIG)
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
 
+  // Brand Kit + Brand Memory: load once, record real choices, flush debounced.
+  const [kit, setKit] = useState<BrandKit | null>(null)
+  const kitRef = useRef<BrandKit | null>(null)
+  const flushTimer = useRef<number | null>(null)
+
+  useEffect(() => {
+    let on = true
+    void loadBrandKit().then((k) => {
+      if (!on) return
+      setKit(k)
+      kitRef.current = k
+    })
+    return () => {
+      on = false
+      if (flushTimer.current) window.clearTimeout(flushTimer.current)
+    }
+  }, [])
+
+  /** Remember a real design choice (fit, weight, fabric…) — Brand Memory. */
+  const rememberChoice = useCallback((dimension: string, value: string) => {
+    const cur = kitRef.current
+    if (!cur || !cur.memoryEnabled) return
+    const next = recordChoice(cur, dimension, value)
+    kitRef.current = next
+    setKit(next)
+    if (flushTimer.current) window.clearTimeout(flushTimer.current)
+    flushTimer.current = window.setTimeout(() => {
+      if (kitRef.current) void saveBrandKit(kitRef.current)
+    }, 1500)
+  }, [])
+
+  /** Which memory dimension a property field feeds (if any). */
+  const MEMORY_DIMS: Record<string, string> = useMemo(
+    () => ({ 'd-fit': 'fit', 'd-weight': 'weight', 'd-fabric': 'fabric', 'd-color': 'color', 'de-technique': 'technique' }),
+    [],
+  )
+
   const { layers, hidden } = present
   const canUndo = past.length > 0
   const canRedo = future.length > 0
@@ -178,8 +229,19 @@ export function DesignStudio() {
 
   function selectRail(name: string) {
     setRail(name)
-    if (name !== 'Catalog') toast(`${name} panel — coming to your workspace soon.`, 'info')
+    if (!RAIL_PANELS.has(name)) toast(`${name} panel — coming to your workspace soon.`, 'info')
   }
+
+  /** Drop a Drive asset onto the design: becomes a real, undoable layer. */
+  const addAssetLayer = useCallback(
+    (asset: { name: string; folder: string }) => {
+      const type = asset.folder === 'My Logos' ? 'Logo' : asset.folder === 'Fonts' ? 'Text' : 'Graphic'
+      const layer: Layer = { id: `l-${Date.now().toString(36)}`, name: asset.name.replace(/\.[^.]+$/, ''), type }
+      commit({ layers: [layer, ...layers], hidden })
+      toast(`“${layer.name}” added to the design.`, 'success')
+    },
+    [commit, layers, hidden, toast],
+  )
 
   function selectGarment(g: Garment) {
     setActiveName(g.name)
@@ -259,20 +321,65 @@ export function DesignStudio() {
     [studioCtx, dismissed],
   )
 
-  const applyAction = useCallback((action: StudioAction) => {
-    if (action.kind === 'set-field') {
-      setFields((prev) => ({
-        ...prev,
-        [action.group]: (prev[action.group] ?? []).map((f) =>
-          f.id === action.fieldId ? { ...f, value: action.value } : f,
-        ),
-      }))
-    } else if (action.kind === 'toggle-config') {
-      setConfig((prev) => ({ ...prev, [action.key]: action.value }))
-    } else if (action.kind === 'add-note') {
-      setAppliedNotes((prev) => (prev.includes(action.note) ? prev : [...prev, action.note]))
+  // Brand Memory: once a pattern repeats, offer "your usual spec" as a suggestion.
+  const memorySuggestion = useMemo<Suggestion | null>(() => {
+    if (!kit || !kit.memoryEnabled || dismissed['s-memory']) return null
+    const prefs = derivePreferences(kit)
+    if (prefs.length < 2) return null
+    const currentByDim: Record<string, string | undefined> = {
+      fit: fields.details.find((f) => f.id === 'd-fit')?.value,
+      weight: fields.details.find((f) => f.id === 'd-weight')?.value,
+      fabric: fields.details.find((f) => f.id === 'd-fabric')?.value,
+      technique: fields.design.find((f) => f.id === 'de-technique')?.value,
     }
-  }, [])
+    const fieldByDim: Record<string, { group: string; id: string }> = {
+      fit: { group: 'details', id: 'd-fit' },
+      weight: { group: 'details', id: 'd-weight' },
+      fabric: { group: 'details', id: 'd-fabric' },
+      technique: { group: 'design', id: 'de-technique' },
+    }
+    const actions: StudioAction[] = prefs
+      .filter((p) => fieldByDim[p.dimension] && currentByDim[p.dimension] !== p.value)
+      .map((p) => ({
+        kind: 'set-field' as const,
+        group: fieldByDim[p.dimension].group,
+        fieldId: fieldByDim[p.dimension].id,
+        value: p.value,
+      }))
+    if (actions.length === 0) return null
+    return {
+      id: 's-memory',
+      text: `You usually go ${preferenceSummary(prefs)} — apply your usual spec?`,
+      actions,
+    }
+  }, [kit, dismissed, fields.details, fields.design])
+
+  const allSuggestions = useMemo(
+    () => (memorySuggestion ? [memorySuggestion, ...suggestions] : suggestions),
+    [memorySuggestion, suggestions],
+  )
+
+  const applyAction = useCallback(
+    (action: StudioAction) => {
+      if (action.kind === 'set-field') {
+        setFields((prev) => ({
+          ...prev,
+          [action.group]: (prev[action.group] ?? []).map((f) =>
+            f.id === action.fieldId ? { ...f, value: action.value } : f,
+          ),
+        }))
+        const dim = MEMORY_DIMS[action.fieldId]
+        if (dim) rememberChoice(dim, action.value)
+      } else if (action.kind === 'toggle-config') {
+        setConfig((prev) => ({ ...prev, [action.key]: action.value }))
+        if (action.key === 'neckLabel' && action.value) rememberChoice('label', 'Woven neck label')
+      } else if (action.kind === 'add-note') {
+        setAppliedNotes((prev) => (prev.includes(action.note) ? prev : [...prev, action.note]))
+        if (/wash/i.test(action.note)) rememberChoice('wash', 'Vintage wash')
+      }
+    },
+    [MEMORY_DIMS, rememberChoice],
+  )
 
   const applyProposal = useCallback(
     (p: Proposal) => {
@@ -333,8 +440,34 @@ export function DesignStudio() {
       ...prev,
       [group]: prev[group].map((f) => (f.id === field.id ? { ...f, value: trimmed } : f)),
     }))
+    const dim = MEMORY_DIMS[field.id]
+    if (dim) rememberChoice(dim, trimmed)
     toast(`${field.label} set to ${trimmed}.`, 'success')
   }
+
+  /** Apply the Brand Kit defaults to this design (fabric, fit, weight). */
+  const applyBrandKit = useCallback(
+    (k: BrandKit) => {
+      const gsm = k.defaultFabric.match(/(\d+)\s*GSM/i)?.[0]?.toUpperCase()
+      setFields((prev) => ({
+        ...prev,
+        details: prev.details.map((f) => {
+          if (f.id === 'd-fabric') return { ...f, value: k.defaultFabric }
+          if (f.id === 'd-fit') return { ...f, value: k.defaultFit }
+          if (f.id === 'd-weight' && gsm) return { ...f, value: gsm }
+          return f
+        }),
+      }))
+      setAppliedNotes((prev) => [
+        ...prev.filter((n) => !n.startsWith('Brand Kit')),
+        `Brand Kit applied — ${k.defaultFabric}, ${k.defaultFit} fit.`,
+      ])
+      setKit(k)
+      kitRef.current = k
+      toast('Brand Kit defaults applied to this design.', 'accent')
+    },
+    [toast],
+  )
 
   return (
     <div className="suite studio">
@@ -431,8 +564,12 @@ export function DesignStudio() {
           ))}
         </nav>
 
-        {/* Catalog + layers panel */}
+        {/* Left panel: Catalog (default), THREADOS Drive, or Brand Kit */}
         <aside className="ds-left">
+          {rail === 'Drive' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
+          {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
+          {rail !== 'Drive' && rail !== 'Brand Kit' && (
+            <>
           <div className="ds-left__scroll">
             <div className="ds-panel-head">
               <h2>Catalog</h2>
@@ -555,10 +692,29 @@ export function DesignStudio() {
               <IcoPlus width="15" height="15" /> Add Layer
             </button>
           </div>
+            </>
+          )}
         </aside>
 
-        {/* Canvas */}
-        <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} garmentFit={activeGarment.fit} />
+        {/* Canvas — also a drop target for Drive assets */}
+        <div
+          style={{ display: 'contents' }}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('application/x-threados-asset')) e.preventDefault()
+          }}
+          onDrop={(e) => {
+            const raw = e.dataTransfer.getData('application/x-threados-asset')
+            if (!raw) return
+            e.preventDefault()
+            try {
+              addAssetLayer(JSON.parse(raw) as { name: string; folder: string })
+            } catch {
+              /* malformed payload — ignore */
+            }
+          }}
+        >
+          <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} garmentFit={activeGarment.fit} />
+        </div>
 
         {/* Properties */}
         <aside className="ds-right">
@@ -676,7 +832,7 @@ export function DesignStudio() {
             )}
 
             <AICompanion
-              suggestions={suggestions}
+              suggestions={allSuggestions}
               appliedNotes={appliedNotes}
               onApply={applySuggestion}
               onDismiss={dismissSuggestion}
@@ -700,6 +856,19 @@ function RailIcon({ name }: { name: string }) {
       return <IcoDesign {...common} />
     case 'AI Tools':
       return <IcoSparkle {...common} />
+    case 'Drive':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+          <path d="M3.5 8.5V6.8c0-1 .8-1.8 1.8-1.8h4l2 2.4h7.4c1 0 1.8.8 1.8 1.8v8c0 1-.8 1.8-1.8 1.8H5.3c-1 0-1.8-.8-1.8-1.8V8.5Z" />
+        </svg>
+      )
+    case 'Brand Kit':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5Z" />
+          <circle cx="12" cy="12" r="2.6" />
+        </svg>
+      )
     case 'Uploads':
       return <IcoUpload {...common} />
     case 'Text':

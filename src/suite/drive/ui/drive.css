@@ -1,0 +1,416 @@
+/* THREADOS Drive — permanent brand storage panel (left aside). Scoped to .suite tokens, dv- prefix. */
+
+.dv-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.dv-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Header ---------- */
+.dv-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 16px 14px 12px;
+  flex-shrink: 0;
+}
+.dv-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--s-text);
+}
+.dv-head__hint {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--s-text-3);
+}
+
+.dv-upload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 11px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--s-r-sm);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease);
+}
+.dv-upload:hover {
+  background: var(--s-accent-2);
+}
+.dv-upload:active {
+  transform: translateY(1px);
+}
+.dv-upload:focus-visible {
+  outline: 2px solid var(--s-accent-line);
+  outline-offset: 2px;
+}
+
+/* ---------- Folder chips ---------- */
+.dv-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 0 14px 10px;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+.dv-chips::-webkit-scrollbar {
+  display: none;
+}
+.dv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 9px;
+  border-radius: var(--s-r-pill);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--s-text-3);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease);
+}
+.dv-chip:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-2);
+}
+.dv-chip:focus-visible {
+  outline: 2px solid var(--s-accent-line);
+  outline-offset: 1px;
+}
+.dv-chip.is-active {
+  color: var(--s-text);
+  background: var(--s-panel-3);
+  border-color: var(--s-line-2);
+}
+.dv-chip__count {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 5px;
+  border-radius: var(--s-r-pill);
+  color: var(--s-text-3);
+  background: var(--s-inset);
+}
+.dv-chip.is-active .dv-chip__count {
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+}
+
+/* ---------- Scroll area ---------- */
+.dv-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 14px 14px;
+}
+
+/* Uploading note */
+.dv-uploading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border-radius: var(--s-r-sm);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--s-text-2);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.dv-spin {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--s-accent-line);
+  border-top-color: var(--s-accent);
+  animation: dv-rot 0.7s linear infinite;
+}
+@keyframes dv-rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Asset grid ---------- */
+.dv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dv-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: var(--s-r);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease),
+    box-shadow var(--s-dur) var(--s-ease);
+}
+.dv-card:hover {
+  border-color: var(--s-line-2);
+  transform: translateY(-1px);
+  box-shadow: var(--s-shadow-sm);
+}
+.dv-card:active {
+  cursor: grabbing;
+}
+
+.dv-card__thumb {
+  position: relative;
+  height: 84px;
+  display: grid;
+  place-items: center;
+  background: var(--s-inset);
+  border-bottom: 1px solid var(--s-line);
+}
+.dv-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+.dv-card__glyph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--s-text-3);
+}
+.dv-card__ext {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: var(--s-text-3);
+  background: var(--s-panel-3);
+}
+
+/* hover-revealed actions */
+.dv-card__actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease);
+}
+.dv-card:hover .dv-card__actions,
+.dv-card:focus-within .dv-card__actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+.dv-act {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  color: var(--s-text-2);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  cursor: pointer;
+  box-shadow: var(--s-shadow-sm);
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease);
+}
+.dv-act:focus-visible {
+  outline: 2px solid var(--s-accent-line);
+  outline-offset: 1px;
+}
+.dv-act--add:hover {
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border-color: var(--s-accent-line);
+}
+.dv-act--del:hover {
+  color: var(--s-pink);
+  background: var(--s-hover);
+}
+
+.dv-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 9px 9px;
+}
+.dv-card__name {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--s-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dv-card__folder {
+  font-size: 10px;
+  color: var(--s-text-4);
+}
+
+/* ---------- Empty state ---------- */
+.dv-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 26px 16px;
+  border-radius: var(--s-r);
+  background: var(--s-panel);
+  border: 1px dashed var(--s-line-2);
+}
+.dv-empty__ico {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--s-r);
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.dv-empty p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--s-text-2);
+  max-width: 210px;
+}
+
+/* ---------- Skeletons ---------- */
+.dv-skel {
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line);
+  animation: dv-pulse 1.4s var(--s-ease) infinite;
+}
+@keyframes dv-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.dv-skel--chip {
+  width: 58px;
+  height: 26px;
+  border-radius: var(--s-r-pill);
+  flex-shrink: 0;
+}
+.dv-skel-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.dv-skel--thumb {
+  height: 84px;
+  border-radius: var(--s-r);
+}
+.dv-skel--line {
+  height: 9px;
+  width: 85%;
+}
+.dv-skel--short {
+  width: 50%;
+}
+
+/* ---------- Footer hint ---------- */
+.dv-foot {
+  flex-shrink: 0;
+  padding: 9px 14px 11px;
+  border-top: 1px solid var(--s-line);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--s-text-4);
+}
+
+/* ---------- OS file drag-over ---------- */
+.dv-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.dv-drop::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--s-r);
+  border: 1.5px dashed var(--s-accent);
+  background: var(--s-accent-soft);
+}
+.dv-drop__pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--s-r-pill);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  box-shadow: var(--s-shadow);
+  animation: dv-pop var(--s-dur-slow) var(--s-ease);
+}
+@keyframes dv-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-skel,
+  .dv-drop__pill {
+    animation: none;
+  }
+  .dv-card,
+  .dv-card:hover {
+    transform: none;
+  }
+}

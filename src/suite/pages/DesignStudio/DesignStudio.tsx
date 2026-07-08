@@ -1,8 +1,22 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IcoDesign, IcoSearch, IcoDots, IcoUpload, IcoArrowRight } from '../../components/ui/Icons'
+import {
+  IcoDesign,
+  IcoSearch,
+  IcoDots,
+  IcoUpload,
+  IcoArrowRight,
+  IcoBell,
+  IcoHelp,
+  IcoSun,
+  IcoMoon,
+} from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
+import { useSuiteTheme } from '../../theme'
+import { useStore } from '../../data/store'
+import { useAuth } from '../../auth/auth'
+import { uid } from '../../data/utils'
 import type { ProjectInput } from '../../export/project'
 import { computeReadiness } from '../../export/readiness'
 import { DrivePanel } from '../../drive/ui/DrivePanel'
@@ -123,7 +137,26 @@ const INITIAL_FIELDS: Record<string, PropField[]> = {
 export function DesignStudio() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { theme, toggle: toggleTheme } = useSuiteTheme()
+  const { user } = useAuth()
+  const { data, mutate } = useStore()
   const [rail, setRail] = useState('Garments')
+
+  // The design being edited — one stable id per piece so auto-save upserts it.
+  const [designId, setDesignId] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('threados-current-design') || uid('d')
+    } catch {
+      return uid('d')
+    }
+  })
+  const [designName, setDesignName] = useState('Hoodie')
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
+
+  // Topbar utilities (mirrors the suite topbar)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const unread = useMemo(() => data.notifications.filter((n) => !n.read).length, [data.notifications])
 
   // New-design wizard: guide the first steps instead of an empty editor.
   const [wizardOpen, setWizardOpen] = useState<boolean>(() => {
@@ -521,6 +554,62 @@ export function DesignStudio() {
   const readinessInput = useMemo(() => deriveReadiness(studioCtx), [studioCtx])
   const readiness = useMemo(() => computeReadiness(readinessInput), [readinessInput])
 
+  // ---- Save + auto-save: the design lands in Recent Designs, always current ----
+  const saveDesign = useCallback(
+    (manual: boolean) => {
+      if (!user) {
+        if (manual) toast('Sign in to save designs.', 'info')
+        return
+      }
+      setSaveState('saving')
+      const now = Date.now()
+      mutate((d) => {
+        const exists = d.designs.some((x) => x.id === designId)
+        const next = {
+          id: designId,
+          ownerId: user.id,
+          name: designName,
+          kind: activeGarment.kind,
+          status: 'draft' as const,
+          progress: readiness.score,
+          updatedAt: now,
+        }
+        return {
+          ...d,
+          designs: exists
+            ? d.designs.map((x) => (x.id === designId ? { ...x, ...next } : x))
+            : [next, ...d.designs],
+        }
+      })
+      try {
+        sessionStorage.setItem('threados-current-design', designId)
+      } catch {
+        /* ignore */
+      }
+      window.setTimeout(() => setSaveState('saved'), 350)
+      if (manual) toast(`“${designName}” saved — you'll find it under Recent Designs.`, 'success')
+    },
+    [user, designId, designName, activeGarment.kind, readiness.score, mutate, toast],
+  )
+
+  // Auto-save: any real change persists after 2s of quiet.
+  const firstChange = useRef(true)
+  useEffect(() => {
+    if (firstChange.current) {
+      firstChange.current = false
+      return
+    }
+    setSaveState('unsaved')
+    const t = window.setTimeout(() => saveDesign(false), 2000)
+    return () => window.clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, config, present, activeName, designName])
+
+  // A new blank gets the blank's name until the designer renames it.
+  useEffect(() => {
+    setDesignName(activeGarment.name)
+  }, [activeGarment.name])
+
   const applyAction = useCallback(
     (action: StudioAction) => {
       if (action.kind === 'set-field') {
@@ -601,6 +690,14 @@ export function DesignStudio() {
   /** The wizard hands over a configured design — no empty editor, ever. */
   const completeWizard = useCallback(
     (r: WizardResult) => {
+      // a fresh piece gets its own identity for save/auto-save
+      const freshId = uid('d')
+      setDesignId(freshId)
+      try {
+        sessionStorage.setItem('threados-current-design', freshId)
+      } catch {
+        /* ignore */
+      }
       setActiveName(GARMENTS.some((g) => g.name === r.garmentName) ? r.garmentName : 'Hoodie')
       setFields((prev) => ({
         ...prev,
@@ -672,6 +769,14 @@ export function DesignStudio() {
           <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
             New
           </button>
+          <button
+            className="s-btn s-btn--ghost"
+            type="button"
+            title="Save to your designs (auto-saves too)"
+            onClick={() => saveDesign(true)}
+          >
+            Save
+          </button>
           <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
             <IcoUpload width="16" height="16" /> Share
           </button>
@@ -684,6 +789,27 @@ export function DesignStudio() {
           >
             <ExportMenu input={exportInput} readiness={readinessInput} />
           </Suspense>
+          <span className="ds-sep" />
+          <button
+            className="ds-icon"
+            type="button"
+            aria-label="Undo"
+            title={canUndo ? 'Undo (⌘Z)' : 'Nothing to undo'}
+            disabled={!canUndo}
+            onClick={undo}
+          >
+            <IcoArrowRight width="16" height="16" style={{ transform: 'scaleX(-1)' }} />
+          </button>
+          <button
+            className="ds-icon"
+            type="button"
+            aria-label="Redo"
+            title={canRedo ? 'Redo (⇧⌘Z)' : 'Nothing to redo'}
+            disabled={!canRedo}
+            onClick={redo}
+          >
+            <IcoArrowRight width="16" height="16" />
+          </button>
         </div>
 
         {/* Journey progress — the user always knows where they are */}
@@ -713,23 +839,79 @@ export function DesignStudio() {
           <button
             className="ds-icon"
             type="button"
-            aria-label="Undo"
-            title={canUndo ? 'Undo' : 'Nothing to undo'}
-            disabled={!canUndo}
-            onClick={undo}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            onClick={toggleTheme}
           >
-            <IcoArrowRight width="17" height="17" style={{ transform: 'scaleX(-1)' }} />
+            {theme === 'dark' ? <IcoSun width="18" height="18" /> : <IcoMoon width="17" height="17" />}
           </button>
-          <button
-            className="ds-icon"
-            type="button"
-            aria-label="Redo"
-            title={canRedo ? 'Redo' : 'Nothing to redo'}
-            disabled={!canRedo}
-            onClick={redo}
-          >
-            <IcoArrowRight width="17" height="17" />
-          </button>
+
+          <div className="ds-pop-wrap">
+            <button
+              className="ds-icon"
+              type="button"
+              aria-label="Keyboard shortcuts & help"
+              title="Shortcuts & help"
+              aria-expanded={helpOpen}
+              onClick={() => {
+                setHelpOpen((v) => !v)
+                setNotifOpen(false)
+              }}
+            >
+              <IcoHelp width="18" height="18" />
+            </button>
+            {helpOpen && (
+              <div className="ds-pop" role="dialog" aria-label="Shortcuts">
+                <b className="ds-pop__title">Shortcuts</b>
+                {[
+                  ['⌘Z / ⇧⌘Z', 'Undo / Redo'],
+                  ['⌘D', 'Duplicate layer'],
+                  ['Delete', 'Remove selection'],
+                  ['Esc', 'Deselect'],
+                  ['Scroll', 'Zoom to cursor'],
+                  ['Space + drag', 'Pan the canvas'],
+                  ['Double-click', 'Fit to view'],
+                ].map(([k, v]) => (
+                  <div className="ds-pop__row" key={k}>
+                    <kbd>{k}</kbd>
+                    <span>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="ds-pop-wrap">
+            <button
+              className="ds-icon ds-icon--badge"
+              type="button"
+              aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}
+              title="Notifications"
+              aria-expanded={notifOpen}
+              onClick={() => {
+                setNotifOpen((v) => !v)
+                setHelpOpen(false)
+                if (!notifOpen && unread > 0) {
+                  mutate((d) => ({ ...d, notifications: d.notifications.map((n) => ({ ...n, read: true })) }))
+                }
+              }}
+            >
+              <IcoBell width="18" height="18" />
+              {unread > 0 && <span className="ds-icon__badge">{unread}</span>}
+            </button>
+            {notifOpen && (
+              <div className="ds-pop ds-pop--notif" role="dialog" aria-label="Notifications">
+                <b className="ds-pop__title">Notifications</b>
+                {data.notifications.length === 0 && <p className="ds-pop__empty">You're all caught up.</p>}
+                {data.notifications.map((n) => (
+                  <div className="ds-pop__notif" key={n.id}>
+                    <b>{n.title}</b>
+                    <small>{n.body}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -942,6 +1124,9 @@ export function DesignStudio() {
             garmentKind={activeGarment.kind}
             garmentFit={activeGarment.fit}
             showHints={liveSelected.length === 0}
+            designName={designName}
+            onRenameDesign={setDesignName}
+            saveState={saveState}
           />
         </div>
 

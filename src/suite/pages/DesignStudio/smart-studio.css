@@ -313,6 +313,96 @@
   color: var(--s-good);
 }
 
+/* ---------- Topbar utility popovers (help, notifications) ---------- */
+.ds-pop-wrap {
+  position: relative;
+}
+.ds-icon--badge {
+  position: relative;
+}
+.ds-icon__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: var(--s-r-pill);
+  background: var(--s-accent);
+  color: var(--s-accent-ink);
+  font-size: 9.5px;
+  font-weight: 750;
+}
+.ds-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 240;
+  width: 250px;
+  padding: 12px;
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-r);
+  box-shadow: var(--s-shadow-lg);
+  animation: pk-pop var(--s-dur) var(--s-ease);
+  transform-origin: top right;
+}
+.ds-pop__title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+  margin-bottom: 8px;
+}
+.ds-pop__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--s-text-2);
+}
+.ds-pop__row kbd {
+  flex: 0 0 auto;
+  min-width: 86px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--s-inset);
+  border: 1px solid var(--s-line);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--s-text);
+  text-align: center;
+}
+.ds-pop--notif {
+  width: 290px;
+}
+.ds-pop__notif {
+  padding: 8px 0;
+  border-top: 1px solid var(--s-line);
+}
+.ds-pop__notif:first-of-type {
+  border-top: 0;
+}
+.ds-pop__notif b {
+  display: block;
+  font-size: 12.5px;
+  color: var(--s-text);
+}
+.ds-pop__notif small {
+  font-size: 11.5px;
+  color: var(--s-text-3);
+}
+.ds-pop__empty {
+  font-size: 12px;
+  color: var(--s-text-3);
+}
+
 /* ---------- Library rail eyebrow ---------- */
 .ds-rail__eyebrow {
   display: block;

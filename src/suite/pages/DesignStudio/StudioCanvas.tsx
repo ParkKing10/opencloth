@@ -46,9 +46,21 @@ type Props = {
   garmentFit: string
   /** Show the gentle "what next" hints (when nothing is selected). */
   showHints?: boolean
+  /** The design's name + save status live with the studio (auto-save owns them). */
+  designName?: string
+  onRenameDesign?: (name: string) => void
+  saveState?: 'saved' | 'saving' | 'unsaved'
 }
 
-export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }: Props) {
+export function StudioCanvas({
+  garmentName,
+  garmentKind,
+  garmentFit,
+  showHints,
+  designName: designNameProp,
+  onRenameDesign,
+  saveState,
+}: Props) {
   const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
   const [view, setView] = useState('Front')
@@ -81,8 +93,9 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
   const [isPanning, setIsPanning] = useState(false)
   // True while actively wheeling — suppresses the world transform transition.
   const [isInteracting, setIsInteracting] = useState(false)
-  // Editable design title, seeded from the active blank and re-synced when it changes.
-  const [designName, setDesignName] = useState(garmentName)
+  // Design title: owned by the studio when provided (auto-save), local fallback otherwise.
+  const [localName, setLocalName] = useState(garmentName)
+  const designName = designNameProp ?? localName
 
   // Ref to the wrapper so we can grab the live <svg> and rasterise it to PNG.
   const stageRef = useRef<HTMLDivElement>(null)
@@ -109,7 +122,7 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
   }
 
   useEffect(() => {
-    setDesignName(garmentName)
+    setLocalName(garmentName)
   }, [garmentName])
 
   // Wheel zoom, attached non-passively so the page never scrolls under the canvas.
@@ -171,7 +184,8 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
     if (next == null) return
     const trimmed = next.trim()
     if (!trimmed || trimmed === designName) return
-    setDesignName(trimmed)
+    if (onRenameDesign) onRenameDesign(trimmed)
+    else setLocalName(trimmed)
     toast(`Renamed to “${trimmed}”.`, 'success')
   }
 
@@ -293,7 +307,14 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
           {designName} <IcoChevron width="15" height="15" />
         </button>
         <span className="ds-saved">
-          <span className="s-dot" style={{ background: 'var(--s-good)' }} /> Saved
+          <span
+            className="s-dot"
+            style={{
+              background:
+                saveState === 'saving' ? 'var(--s-warn)' : saveState === 'unsaved' ? 'var(--s-text-4)' : 'var(--s-good)',
+            }}
+          />{' '}
+          {saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Edited' : 'Saved'}
         </span>
         <div className="ds-mode">
           {(['3D', '2D'] as const).map((m) => (

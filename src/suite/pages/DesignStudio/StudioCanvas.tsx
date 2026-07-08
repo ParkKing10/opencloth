@@ -3,7 +3,6 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent }
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
-import { downloadBlob, slugify, svgElementToPngBlob } from '../../lib/download'
 import { downloadTechPackPdf } from '../../lib/exporters'
 import { CanvasObjects } from './CanvasObjects'
 import type { Layer } from './LayersPanel'
@@ -16,14 +15,10 @@ import './canvas.css'
 const GARMENT_PHOTO: Partial<Record<GarmentKind, string>> = { hoodie: hoodieImg, tee: teeImg }
 
 const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
-const VIEWS = ['Front', 'Angle', 'Side', 'Hood']
 const FLATS = ['Front', 'Back', 'Side', 'Details']
-const CANVAS_TOOLS = ['orbit', 'zoom', 'fit', 'grid', 'measure', 'light']
 
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 3
-/** Multiplicative step used by the toolbar zoom in/out buttons. */
-const ZOOM_BTN_STEP = 1.2
 /** Exponential sensitivity for wheel zooming. */
 const ZOOM_WHEEL_SENSITIVITY = 0.0015
 /** How long after the last wheel tick the world keeps its no-transition state. */
@@ -74,7 +69,6 @@ export function StudioCanvas({
   garmentName,
   garmentKind,
   garmentFit,
-  showHints,
   designName: designNameProp,
   onRenameDesign,
   saveState,
@@ -91,7 +85,6 @@ export function StudioCanvas({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
-  const [view, setView] = useState('Front')
   const [tool, setTool] = useState('move')
   const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
   // The bottom strip collapses so the stage can be the whole studio.
@@ -114,9 +107,8 @@ export function StudioCanvas({
   }
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
-  const [showGrid, setShowGrid] = useState(true)
-  const [showSafeArea, setShowSafeArea] = useState(true)
-  const [isRendering, setIsRendering] = useState(false)
+  const showGrid = true
+  const showSafeArea = true
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [isPanning, setIsPanning] = useState(false)
   // True while actively wheeling — suppresses the world transform transition.
@@ -215,54 +207,6 @@ export function StudioCanvas({
     if (onRenameDesign) onRenameDesign(trimmed)
     else setLocalName(trimmed)
     toast(`Renamed to “${trimmed}”.`, 'success')
-  }
-
-  async function renderPng() {
-    if (isRendering) return
-    const svg = stageRef.current?.querySelector('svg')
-    if (!svg) {
-      toast('Nothing to render yet.', 'info')
-      return
-    }
-    setIsRendering(true)
-    try {
-      const blob = await svgElementToPngBlob(svg)
-      downloadBlob(blob, `${slugify(designName)}.png`)
-      toast(`Rendered “${designName}” to PNG.`, 'accent')
-    } catch {
-      toast('Render failed — could not rasterise the garment.', 'info')
-    } finally {
-      setIsRendering(false)
-    }
-  }
-
-  function handleCanvasTool(t: string) {
-    switch (t) {
-      case 'zoom':
-        applyView(clampZoom(zoomRef.current * ZOOM_BTN_STEP), panRef.current)
-        toast('Zoomed in.')
-        break
-      case 'fit':
-        applyView(1, { x: 0, y: 0 })
-        toast('Fit to view.')
-        break
-      case 'grid':
-        setShowGrid((g) => !g)
-        toast(showGrid ? 'Grid hidden.' : 'Grid shown.')
-        break
-      case 'orbit':
-        applyView(clampZoom(zoomRef.current / ZOOM_BTN_STEP), panRef.current)
-        toast('Zoomed out.')
-        break
-      default:
-        setTool(t)
-        toast(`${t.charAt(0).toUpperCase() + t.slice(1)} tool`)
-    }
-  }
-
-  function toggleSafeArea() {
-    setShowSafeArea((s) => !s)
-    toast(showSafeArea ? 'Safe area hidden.' : 'Safe area shown.')
   }
 
   // Snap back to 100% while keeping the viewport-centre point stable.
@@ -461,79 +405,6 @@ export function StudioCanvas({
             onClick={resetZoom}
           >
             {Math.round(zoom * 100)}%
-          </button>
-          {showHints && (
-            <div className="cv-hints" aria-hidden="true">
-              <span>Select a layer to edit it</span>
-              <i>or</i>
-              <span>Ask THREADOS AI above</span>
-              <i>or</i>
-              <span>Drag an asset from the Library</span>
-            </div>
-          )}
-        </div>
-
-        <div className="ds-views">
-          {VIEWS.map((v) => (
-            <button
-              key={v}
-              type="button"
-              className={`ds-view${view === v ? ' is-active' : ''}`}
-              aria-label={`${v} view`}
-              title={`${v} view`}
-              onClick={() => {
-                setView(v)
-                toast(`${v} view`, 'default')
-              }}
-            >
-              <Glyph width="34" height="34" />
-            </button>
-          ))}
-        </div>
-
-        <div className="ds-canvas-toolbar">
-          <div className="ds-canvas-toolbar__group">
-            {CANVAS_TOOLS.map((t, i) => (
-              <button
-                key={t}
-                type="button"
-                aria-label={t}
-                title={t.charAt(0).toUpperCase() + t.slice(1)}
-                onClick={() => handleCanvasTool(t)}
-              >
-                <ToolGlyph i={i} small />
-              </button>
-            ))}
-            <button
-              type="button"
-              className={`cv-safe-toggle${showSafeArea ? ' is-active' : ''}`}
-              aria-label="Safe area"
-              aria-pressed={showSafeArea}
-              title="Safe area"
-              onClick={toggleSafeArea}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="4.5" y="4.5" width="15" height="15" rx="3" strokeDasharray="3 3" />
-              </svg>
-            </button>
-          </div>
-          <button
-            className="ds-render"
-            type="button"
-            title="Render a PNG of the current garment"
-            disabled={isRendering}
-            onClick={renderPng}
-          >
-            {isRendering ? 'Rendering…' : 'Render'} <IcoChevron width="14" height="14" />
           </button>
         </div>
       </div>

@@ -40,7 +40,6 @@ import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { GraphicsPanel } from './GraphicsPanel'
 import { MaterialsPanel } from './MaterialsPanel'
 import { InspirationPanel } from './InspirationPanel'
-import { StudioDock } from './StudioDock'
 import {
   INITIAL_CONFIG,
   deriveReadiness,
@@ -156,7 +155,6 @@ export function DesignStudio() {
   const { user } = useAuth()
   const { data, mutate } = useStore()
   const [rail, setRail] = useState('Garments')
-  const [dockView, setDockView] = useState('front')
 
   // The design being edited — one stable id per piece so auto-save upserts it.
   const [designId, setDesignId] = useState<string>(() => {
@@ -1230,7 +1228,6 @@ export function DesignStudio() {
             garmentName={activeGarment.name}
             garmentKind={activeGarment.kind}
             garmentFit={activeGarment.fit}
-            showHints={liveSelected.length === 0}
             designName={designName}
             onRenameDesign={setDesignName}
             saveState={saveState}
@@ -1306,36 +1303,11 @@ export function DesignStudio() {
         )}
       </div>
 
-      {/* Bottom dock — checklist, AI suggestion, garment views, next step */}
-      <StudioDock
-        garmentKind={activeGarment.kind}
-        checklistPct={readiness.score}
-        aiSuggestion={readiness.missing[0] ? `${readiness.missing[0].label} — ${readiness.missing[0].hint ?? 'add it to reach 100%.'}` : null}
-        onViewSuggestion={() => readiness.missing[0] && fixCheck(readiness.missing[0].id)}
-        views={DOCK_VIEWS}
-        activeView={dockView}
-        onSelectView={(id) => {
-          setDockView(id)
-          toast(`${DOCK_VIEWS.find((v) => v.id === id)?.label ?? id} view`, 'default')
-        }}
-        onCreateTechPack={() => navigate('/suite/tech-packs')}
-      />
-
       {/* New-design wizard — nobody ever starts on an empty editor */}
       <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
     </div>
   )
 }
-
-const DOCK_VIEWS = [
-  { id: 'front', label: 'Front' },
-  { id: 'back', label: 'Back' },
-  { id: 'left', label: 'Left' },
-  { id: 'right', label: 'Right' },
-  { id: 'hood', label: 'Hood' },
-  { id: 'pocket', label: 'Pocket' },
-  { id: 'label', label: 'Label' },
-]
 
 function RailIcon({ name }: { name: string }) {
   const common = { width: 20, height: 20 }

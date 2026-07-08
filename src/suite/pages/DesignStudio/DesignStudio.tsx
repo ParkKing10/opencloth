@@ -143,6 +143,66 @@ export function DesignStudio() {
       return true
     }
   })
+
+  // Workspace layout: resizable Layers panel + collapsible inspector (both persisted).
+  const [layersH, setLayersH] = useState<number | null>(() => {
+    try {
+      const raw = localStorage.getItem('threados-layers-h')
+      return raw ? Math.max(150, parseInt(raw, 10) || 0) : null
+    } catch {
+      return null
+    }
+  })
+  const [rightHidden, setRightHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('threados-right-hidden') === '1'
+    } catch {
+      return false
+    }
+  })
+
+  const toggleRight = useCallback(() => {
+    setRightHidden((v) => {
+      try {
+        localStorage.setItem('threados-right-hidden', v ? '0' : '1')
+      } catch {
+        /* ignore */
+      }
+      return !v
+    })
+  }, [])
+
+  /**
+   * Drag the divider above the Layers panel to resize it. Stateless math: the
+   * panel height is simply the distance from the pointer to the aside's bottom,
+   * so the divider tracks the cursor exactly.
+   */
+  const startLayersResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const aside = e.currentTarget.closest('.ds-left')
+    if (!aside) return
+    const compute = (clientY: number) => {
+      const rect = aside.getBoundingClientRect()
+      const maxH = Math.max(220, rect.height - 220)
+      return Math.min(maxH, Math.max(150, Math.round(rect.bottom - clientY - 5)))
+    }
+    let last = compute(e.clientY)
+    const onMove = (ev: PointerEvent) => {
+      last = compute(ev.clientY)
+      setLayersH(last)
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      try {
+        localStorage.setItem('threados-layers-h', String(last))
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [])
   const [cat, setCat] = useState<Cat>('All')
   const [query, setQuery] = useState('')
   const [activeName, setActiveName] = useState('Hoodie')
@@ -837,15 +897,36 @@ export function DesignStudio() {
             )}
           </div>
 
+          {/* Drag to resize the Layers panel */}
+          <div
+            className="ds-resize"
+            role="separator"
+            aria-label="Resize layers panel"
+            title="Drag to resize"
+            onPointerDown={startLayersResize}
+            onDoubleClick={() => {
+              setLayersH(null)
+              try {
+                localStorage.removeItem('threados-layers-h')
+              } catch {
+                /* ignore */
+              }
+            }}
+          >
+            <span className="ds-resize__grip" />
+          </div>
+
           {/* Layers — Figma-grade: multi-select, rename, lock, groups, reorder */}
-          <LayersPanel
-            layers={layers}
-            hidden={hidden}
-            selectedIds={liveSelected}
-            onCommit={commitLayers}
-            onSelect={setSelectedIds}
-            onAddLayer={addLayer}
-          />
+          <div className="ds-layers-slot" style={layersH ? { height: layersH, flex: '0 0 auto' } : undefined}>
+            <LayersPanel
+              layers={layers}
+              hidden={hidden}
+              selectedIds={liveSelected}
+              onCommit={commitLayers}
+              onSelect={setSelectedIds}
+              onAddLayer={addLayer}
+            />
+          </div>
             </>
           )}
         </aside>
@@ -878,7 +959,22 @@ export function DesignStudio() {
           />
         </div>
 
+        {/* Collapse the inspector — let the designer focus on the piece */}
+        <button
+          type="button"
+          className={`ds-collapse${rightHidden ? ' is-collapsed' : ''}`}
+          onClick={toggleRight}
+          aria-expanded={!rightHidden}
+          aria-label={rightHidden ? 'Show inspector' : 'Hide inspector'}
+          title={rightHidden ? 'Show inspector' : 'Hide inspector — focus on the canvas'}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d={rightHidden ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} />
+          </svg>
+        </button>
+
         {/* Inspector — the selected object, or the garment itself */}
+        {!rightHidden && (
         <aside className="ds-right">
           {activeLayer ? (
             <div className="ds-right__scroll">
@@ -913,6 +1009,7 @@ export function DesignStudio() {
             </GarmentInspector>
           )}
         </aside>
+        )}
       </div>
 
       {/* New-design wizard — nobody ever starts on an empty editor */}

@@ -322,6 +322,71 @@
   text-align: center;
 }
 
+/* ---------- Workspace layout: resizable layers + collapsible inspector ---------- */
+.ds-resize {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  height: 10px;
+  margin: 0 12px;
+  cursor: row-resize;
+  touch-action: none;
+  border-radius: var(--s-r-pill);
+  transition: background var(--s-dur) var(--s-ease);
+}
+.ds-resize:hover {
+  background: var(--s-accent-soft);
+}
+.ds-resize__grip {
+  width: 34px;
+  height: 3px;
+  border-radius: var(--s-r-pill);
+  background: var(--s-line-strong);
+  transition: background var(--s-dur) var(--s-ease), width var(--s-dur) var(--s-ease);
+}
+.ds-resize:hover .ds-resize__grip {
+  background: var(--s-accent);
+  width: 48px;
+}
+
+.ds-layers-slot {
+  display: flex;
+  flex-direction: column;
+  min-height: 150px;
+  flex: 1 1 42%;
+}
+.ds-layers-slot .lp {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 0;
+}
+
+.ds-collapse {
+  flex: 0 0 auto;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 64px;
+  margin: 0 -2px;
+  padding: 0;
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-r-pill);
+  background: var(--s-panel-2);
+  color: var(--s-text-4);
+  cursor: pointer;
+  z-index: 5;
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.ds-collapse:hover {
+  color: var(--s-accent);
+  border-color: var(--s-accent-line);
+  background: var(--s-panel-3);
+}
+.ds-collapse.is-collapsed {
+  margin-right: 8px;
+}
+
 /* ---------- Object-first hero block (beginner inspector) ---------- */
 .gi-hero {
   display: flex;

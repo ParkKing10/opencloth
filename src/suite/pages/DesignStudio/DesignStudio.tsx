@@ -784,7 +784,7 @@ export function DesignStudio() {
       />
 
       {/* ---- Body ---- */}
-      <div className="ds-body">
+      <div className={`ds-body${rightHidden ? ' ds-body--focus' : ''}`}>
         {/* Library rail — five human categories, all real */}
         <nav className="ds-rail" aria-label="Library">
           <span className="ds-rail__eyebrow">Library</span>

@@ -361,22 +361,37 @@
   border-top: 0;
 }
 
+/* The inspector column width — single source for the grid AND the handle. */
+.ds-body {
+  --inspector-w: 300px;
+  position: relative;
+}
+
+/* Focus mode: the inspector column disappears, the canvas takes its width. */
+.ds-body--focus {
+  grid-template-columns: var(--s-rail-w) 264px minmax(0, 1fr) !important;
+}
+
+/* Floating handle at the canvas/inspector boundary — NOT a grid item. */
 .ds-collapse {
-  flex: 0 0 auto;
-  align-self: center;
+  position: absolute;
+  top: 50%;
+  right: calc(var(--inspector-w) - 10px);
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   width: 20px;
   height: 64px;
-  margin: 0 -2px;
   padding: 0;
-  border: 1px solid var(--s-line);
+  border: 1px solid var(--s-line-2);
   border-radius: var(--s-r-pill);
   background: var(--s-panel-2);
   color: var(--s-text-4);
   cursor: pointer;
-  z-index: 5;
-  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+  z-index: 30;
+  box-shadow: var(--s-shadow-sm);
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease), right var(--s-dur-slow) var(--s-ease);
 }
 .ds-collapse:hover {
   color: var(--s-accent);
@@ -384,7 +399,21 @@
   background: var(--s-panel-3);
 }
 .ds-collapse.is-collapsed {
-  margin-right: 8px;
+  right: 10px;
+}
+
+@media (max-width: 1200px) {
+  .ds-body {
+    --inspector-w: 280px;
+  }
+  .ds-body--focus {
+    grid-template-columns: var(--s-rail-w) 240px minmax(0, 1fr) !important;
+  }
+}
+@media (max-width: 1000px) {
+  .ds-collapse {
+    display: none; /* the inspector is already hidden at this width */
+  }
 }
 
 /* ---------- Object-first hero block (beginner inspector) ---------- */

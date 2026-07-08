@@ -14,6 +14,7 @@ import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
+import { downloadCsv, slugify } from '../../lib/download'
 import './an.css'
 
 /* ============================================================
@@ -524,7 +525,65 @@ export function Analytics() {
   ])
 
   function handleExport() {
-    toast(`Exported ${def.label} report — ${fmtMoney(revenueTotal)} revenue across ${def.buckets} periods.`, 'success')
+    // Build a single, flat, uniform CSV of the current view: KPI summary rows
+    // followed by the per-period revenue & production series driving the charts.
+    type Row = {
+      section: string
+      metric: string
+      period: string
+      value: string
+      detail: string
+    }
+
+    const kpiRows: Row[] = kpis.map((k) => ({
+      section: 'KPI',
+      metric: k.label,
+      period: def.label,
+      value: k.value,
+      detail: `${k.delta} · ${k.caption}`,
+    }))
+
+    const revenueRows: Row[] = revenue.map((v, i) => ({
+      section: 'Revenue',
+      metric: 'Revenue',
+      period: def.months[i] ?? `P${i + 1}`,
+      value: fmtMoney(v),
+      detail: `${def.caption}`,
+    }))
+
+    const productionRows: Row[] = production.map((v, i) => ({
+      section: 'Production',
+      metric: 'Units produced',
+      period: def.bars[i] ?? `P${i + 1}`,
+      value: String(v * 100),
+      detail: `${def.caption}`,
+    }))
+
+    const regionRows: Row[] = regions.map((r) => ({
+      section: 'Manufacturers by region',
+      metric: r.name,
+      period: def.label,
+      value: String(r.count),
+      detail: 'active partners',
+    }))
+
+    const collectionRows: Row[] = topCollections.map((c) => ({
+      section: 'Top collections',
+      metric: c.name,
+      period: def.label,
+      value: c.revenue,
+      detail: `${c.pct}% of top`,
+    }))
+
+    const rows: Row[] = [...kpiRows, ...revenueRows, ...productionRows, ...regionRows, ...collectionRows]
+
+    const filename = `threados-analytics-${slugify(def.short)}.csv`
+    try {
+      downloadCsv(rows, filename)
+      toast(`Exported ${def.label} report — ${rows.length} rows (${filename}).`, 'success')
+    } catch {
+      toast('Could not export the analytics report. Please try again.', 'info')
+    }
   }
 
   return (

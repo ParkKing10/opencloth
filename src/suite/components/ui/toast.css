@@ -1,14 +1,21 @@
-.suite-toaster {
+/* Two classes so these win over the base `.suite` rules (which set min-height:100vh
+   + a background) — otherwise the toaster becomes a full-height bar over the UI. */
+.suite.suite-toaster {
   position: fixed;
   bottom: 22px;
   right: 22px;
   z-index: 9999;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 10px;
-  pointer-events: none;
+  width: auto;
+  height: auto;
   min-height: 0;
+  padding: 0;
+  margin: 0;
   background: transparent;
+  pointer-events: none;
 }
 
 .toast {

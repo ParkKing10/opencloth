@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { SVGProps } from 'react'
 import {
   IcoPattern,
@@ -12,6 +12,7 @@ import {
   IcoCheck,
 } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
+import { downloadBlob, downloadJson, slugify, svgElementToPngBlob } from '../../lib/download'
 import './pt.css'
 
 /* Local export/download glyph — Icons.tsx has no download icon, so define inline. */
@@ -288,6 +289,10 @@ export function PatternStudio() {
   const [zoom, setZoom] = useState(100)
   /** True once the current sheet state has been committed by the user. */
   const [saved, setSaved] = useState(true)
+  /** True while an async file export is running, so the button can't double-fire. */
+  const [exporting, setExporting] = useState(false)
+  /** Live handle on the CAD <svg> so Export can rasterise exactly what's on screen. */
+  const svgRef = useRef<SVGSVGElement>(null)
 
   const geo = GEO[activePiece]
   const piece = PIECES.find((p) => p.id === activePiece) as Piece
@@ -321,12 +326,64 @@ export function PatternStudio() {
   const toggleSnap = () => setSnap((v) => !v)
   const changeZoom = (next: number) => setZoom(clampZoom(next))
 
+  /** Build the base filename for the active piece + size (no extension). */
+  const fileStem = () => `threados-${slugify(piece.name)}-${size.toLowerCase()}`
+
+  /**
+   * Save → write a real, re-openable JSON snapshot of the current pattern sheet
+   * (piece geometry, measurements for the active size, viewport prefs). This is a
+   * genuine downloaded artifact, and the sheet flips to the "Saved" state.
+   */
   const handleSave = () => {
-    setSaved(true)
-    toast(`${piece.name} · size ${size} saved`, 'success')
+    const snapshot = {
+      format: 'threados.pattern-sheet',
+      version: 1,
+      savedAt: new Date().toISOString(),
+      piece: {
+        id: piece.id,
+        name: piece.name,
+        seams: piece.seams,
+        qty: piece.qty,
+        fabric: piece.fabric,
+        dimensions: geo.dims,
+      },
+      size,
+      grade: GRADE_INCREMENT[size],
+      measurements: MEASUREMENTS.map((m) => ({
+        name: m.name,
+        code: m.code,
+        value: m.values[size],
+        unit: m.unit,
+      })),
+      geometry: { seam: geo.seam, allowance: geo.allowance, grain: geo.grain },
+      viewport: { tool, zoom, showGrid, snap },
+    }
+    try {
+      downloadJson(snapshot, `${fileStem()}.pattern.json`)
+      setSaved(true)
+      toast(`${piece.name} · size ${size} saved`, 'success')
+    } catch {
+      toast('Could not save pattern sheet', 'info')
+    }
   }
-  const handleExport = () => {
-    toast(`Exporting ${piece.name} (${geo.dims}) as DXF…`, 'accent')
+
+  /**
+   * Export → rasterise the live CAD <svg> (exactly what's rendered, at 2× scale)
+   * into a real PNG and download it.
+   */
+  const handleExport = async () => {
+    const svg = svgRef.current
+    if (!svg || exporting) return
+    setExporting(true)
+    try {
+      const blob = await svgElementToPngBlob(svg)
+      downloadBlob(blob, `${fileStem()}.png`)
+      toast(`Exported ${piece.name} (${geo.dims}) as PNG`, 'accent')
+    } catch {
+      toast('Export failed — could not render the canvas', 'info')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -400,10 +457,11 @@ export function PatternStudio() {
           type="button"
           className="pt-toggle"
           onClick={handleExport}
-          title="Export the active piece as a DXF cut file"
+          disabled={exporting}
+          title="Export the active piece as a PNG image"
         >
           <IcoExport width="15" height="15" />
-          Export
+          {exporting ? 'Exporting…' : 'Export'}
         </button>
         <button
           type="button"
@@ -477,6 +535,7 @@ export function PatternStudio() {
           </div>
 
           <svg
+            ref={svgRef}
             className="pt-canvas__svg"
             viewBox="0 0 640 520"
             preserveAspectRatio="xMidYMid meet"

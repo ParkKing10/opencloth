@@ -6,6 +6,7 @@ import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
+import { downloadCsv } from '../../lib/download'
 import type { Order, OrderStage } from '../../data/types'
 import './pr.css'
 
@@ -163,7 +164,33 @@ export function Production() {
   function toggleAuto() {
     const next = !autoFlow
     setAutoFlow(next)
-    toast(next ? 'Auto-flow on — orders advance as milestones clear.' : 'Auto-flow paused — advance orders manually.', next ? 'accent' : 'default')
+    if (!next) {
+      toast('Auto-flow paused — advance orders manually.', 'default')
+      return
+    }
+    // Turning auto-flow on does real work: every behind-schedule order
+    // is advanced one stage in a single persisted mutation.
+    const behind = myOrders.filter((o) => needsAttention(o) && nextStage(o.stage) !== null)
+    if (behind.length === 0) {
+      toast('Auto-flow on — every order is already on track.', 'accent')
+      return
+    }
+    const behindIds = new Set(behind.map((o) => o.id))
+    mutate((d) => ({
+      ...d,
+      orders: d.orders.map((o) => {
+        if (!behindIds.has(o.id)) return o
+        const target = nextStage(o.stage)
+        if (!target) return o
+        return {
+          ...o,
+          stage: target,
+          progress: Math.max(o.progress, STAGE_FLOOR[target]),
+          eta: target === 'delivered' ? 'Delivered' : o.eta,
+        }
+      }),
+    }))
+    toast(`Auto-flow on — advanced ${behind.length} behind-schedule order${behind.length === 1 ? '' : 's'}.`, 'accent')
   }
 
   function exportCsv() {
@@ -171,17 +198,23 @@ export function Production() {
       toast('Nothing to export yet — create your first order.', 'info')
       return
     }
-    const header = ['Order', 'Design', 'Garment', 'Qty', 'Manufacturer', 'Country', 'Stage', 'Progress', 'ETA']
-    const rows = myOrders.map((o) => [o.id, o.designName, KIND_LABEL[o.kind], String(o.qty), o.manufacturer, o.country, STAGE_META[o.stage].title, `${o.progress}%`, o.eta])
-    const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
-    const csv = [header, ...rows].map((r) => r.map(esc).join(',')).join('\n')
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `threados-production-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast(`Exported ${myOrders.length} orders to CSV.`, 'success')
+    try {
+      const rows = myOrders.map((o) => ({
+        Order: o.id,
+        Design: o.designName,
+        Garment: KIND_LABEL[o.kind],
+        Qty: o.qty,
+        Manufacturer: o.manufacturer,
+        Country: o.country,
+        Stage: STAGE_META[o.stage].title,
+        Progress: `${o.progress}%`,
+        ETA: o.eta,
+      }))
+      downloadCsv(rows, `threados-production-${new Date().toISOString().slice(0, 10)}.csv`)
+      toast(`Exported ${myOrders.length} orders to CSV.`, 'success')
+    } catch {
+      toast('Could not export CSV — please try again.', 'default')
+    }
   }
 
   const isSearching = query.trim().length > 0

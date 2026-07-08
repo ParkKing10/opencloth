@@ -106,6 +106,12 @@
   padding: 18px 22px;
   border-bottom: 1px solid var(--s-line);
 }
+.set-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .set-card__head-text h2 {
   font-size: 15px;
   font-weight: 600;
@@ -154,6 +160,14 @@
   border: 1px solid var(--s-accent-line);
   opacity: 0.5;
   pointer-events: none;
+}
+.set-avatar__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 20px;
 }
 .set-avatar-meta {
   display: flex;
@@ -551,6 +565,12 @@ select.set-input:hover {
 .set-billing-foot__note {
   font-size: 12px;
   color: var(--s-text-3);
+}
+.set-billing-foot__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* ---------- Team list ---------- */

@@ -319,6 +319,13 @@
   height: 36px;
   padding: 0 16px;
 }
+.com-hire.is-hired {
+  color: var(--s-accent);
+  border-color: var(--s-accent-line);
+}
+.com-hire.is-hired svg {
+  color: var(--s-accent);
+}
 .com-follow.is-following {
   background: var(--s-panel-3);
   color: var(--s-text-2);

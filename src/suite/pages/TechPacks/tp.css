@@ -155,6 +155,36 @@
   background: var(--s-panel-3);
 }
 
+/* Export list (CSV of the visible packs) */
+.tp-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 13px;
+  border-radius: var(--s-r-sm);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--s-text-2);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease);
+}
+.tp-export:hover:not(:disabled) {
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border-color: var(--s-accent-line);
+}
+.tp-export:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ---- Card grid ----------------------------------------------------------- */
 .tp-grid {
   display: grid;
@@ -590,11 +620,20 @@
   position: relative;
   display: inline-flex;
 }
+/* Transparent full-viewport scrim: catches outside clicks to close the menu. */
+.tp-menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: transparent;
+  border: none;
+  cursor: default;
+}
 .tp-menu {
   position: absolute;
   right: 0;
   bottom: calc(100% + 6px);
-  z-index: 20;
+  z-index: 41;
   min-width: 184px;
   display: flex;
   flex-direction: column;

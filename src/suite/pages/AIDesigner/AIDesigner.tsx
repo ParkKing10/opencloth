@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IcoSparkle,
@@ -9,15 +9,28 @@ import {
   IcoTechPack,
   IcoUpload,
   IcoStar,
-  IcoGrid,
-  IcoDots,
   IcoArrowRight,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import { useAuth } from '../../auth/auth'
 import { useStore } from '../../data/store'
+import type { Design, TechPack } from '../../data/types'
+import { uid } from '../../data/utils'
+import { downloadTechPackPdf } from '../../lib/exporters'
+import { downloadBlob, downloadJson, slugify, svgElementToPngBlob } from '../../lib/download'
 import './aid.css'
+
+/* Local export/download glyph — Icons.tsx has no download icon, so define inline. */
+function IcoDownload(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 3v12" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </svg>
+  )
+}
 
 /* ---- Static option sets ---- */
 const STYLES = ['Streetwear', 'Luxury', 'Vintage Wash', 'Sportswear', 'Minimal'] as const
@@ -90,6 +103,10 @@ const UPSCALE_COST = 2
 const PROMPT_MAX = 480
 const GEN_MS = 2400
 
+/** PNG raster scale factors — upscale ships a crisper 4K-grade asset. */
+const DOWNLOAD_SCALE = 2
+const UPSCALE_SCALE = 6
+
 /** Descriptive nouns used to name freshly generated variations. */
 const NAME_FORMS = ['Boxy', 'Cropped', 'Relaxed', 'Panelled', 'Draped', 'Structured', 'Washed', 'Heavyweight']
 
@@ -121,6 +138,14 @@ export function AIDesigner() {
   const [history, setHistory] = useState<HistoryItem[]>(INITIAL_HISTORY)
   const [isGenerating, setIsGenerating] = useState(false)
   const genTimer = useRef<number | null>(null)
+
+  // Live DOM handles to each result card, keyed by variation id, so a card's
+  // inline garment <svg> can be rasterised into a real PNG on demand.
+  const cardRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const registerCard = (id: string) => (el: HTMLElement | null) => {
+    if (el) cardRefs.current.set(id, el)
+    else cardRefs.current.delete(id)
+  }
 
   // Coins live on the authenticated user in the store — read them there rather
   // than showing a hardcoded balance that never reflects a generation spend.
@@ -233,7 +258,29 @@ export function AIDesigner() {
     toast('Prompt history cleared.')
   }
 
-  function upscale(v: Variation) {
+  /**
+   * Rasterise a result card's inline garment <svg> into a PNG and download it.
+   * Returns false (and surfaces the error) when the card or canvas is unavailable,
+   * so callers can avoid charging coins for a render that never produced a file.
+   */
+  async function exportVariationPng(v: Variation, scale: number, suffix: string): Promise<boolean> {
+    const card = cardRefs.current.get(v.id)
+    const svg = card?.querySelector<SVGSVGElement>('.aid-card__glyph svg')
+    if (!svg) {
+      toast('Could not read that design — try again.', 'info')
+      return false
+    }
+    try {
+      const blob = await svgElementToPngBlob(svg, scale)
+      downloadBlob(blob, `threados-${slugify(v.name)}-${suffix}.png`)
+      return true
+    } catch {
+      toast('Could not export the design. Please try again.', 'info')
+      return false
+    }
+  }
+
+  async function upscale(v: Variation) {
     if (!user) {
       toast('Sign in to upscale designs.', 'info')
       return
@@ -242,11 +289,92 @@ export function AIDesigner() {
       toast(`Not enough coins — upscaling costs ${UPSCALE_COST}.`, 'info')
       return
     }
+    // Produce the real 4K asset first; only spend coins once the file is created.
+    const ok = await exportVariationPng(v, UPSCALE_SCALE, '4k')
+    if (!ok) return
     mutate((d) => ({
       ...d,
       users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - UPSCALE_COST } : u)),
     }))
-    toast(`Upscaling “${v.name}” to 4K…`, 'accent')
+    toast(`Upscaled “${v.name}” to 4K — download started.`, 'success')
+  }
+
+  /** Export a single variation as a PNG at standard resolution. */
+  async function downloadVariation(v: Variation) {
+    const ok = await exportVariationPng(v, DOWNLOAD_SCALE, 'design')
+    if (ok) toast(`“${v.name}” downloaded as PNG.`, 'success')
+  }
+
+  /** Persist a real Design for this variation, then open it in the studio. */
+  function sendToStudio(v: Variation) {
+    if (!user) {
+      toast('Sign in to send designs to the studio.', 'info')
+      return
+    }
+    const design: Design = {
+      id: uid('d'),
+      ownerId: user.id,
+      name: v.name,
+      kind: v.kind,
+      status: 'draft',
+      progress: 0,
+      updatedAt: Date.now(),
+    }
+    mutate((d) => ({ ...d, designs: [design, ...d.designs] }))
+    toast(`“${v.name}” added to your designs — opening the studio.`, 'success')
+    navigate('/suite/design')
+  }
+
+  /** Persist a real TechPack for this variation, download its PDF, then open Tech Packs. */
+  function createTechPack(v: Variation) {
+    if (!user) {
+      toast('Sign in to create a tech pack.', 'info')
+      return
+    }
+    const pack: TechPack = {
+      id: uid('t'),
+      ownerId: user.id,
+      name: v.name,
+      kind: v.kind,
+      status: 'draft',
+      pages: 5,
+      updatedAt: Date.now(),
+    }
+    mutate((d) => ({ ...d, techPacks: [pack, ...d.techPacks] }))
+    try {
+      downloadTechPackPdf({ name: v.name, kind: v.kind })
+      toast(`Tech pack for “${v.name}” created — PDF downloaded.`, 'success')
+    } catch {
+      toast(`Tech pack for “${v.name}” created.`, 'success')
+    }
+    navigate('/suite/tech-packs')
+  }
+
+  /** Export the current result set as a real JSON file. */
+  function exportResults() {
+    if (variations.length === 0) {
+      toast('Generate some variations before exporting.', 'info')
+      return
+    }
+    downloadJson(
+      {
+        exportedAt: new Date().toISOString(),
+        prompt: prompt.trim(),
+        style,
+        garment: type,
+        aspect,
+        variations: variations.map((v) => ({
+          id: v.id,
+          name: v.name,
+          seed: v.seed,
+          kind: v.kind,
+          style: v.style,
+          favorite: v.isFav,
+        })),
+      },
+      `threados-${slugify(genLabel)}-results.json`,
+    )
+    toast(`Exported ${variations.length} variations to JSON.`, 'success')
   }
 
   const RefGlyph = GARMENT_GLYPHS[type]
@@ -420,24 +548,15 @@ export function AIDesigner() {
               <span className="s-chip s-chip--accent">
                 <IcoSparkle width="12" height="12" /> {style}
               </span>
-              <div className="aid-view">
-                <button
-                  className="aid-view__btn is-active"
-                  type="button"
-                  aria-label="Grid view"
-                  aria-pressed="true"
-                >
-                  <IcoGrid width="15" height="15" />
-                </button>
-                <button
-                  className="aid-view__btn"
-                  type="button"
-                  aria-label="More options"
-                  onClick={() => toast('More result options coming soon.', 'info')}
-                >
-                  <IcoDots width="15" height="15" />
-                </button>
-              </div>
+              <button
+                className="s-btn s-btn--ghost aid-export"
+                type="button"
+                onClick={exportResults}
+                disabled={variations.length === 0}
+                title="Export the current results as a JSON file"
+              >
+                <IcoDownload width="15" height="15" /> Export JSON
+              </button>
             </div>
           </div>
 
@@ -445,7 +564,7 @@ export function AIDesigner() {
             {variations.map((v, i) => {
               const Glyph = GARMENT_GLYPHS[v.kind]
               return (
-                <article className="aid-card" key={v.id} tabIndex={0}>
+                <article className="aid-card" key={v.id} ref={registerCard(v.id)} tabIndex={0}>
                   <div className="aid-card__canvas" style={{ background: TINTS[i % TINTS.length] }}>
                     <span className="aid-card__grain" aria-hidden="true" />
                     <span className="aid-card__seed">{v.seed}</span>
@@ -465,7 +584,7 @@ export function AIDesigner() {
                       <button
                         className="aid-tool aid-tool--primary"
                         type="button"
-                        onClick={() => upscale(v)}
+                        onClick={() => void upscale(v)}
                       >
                         <IcoSparkle width="14" height="14" /> Upscale
                         <span className="aid-tool__tip">Upscale to 4K · {UPSCALE_COST} coins</span>
@@ -474,10 +593,7 @@ export function AIDesigner() {
                         className="aid-tool"
                         type="button"
                         aria-label="Create tech pack"
-                        onClick={() => {
-                          toast(`Creating a tech pack from “${v.name}”…`, 'accent')
-                          navigate('/suite/tech-packs')
-                        }}
+                        onClick={() => createTechPack(v)}
                       >
                         <IcoTechPack width="16" height="16" />
                         <span className="aid-tool__tip">Create Tech Pack</span>
@@ -486,10 +602,7 @@ export function AIDesigner() {
                         className="aid-tool"
                         type="button"
                         aria-label="Send to Design Studio"
-                        onClick={() => {
-                          toast(`Sending “${v.name}” to the Design Studio…`, 'accent')
-                          navigate('/suite/design')
-                        }}
+                        onClick={() => sendToStudio(v)}
                       >
                         <IcoArrowRight width="16" height="16" />
                         <span className="aid-tool__tip">Send to Design Studio</span>
@@ -498,7 +611,7 @@ export function AIDesigner() {
                         className="aid-tool"
                         type="button"
                         aria-label="Download"
-                        onClick={() => toast(`Preparing “${v.name}” for download…`)}
+                        onClick={() => void downloadVariation(v)}
                       >
                         <IcoUpload width="16" height="16" style={{ transform: 'rotate(180deg)' }} />
                         <span className="aid-tool__tip">Download</span>

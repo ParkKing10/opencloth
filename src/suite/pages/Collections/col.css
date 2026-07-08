@@ -285,6 +285,68 @@
   background: var(--s-panel-3);
 }
 
+/* ---- Per-card actions menu (Export / Delete) ---- */
+.col-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.col-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 186px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  box-shadow: var(--s-shadow);
+  animation: col-menu-in var(--s-dur) var(--s-ease);
+}
+@keyframes col-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.col-menu__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.col-menu__item:hover {
+  color: var(--s-text);
+  background: var(--s-panel-3);
+}
+.col-menu__item--danger {
+  color: #ff8f8f;
+}
+.col-menu__item--danger:hover {
+  color: #ff8f8f;
+  background: rgba(255, 90, 90, 0.12);
+}
+
 .col-metrics {
   display: flex;
   align-items: center;

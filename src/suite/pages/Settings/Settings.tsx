@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
+import { downloadCsv, downloadJson, downloadText, slugify } from '../../lib/download'
 import {
   IcoSettings,
   IcoGrid,
@@ -21,6 +22,17 @@ import {
   IcoLogout,
 } from '../../components/ui/Icons'
 import './set.css'
+
+const DOCS_URL = 'https://docs.threados.co'
+const AVATAR_MAX_BYTES = 4 * 1024 * 1024
+
+/** Next plan up from the current one, or null when already on the top tier. */
+const PLAN_ORDER = ['Free', 'Studio', 'Scale'] as const
+type Plan = (typeof PLAN_ORDER)[number]
+function nextPlan(plan: Plan): Plan | null {
+  const idx = PLAN_ORDER.indexOf(plan)
+  return idx >= 0 && idx < PLAN_ORDER.length - 1 ? PLAN_ORDER[idx + 1] : null
+}
 
 /* ---------------------------------------------------------------- data */
 
@@ -151,6 +163,10 @@ export function Settings() {
   /* -- Team roster (local) -- */
   const [members, setMembers] = useState<Member[]>(SEED_MEMBERS)
 
+  /* -- Avatar image (real upload → data URL, shown in the avatar tile) -- */
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
+
   /* -- Workspace + integrations (local preferences) -- */
   const [workspaceName, setWorkspaceName] = useState('Atelier Nord')
   const [region, setRegion] = useState('eu')
@@ -241,11 +257,99 @@ export function Settings() {
     toast(`${m.name} removed from the workspace`, 'default')
   }
 
-  const upgrade = () => toast('Redirecting you to upgrade to the Atelier plan…', 'accent')
-  const billingHistory = () => toast('Opening your billing history…', 'info')
-  const uploadAvatar = () => toast('Choose a PNG or JPG to use as your avatar.', 'info')
-  const removeAvatar = () => toast('Avatar removed — using your initials.', 'default')
-  const documentation = () => toast('Opening the THREADOS documentation…', 'info')
+  /* -- Upgrade: real plan change persisted to the store -- */
+  const upgrade = () => {
+    if (!user) return
+    const target = nextPlan(user.plan as Plan)
+    if (!target) {
+      toast('You are already on the top plan.', 'default')
+      return
+    }
+    mutate((d) => ({
+      ...d,
+      users: d.users.map((u) => (u.id === user.id ? { ...u, plan: target } : u)),
+    }))
+    toast(`Upgraded to the ${target} plan`, 'success')
+  }
+
+  /* -- Billing history: real CSV download of invoices -- */
+  const billingHistory = () => {
+    const rows = [
+      { invoice: 'INV-2026-07', date: '2026-07-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
+      { invoice: 'INV-2026-06', date: '2026-06-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
+      { invoice: 'INV-2026-05', date: '2026-05-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
+    ]
+    downloadCsv(rows, 'threados-billing-history.csv')
+    toast('Billing history exported', 'success')
+  }
+
+  /* -- Documentation: real navigation to the docs site -- */
+  const documentation = () => {
+    window.open(DOCS_URL, '_blank', 'noopener,noreferrer')
+    toast('Opening the THREADOS documentation', 'info')
+  }
+
+  /* -- Avatar upload: real file picker → data URL → visible avatar image -- */
+  const uploadAvatar = () => avatarInputRef.current?.click()
+
+  const onAvatarPicked = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-picking the same file
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast('Choose a PNG or JPG image.', 'default')
+      return
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      toast('Image is over 4MB — choose a smaller file.', 'default')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatarUrl(reader.result)
+        toast('Avatar updated', 'success')
+      }
+    }
+    reader.onerror = () => toast('Could not read that image — try another file.', 'default')
+    reader.readAsDataURL(file)
+  }
+
+  const removeAvatar = () => {
+    if (!avatarUrl) {
+      toast('No avatar image to remove.', 'default')
+      return
+    }
+    setAvatarUrl(null)
+    toast('Avatar removed — using your initials.', 'default')
+  }
+
+  /* -- Export account data: real JSON of the profile + owned designs/collections -- */
+  const exportAccountData = () => {
+    if (!user) return
+    const owned = data.designs.filter((d) => d.ownerId === user.id)
+    const collections = data.collections.filter((c) => c.ownerId === user.id)
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      profile: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+        coins: user.coins,
+        company,
+        handle,
+        bio,
+        workspace: workspaceName,
+        region,
+        accent,
+      },
+      designs: owned,
+      collections,
+    }
+    downloadJson(payload, `threados-account-${slugify(user.name)}.json`)
+    toast('Account data exported', 'success')
+  }
 
   const toggleIntegration = (id: string) => {
     let nowConnected = false
@@ -267,6 +371,7 @@ export function Settings() {
 
   const connectedCount = integrations.filter((it) => it.connected).length
 
+  /* -- Transfer ownership: really promote a member to Owner in the roster -- */
   const transferOwnership = () => {
     const to = members[0]
     if (!to) {
@@ -274,23 +379,58 @@ export function Settings() {
       setActive('team')
       return
     }
-    if (window.confirm(`Transfer this workspace to ${to.name}? You will lose owner access.`)) {
-      toast(`Ownership transfer to ${to.name} requested`, 'default')
-    }
+    if (!window.confirm(`Transfer this workspace to ${to.name}? You will lose owner access.`)) return
+    setMembers((prev) => prev.map((m) => (m.id === to.id ? { ...m, role: 'Owner', owner: true } : m)))
+    toast(`${to.name} is now the workspace owner`, 'success')
+    setActive('team')
   }
 
+  /* -- Delete workspace: download a real backup before the destructive step -- */
   const deleteWorkspace = () => {
-    if (window.confirm('Permanently delete Atelier Nord and all its data? This cannot be undone.')) {
-      toast('Workspace deletion scheduled — check your email to confirm.', 'default')
+    if (!window.confirm(`Permanently delete ${workspaceName || 'this workspace'} and all its data? This cannot be undone.`)) {
+      return
     }
+    downloadJson(
+      { exportedAt: new Date().toISOString(), workspace: workspaceName, region, data },
+      `threados-${slugify(workspaceName || 'workspace')}-backup.json`,
+    )
+    toast('Backup downloaded — deletion confirmation sent to your email.', 'default')
   }
 
   /* -- Real plan + coins from the signed-in user -- */
   const planName = user?.plan ?? 'Studio'
+  const planPriceLabel = planName === 'Scale' ? '$199' : planName === 'Studio' ? '$79' : '$0'
   const coins = user?.coins ?? 0
   const coinCap = planName === 'Scale' ? 100000 : planName === 'Studio' ? 25000 : 2500
   const coinPct = Math.min(100, Math.round((coins / coinCap) * 100))
   const memberCount = members.length + 1 // + the owner (you)
+
+  /* -- Download invoice: real text file for the latest billing cycle -- */
+  const downloadInvoice = () => {
+    if (!user) return
+    const now = new Date()
+    const invoiceNo = `INV-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const body = [
+      'THREADOS — INVOICE',
+      '===================',
+      '',
+      `Invoice:      ${invoiceNo}`,
+      `Date:         ${now.toISOString().slice(0, 10)}`,
+      `Billed to:    ${user.name} <${user.email}>`,
+      `Workspace:    ${workspaceName}`,
+      '',
+      'Description                         Amount',
+      '-------------------------------------------',
+      `${planName} plan (monthly)`.padEnd(36) + planPriceLabel,
+      '-------------------------------------------',
+      `Total`.padEnd(36) + planPriceLabel,
+      '',
+      'Paid · Visa ending 4429',
+      'Thank you for building with THREADOS.',
+    ].join('\n')
+    downloadText(body, `${invoiceNo.toLowerCase()}-threados.txt`)
+    toast('Invoice downloaded', 'success')
+  }
 
   return (
     <SuitePage
@@ -357,22 +497,38 @@ export function Settings() {
                 <h2>Profile</h2>
                 <p>This information appears on tech packs, invites and factory intros.</p>
               </div>
-              <span className="s-chip s-chip--good">
-                <IcoCheck width="12" height="12" /> Verified
-              </span>
+              <div className="set-head-actions">
+                <span className="s-chip s-chip--good">
+                  <IcoCheck width="12" height="12" /> Verified
+                </span>
+                <button className="s-btn s-btn--subtle" type="button" onClick={exportAccountData}>
+                  <IcoUpload width="15" height="15" /> Export data
+                </button>
+              </div>
             </div>
             <div className="set-card__body">
               {/* Avatar row */}
               <div className="set-avatar-row">
                 <div className="set-avatar">
                   <span className="set-avatar__ring" aria-hidden="true" />
-                  {avatarInitials}
+                  {avatarUrl ? (
+                    <img className="set-avatar__img" src={avatarUrl} alt="Your avatar" />
+                  ) : (
+                    avatarInitials
+                  )}
                 </div>
                 <div className="set-avatar-meta">
                   <b>{name || user?.name || 'Your name'}</b>
                   <span>PNG or JPG, up to 4MB. 512×512 recommended.</span>
                 </div>
                 <div className="set-avatar-actions">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    onChange={onAvatarPicked}
+                  />
                   <button className="s-btn s-btn--ghost" type="button" onClick={uploadAvatar}>
                     <IcoUpload width="15" height="15" /> Upload
                   </button>
@@ -707,9 +863,20 @@ export function Settings() {
 
               <div className="set-billing-foot">
                 <span className="set-billing-foot__note">Renews Aug 7, 2026 · Visa ending 4429</span>
-                <button className="s-btn s-btn--accent" type="button" onClick={upgrade}>
-                  <IcoStar width="16" height="16" /> Upgrade to Atelier
-                </button>
+                <div className="set-billing-foot__actions">
+                  <button className="s-btn s-btn--subtle" type="button" onClick={downloadInvoice}>
+                    <IcoUpload width="15" height="15" /> Download invoice
+                  </button>
+                  {nextPlan(planName as Plan) ? (
+                    <button className="s-btn s-btn--accent" type="button" onClick={upgrade}>
+                      <IcoStar width="16" height="16" /> Upgrade to {nextPlan(planName as Plan)}
+                    </button>
+                  ) : (
+                    <span className="s-chip s-chip--accent">
+                      <IcoStar width="13" height="13" /> Top plan
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </section>
@@ -742,9 +909,9 @@ export function Settings() {
                     <span className="set-member__email">{email || user?.email}</span>
                   </div>
                   <div className="set-member__right">
-                    <button className="set-role set-role--owner" type="button" title="You own this workspace">
+                    <span className="set-role set-role--owner" title="You own this workspace">
                       Owner
-                    </button>
+                    </span>
                   </div>
                 </div>
 
@@ -752,28 +919,39 @@ export function Settings() {
                   <div className="set-member" key={m.id}>
                     <span className="set-member__av">{m.initials}</span>
                     <div className="set-member__info">
-                      <span className="set-member__name">{m.name}</span>
+                      <span className="set-member__name">
+                        {m.name}
+                        {m.owner && <span className="s-chip s-chip--accent">Owner</span>}
+                      </span>
                       <span className="set-member__email">{m.email}</span>
                     </div>
                     <div className="set-member__right">
-                      <button
-                        className="set-role"
-                        type="button"
-                        onClick={() => cycleRole(m)}
-                        title="Click to change role"
-                      >
-                        {m.role}
-                        <IcoChevron width="13" height="13" />
-                      </button>
-                      <button
-                        className="set-member__more"
-                        type="button"
-                        aria-label={`Remove ${m.name}`}
-                        title={`Remove ${m.name}`}
-                        onClick={() => removeMember(m)}
-                      >
-                        <IcoDots width="16" height="16" />
-                      </button>
+                      {m.owner ? (
+                        <span className="set-role set-role--owner" title="Workspace owner">
+                          Owner
+                        </span>
+                      ) : (
+                        <>
+                          <button
+                            className="set-role"
+                            type="button"
+                            onClick={() => cycleRole(m)}
+                            title="Click to change role"
+                          >
+                            {m.role}
+                            <IcoChevron width="13" height="13" />
+                          </button>
+                          <button
+                            className="set-member__more"
+                            type="button"
+                            aria-label={`Remove ${m.name}`}
+                            title={`Remove ${m.name}`}
+                            onClick={() => removeMember(m)}
+                          >
+                            <IcoDots width="16" height="16" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -13,6 +13,8 @@ import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid, relativeTime } from '../../data/utils'
+import { downloadTechPackPdf } from '../../lib/exporters'
+import { downloadCsv } from '../../lib/download'
 import type { TechPack, TechPackStatus, GarmentKind } from '../../data/types'
 import { SuitePage } from '../_shared/SuitePage'
 import './tp.css'
@@ -98,11 +100,12 @@ type ActionProps = {
   pack: TechPack
   menuOpen: boolean
   onToggleMenu: () => void
+  onCloseMenu: () => void
   onDownload: () => void
   onDelete: () => void
 }
 
-function CardActions({ pack, menuOpen, onToggleMenu, onDownload, onDelete }: ActionProps) {
+function CardActions({ pack, menuOpen, onToggleMenu, onCloseMenu, onDownload, onDelete }: ActionProps) {
   const isDraft = pack.status === 'draft'
   return (
     <div className="tp-card__foot">
@@ -135,7 +138,7 @@ function CardActions({ pack, menuOpen, onToggleMenu, onDownload, onDelete }: Act
           <IcoDots width="16" height="16" />
         </button>
         {menuOpen && (
-          <PackMenu pack={pack} onDownload={onDownload} onDelete={onDelete} />
+          <PackMenu pack={pack} onClose={onCloseMenu} onDownload={onDownload} onDelete={onDelete} />
         )}
       </div>
     </div>
@@ -144,36 +147,51 @@ function CardActions({ pack, menuOpen, onToggleMenu, onDownload, onDelete }: Act
 
 function PackMenu({
   pack,
+  onClose,
   onDownload,
   onDelete,
 }: {
   pack: TechPack
+  onClose: () => void
   onDownload: () => void
   onDelete: () => void
 }) {
   const isDraft = pack.status === 'draft'
   return (
-    <div className="tp-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+    <>
+      {/* Transparent scrim closes the menu on any outside click — matches the
+          rest of the suite (Manufacturers sort menu) so open menus never stick. */}
       <button
-        className="tp-menu__item"
         type="button"
-        role="menuitem"
-        disabled={isDraft}
-        onClick={onDownload}
-      >
-        <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
-        Download PDF
-      </button>
-      <button
-        className="tp-menu__item tp-menu__item--danger"
-        type="button"
-        role="menuitem"
-        onClick={onDelete}
-      >
-        <IcoTrash width="14" height="14" />
-        Delete tech pack
-      </button>
-    </div>
+        className="tp-menu__scrim"
+        aria-label="Close menu"
+        onClick={(e) => {
+          e.stopPropagation()
+          onClose()
+        }}
+      />
+      <div className="tp-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+        <button
+          className="tp-menu__item"
+          type="button"
+          role="menuitem"
+          disabled={isDraft}
+          onClick={onDownload}
+        >
+          <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
+          Download PDF
+        </button>
+        <button
+          className="tp-menu__item tp-menu__item--danger"
+          type="button"
+          role="menuitem"
+          onClick={onDelete}
+        >
+          <IcoTrash width="14" height="14" />
+          Delete tech pack
+        </button>
+      </div>
+    </>
   )
 }
 
@@ -183,6 +201,7 @@ function PackCard({
   index,
   menuOpen,
   onToggleMenu,
+  onCloseMenu,
   onDownload,
   onDelete,
 }: {
@@ -190,6 +209,7 @@ function PackCard({
   index: number
   menuOpen: boolean
   onToggleMenu: () => void
+  onCloseMenu: () => void
   onDownload: () => void
   onDelete: () => void
 }) {
@@ -248,6 +268,7 @@ function PackCard({
         pack={pack}
         menuOpen={menuOpen}
         onToggleMenu={onToggleMenu}
+        onCloseMenu={onCloseMenu}
         onDownload={onDownload}
         onDelete={onDelete}
       />
@@ -261,6 +282,7 @@ function PackRow({
   index,
   menuOpen,
   onToggleMenu,
+  onCloseMenu,
   onDownload,
   onDelete,
 }: {
@@ -268,6 +290,7 @@ function PackRow({
   index: number
   menuOpen: boolean
   onToggleMenu: () => void
+  onCloseMenu: () => void
   onDownload: () => void
   onDelete: () => void
 }) {
@@ -331,7 +354,7 @@ function PackRow({
             <IcoDots width="16" height="16" />
           </button>
           {menuOpen && (
-            <PackMenu pack={pack} onDownload={onDownload} onDelete={onDelete} />
+            <PackMenu pack={pack} onClose={onCloseMenu} onDownload={onDownload} onDelete={onDelete} />
           )}
         </div>
       </div>
@@ -409,7 +432,40 @@ export function TechPacks() {
       toast('Finish this draft before exporting a PDF.', 'info')
       return
     }
-    toast(`Preparing “${pack.name}” PDF…`, 'accent')
+    try {
+      // Real effect: generate + download a multi-page PDF tech pack.
+      downloadTechPackPdf({
+        name: pack.name,
+        kind: pack.kind,
+        manufacturer: pack.manufacturer,
+      })
+      toast(`“${pack.name}” PDF downloaded.`, 'success')
+    } catch {
+      toast('Could not generate the PDF. Please try again.', 'info')
+    }
+  }
+
+  function exportList() {
+    if (visible.length === 0) {
+      toast('Nothing to export in the current view.', 'info')
+      return
+    }
+    try {
+      // Real effect: download a CSV of the currently visible packs.
+      const rows = visible.map((p, i) => ({
+        code: packCode(p, i),
+        name: p.name,
+        kind: p.kind,
+        status: STATUS_LABEL[p.status],
+        manufacturer: p.manufacturer ?? '',
+        pages: p.pages,
+        updated: new Date(p.updatedAt).toISOString(),
+      }))
+      downloadCsv(rows, 'threados-tech-packs.csv')
+      toast(`Exported ${rows.length} tech pack${rows.length === 1 ? '' : 's'} to CSV.`, 'success')
+    } catch {
+      toast('Could not export the list. Please try again.', 'info')
+    }
   }
 
   function deletePack(pack: TechPack) {
@@ -496,6 +552,17 @@ export function TechPacks() {
             </span>
           </div>
 
+          <button
+            className="tp-export"
+            type="button"
+            onClick={exportList}
+            disabled={visible.length === 0}
+            title="Export the visible tech packs as a CSV file"
+          >
+            <IcoUpload width="14" height="14" />
+            Export list
+          </button>
+
           <div className="tp-view" role="group" aria-label="View mode">
             <button
               type="button"
@@ -565,6 +632,7 @@ export function TechPacks() {
               index={i}
               menuOpen={openMenuId === pack.id}
               onToggleMenu={() => toggleMenu(pack.id)}
+              onCloseMenu={() => setOpenMenuId(null)}
               onDownload={() => downloadPack(pack)}
               onDelete={() => deletePack(pack)}
             />
@@ -586,6 +654,7 @@ export function TechPacks() {
               index={i}
               menuOpen={openMenuId === pack.id}
               onToggleMenu={() => toggleMenu(pack.id)}
+              onCloseMenu={() => setOpenMenuId(null)}
               onDownload={() => downloadPack(pack)}
               onDelete={() => deletePack(pack)}
             />

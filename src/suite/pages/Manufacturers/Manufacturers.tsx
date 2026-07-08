@@ -13,9 +13,13 @@ import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
+import { downloadJson, slugify } from '../../lib/download'
 import type { Manufacturer, Order } from '../../data/types'
 import { SuitePage } from '../_shared/SuitePage'
 import './mf.css'
+
+/** Units requested for a first sample run. */
+const SAMPLE_QTY = 50
 
 /* ---------- Presentation helpers ----------
    The store's Manufacturer only carries real business fields. We derive purely
@@ -276,7 +280,7 @@ export function Manufacturers() {
       ownerId: user.id,
       designName: `Sample — ${m.name}`,
       kind: glyph,
-      qty: 1,
+      qty: SAMPLE_QTY,
       manufacturer: m.name,
       country: m.country,
       stage: 'sample',
@@ -284,11 +288,7 @@ export function Manufacturers() {
       eta: `~${m.leadDays} days`,
     }
     mutate((d) => ({ ...d, orders: [newOrder, ...d.orders] }))
-    toast(`Sample requested from ${m.name}`, 'accent')
-  }
-
-  const postRequest = () => {
-    toast('Request posted — matched factories will reach out shortly.', 'accent')
+    toast(`Sample requested from ${m.name} · ${SAMPLE_QTY} units`, 'accent')
   }
 
   const chooseSort = (id: SortId) => {
@@ -339,6 +339,44 @@ export function Manufacturers() {
 
   const savedCount = useMemo(() => data.manufacturers.filter((m) => m.saved).length, [data.manufacturers])
   const activeSortLabel = SORTS.find((s) => s.id === sort)?.label ?? 'Top rated'
+
+  /* "Post a Request" — export a real sourcing brief the user can send to factories. */
+  const postRequest = () => {
+    if (!user) {
+      toast('Sign in to post a sourcing request.', 'info')
+      return
+    }
+    const brief = {
+      type: 'threados.sourcing-request',
+      version: 1,
+      createdAt: new Date().toISOString(),
+      requestedBy: { id: user.id, name: user.name, email: user.email },
+      criteria: {
+        capability: activeCap === ALL_CAPS ? 'Any' : activeCap,
+        country: country === 'Any country' ? 'Any' : country,
+        moq: moq === 'Any MOQ' ? 'Any' : moq,
+        search: query.trim() || null,
+        sort: activeSortLabel,
+      },
+      matchedFactories: results.map((f) => ({
+        id: f.id,
+        name: f.name,
+        location: `${f.city}, ${f.country}`,
+        capabilities: f.capabilities,
+        moq: f.moq,
+        leadDays: f.leadDays,
+        priceFrom: f.priceFrom,
+        rating: f.rating,
+      })),
+    }
+    try {
+      const stamp = new Date().toISOString().slice(0, 10)
+      downloadJson(brief, `${slugify(`sourcing request ${stamp}`)}.json`)
+      toast(`Request brief exported · ${results.length} matched ${results.length === 1 ? 'factory' : 'factories'}`, 'accent')
+    } catch {
+      toast('Could not export the request brief. Please try again.', 'info')
+    }
+  }
 
   return (
     <SuitePage

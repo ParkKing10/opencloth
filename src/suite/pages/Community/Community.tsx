@@ -15,6 +15,7 @@ import {
   IcoCollections,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { slugify } from '../../lib/download'
 import './com.css'
 
 /* -------------------------------------------------------------------------- */
@@ -450,11 +451,12 @@ function initialsOf(name: string): string {
 type DesignerCardProps = {
   designer: Designer
   isFollowing: boolean
+  isHired: boolean
   onToggleFollow: (designer: Designer) => void
   onHire: (designer: Designer) => void
 }
 
-function DesignerCard({ designer, isFollowing, onToggleFollow, onHire }: DesignerCardProps) {
+function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }: DesignerCardProps) {
   const Ghost = GARMENT_GLYPHS[designer.thumbs[0]]
 
   return (
@@ -522,11 +524,21 @@ function DesignerCard({ designer, isFollowing, onToggleFollow, onHire }: Designe
         </button>
         <button
           type="button"
-          className="s-btn s-btn--subtle com-hire"
-          title={`Send ${designer.name} a hire request`}
+          className={`s-btn s-btn--subtle com-hire${isHired ? ' is-hired' : ''}`}
+          title={
+            isHired
+              ? `Hire link for ${designer.name} copied — copy again`
+              : `Copy a hire link for ${designer.name}`
+          }
           onClick={() => onHire(designer)}
         >
-          Hire
+          {isHired ? (
+            <>
+              <IcoCheck width="14" height="14" /> Copied
+            </>
+          ) : (
+            'Hire'
+          )}
         </button>
       </div>
     </article>
@@ -673,6 +685,7 @@ export function Community() {
 
   // Interaction state — lifted to the page so it survives tab / filter changes.
   const [followed, setFollowed] = useState<Set<string>>(() => new Set())
+  const [hired, setHired] = useState<Set<string>>(() => new Set())
   const [liked, setLiked] = useState<Set<string>>(() => new Set())
   const [savedProjects, setSavedProjects] = useState<Set<string>>(() => new Set())
   const [savedCollections, setSavedCollections] = useState<Set<string>>(() => new Set())
@@ -749,58 +762,81 @@ export function Community() {
   /* ---- Handlers ---- */
 
   function toggleFollow(designer: Designer) {
+    const nowFollowing = !followed.has(designer.id)
     setFollowed((prev) => {
       const next = new Set(prev)
       if (next.has(designer.id)) next.delete(designer.id)
       else next.add(designer.id)
       return next
     })
-    const nowFollowing = !followed.has(designer.id)
     toast(
       nowFollowing ? `Following ${designer.name}` : `Unfollowed ${designer.name}`,
       nowFollowing ? 'success' : 'default',
     )
   }
 
-  function hire(designer: Designer) {
-    toast(`Hire request sent to ${designer.name}`, 'accent')
+  // Real effect: copy an intro-request mailto to the clipboard so the user can
+  // actually reach the designer, plus mark them as contacted in local state.
+  async function hire(designer: Designer) {
+    const handle = slugify(designer.name)
+    const subject = encodeURIComponent(`Project enquiry — ${designer.name}`)
+    const from = user ? `${user.name} (${user.email})` : 'A THREADOS member'
+    const body = encodeURIComponent(
+      `Hi ${designer.name.split(' ')[0]},\n\n` +
+        `${from} would like to discuss a ${designer.category.toLowerCase()} project with you. ` +
+        `Are you open to new commissions?\n\nSent via THREADOS Community.`,
+    )
+    const mailto = `mailto:${handle}@makers.threados.app?subject=${subject}&body=${body}`
+    try {
+      await navigator.clipboard.writeText(mailto)
+      setHired((prev) => new Set(prev).add(designer.id))
+      toast(`Hire link for ${designer.name} copied to clipboard`, 'accent')
+    } catch {
+      toast('Could not copy the hire link — clipboard is blocked', 'info')
+    }
   }
 
   function toggleLike(project: Project) {
+    const nowLiked = !liked.has(project.id)
     setLiked((prev) => {
       const next = new Set(prev)
       if (next.has(project.id)) next.delete(project.id)
       else next.add(project.id)
       return next
     })
-    if (!liked.has(project.id)) toast('Added to your likes', 'accent')
+    toast(nowLiked ? 'Added to your likes' : 'Removed from your likes', 'accent')
   }
 
   function toggleSaveProject(project: Project) {
+    const wasSaved = savedProjects.has(project.id)
     setSavedProjects((prev) => {
       const next = new Set(prev)
       if (next.has(project.id)) next.delete(project.id)
       else next.add(project.id)
       return next
     })
-    toast(savedProjects.has(project.id) ? 'Removed from saved' : 'Saved to your board', 'info')
+    toast(wasSaved ? 'Removed from saved' : 'Saved to your board', 'info')
   }
 
   function toggleSaveCollection(collection: CommunityCollection) {
+    const wasSaved = savedCollections.has(collection.id)
     setSavedCollections((prev) => {
       const next = new Set(prev)
       if (next.has(collection.id)) next.delete(collection.id)
       else next.add(collection.id)
       return next
     })
-    toast(
-      savedCollections.has(collection.id) ? 'Removed from saved' : `Saved “${collection.name}”`,
-      'info',
-    )
+    toast(wasSaved ? 'Removed from saved' : `Saved “${collection.name}”`, 'info')
   }
 
-  function shareWork() {
-    toast('Upload started — pick files to publish to the community', 'accent')
+  // Real effect: copy a shareable link to this community page to the clipboard.
+  async function shareWork() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast('Share link copied — send it to invite people to your work', 'accent')
+    } catch {
+      toast('Could not copy the share link — clipboard is blocked', 'info')
+    }
   }
 
   function clearFilters() {
@@ -907,6 +943,7 @@ export function Community() {
                     key={dz.id}
                     designer={dz}
                     isFollowing={followed.has(dz.id)}
+                    isHired={hired.has(dz.id)}
                     onToggleFollow={toggleFollow}
                     onHire={hire}
                   />

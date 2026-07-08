@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
-import type { Design } from '../../data/types'
+import { downloadJson } from '../../lib/download'
+import type { Design, TechPack } from '../../data/types'
 import {
   IcoSearch,
   IcoPlus,
@@ -18,6 +20,9 @@ import {
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import './mk.css'
+
+/** Where new sellers apply — shared by the header panel and footer CTA. */
+const SELLER_APPLY_URL = 'https://threados.studio/sell/apply'
 
 /* Inline heart icon (not in the shared Icons set). */
 function IcoHeart({ filled, ...props }: { filled?: boolean } & React.SVGProps<SVGSVGElement>) {
@@ -346,12 +351,14 @@ export function Marketplace() {
   const { mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const navigate = useNavigate()
 
   const [category, setCategory] = useState<Category>('All')
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<Sort>('Popular')
   const [liked, setLiked] = useState<ReadonlySet<string>>(() => new Set())
   const [owned, setOwned] = useState<ReadonlySet<string>>(() => new Set())
+  const [sellerOpen, setSellerOpen] = useState(false)
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -408,18 +415,78 @@ export function Marketplace() {
       progress: 0,
       updatedAt: Date.now(),
     }
+    // Real persistence: add the design, then open it in the studio.
     mutate((d) => ({ ...d, designs: [design, ...d.designs] }))
-    toast(`“${asset.title}” added to your designs`, 'success')
+    toast(`“${asset.title}” added to your designs — opening the studio`, 'success')
+    navigate('/suite/design')
   }
 
   function buyAsset(asset: Asset) {
     if (owned.has(asset.id)) return
+    if (!user) {
+      toast('Sign in to buy from the marketplace.', 'info')
+      return
+    }
+    // Real persistence: purchased assets land in the owner's library as a tech pack.
+    const techPack: TechPack = {
+      id: uid('t'),
+      ownerId: user.id,
+      name: asset.title,
+      kind: assetToDesignKind(asset),
+      status: 'ready',
+      manufacturer: asset.author.name,
+      pages: 12,
+      updatedAt: Date.now(),
+    }
+    mutate((d) => ({ ...d, techPacks: [techPack, ...d.techPacks] }))
     setOwned((prev) => {
       const next = new Set(prev)
       next.add(asset.id)
       return next
     })
-    toast(`Purchased “${asset.title}” — ${priceLabel(asset.price)}`, 'success')
+    toast(`Added “${asset.title}” to your library`, 'success')
+  }
+
+  /** Open the purchased asset in the Design studio. */
+  function openInDesign() {
+    navigate('/suite/design')
+  }
+
+  /** Copy the seller application link (real clipboard write, guarded). */
+  async function copySellerLink() {
+    try {
+      await navigator.clipboard.writeText(SELLER_APPLY_URL)
+      toast('Seller application link copied to your clipboard', 'accent')
+    } catch {
+      toast('Could not copy the link — please copy it manually.', 'info')
+    }
+  }
+
+  /** Download a real starter-kit JSON creators can fill in and submit. */
+  function downloadSellerKit() {
+    try {
+      downloadJson(
+        {
+          product: 'THREADOS Marketplace',
+          applyUrl: SELLER_APPLY_URL,
+          payoutShare: '80%',
+          payoutCadence: 'weekly',
+          submissionChecklist: [
+            'Source design or tech pack files',
+            'Cover preview (1600×1200 min)',
+            'Title, category and price',
+            'License terms',
+          ],
+          applicant: user ? { name: user.name, email: user.email } : null,
+          generatedAt: new Date().toISOString(),
+        },
+        'threados-seller-starter-kit.json',
+      )
+      // Success toast only fires after the download actually started.
+      toast('Seller starter kit downloaded', 'success')
+    } catch {
+      toast('Could not download the starter kit — please try again.', 'info')
+    }
   }
 
   return (
@@ -431,13 +498,44 @@ export function Marketplace() {
         <button
           type="button"
           className="s-btn s-btn--accent"
-          onClick={() => toast('Seller onboarding is coming soon — we’ll email you when it opens.', 'accent')}
+          aria-expanded={sellerOpen}
+          aria-controls="mk-seller-panel"
+          onClick={() => setSellerOpen((open) => !open)}
         >
           <IcoPlus width="16" height="16" /> Sell a template
         </button>
       }
     >
       <div className="mk-root">
+        {/* Seller onboarding panel — toggled by the header action */}
+        {sellerOpen && (
+          <section id="mk-seller-panel" className="mk-panel">
+            <div className="mk-panel__head">
+              <div>
+                <b>Start selling on THREADOS</b>
+                <small>Publish to 40k+ creators and earn 80% on every sale. Payouts weekly.</small>
+              </div>
+              <button
+                type="button"
+                className="mk-panel__close"
+                aria-label="Close seller panel"
+                onClick={() => setSellerOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="mk-panel__row">
+              <button type="button" className="s-btn s-btn--accent" onClick={copySellerLink}>
+                Copy application link
+              </button>
+              <button type="button" className="s-btn s-btn--subtle" onClick={downloadSellerKit}>
+                <IcoUpload width="15" height="15" style={{ transform: 'rotate(180deg)' }} />
+                Download starter kit
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Toolbar: category pills + search */}
         <div className="mk-toolbar">
           <div className="s-filters">
@@ -483,6 +581,10 @@ export function Marketplace() {
                 type="button"
                 className="s-btn s-btn--accent"
                 onClick={() => {
+                  if (owned.has('a9')) {
+                    openInDesign()
+                    return
+                  }
                   const drop = ASSETS.find((a) => a.id === 'a9')
                   if (drop) buyAsset(drop)
                 }}
@@ -581,7 +683,7 @@ export function Marketplace() {
           <button
             type="button"
             className="s-btn s-btn--ghost"
-            onClick={() => toast('Thanks for your interest — seller applications open soon.', 'accent')}
+            onClick={copySellerLink}
           >
             <IcoPlus width="16" height="16" /> Become a seller
           </button>

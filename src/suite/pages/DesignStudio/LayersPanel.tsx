@@ -27,11 +27,23 @@ type Props = {
   onCommit: (layers: Layer[], hidden: Record<string, boolean>) => void
   onSelect: (ids: string[]) => void
   onAddLayer: () => void
+  /** Minimized to just the header row (default state — the canvas is the star). */
+  collapsed?: boolean
+  onToggleCollapse?: () => void
 }
 
 const uid = () => `l-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
-export function LayersPanel({ layers, hidden, selectedIds, onCommit, onSelect, onAddLayer }: Props) {
+export function LayersPanel({
+  layers,
+  hidden,
+  selectedIds,
+  onCommit,
+  onSelect,
+  onAddLayer,
+  collapsed,
+  onToggleCollapse,
+}: Props) {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
@@ -214,10 +226,36 @@ export function LayersPanel({ layers, hidden, selectedIds, onCommit, onSelect, o
 
   const hasSelection = selectedIds.length > 0
 
+  if (collapsed) {
+    return (
+      <div className="lp lp--collapsed">
+        <button
+          className="lp__collapsed-head"
+          type="button"
+          onClick={onToggleCollapse}
+          aria-expanded={false}
+          title="Show layers"
+        >
+          <IcoChevron width="13" height="13" style={{ transform: 'rotate(-90deg)' }} />
+          <h2>Layers</h2>
+          <span className="lp__count">{layers.length}</span>
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="lp">
       <div className="ds-panel-head ds-panel-head--tight">
-        <h2>Layers</h2>
+        {onToggleCollapse ? (
+          <button className="lp__collapsed-head lp__collapsed-head--open" type="button" onClick={onToggleCollapse} aria-expanded title="Minimize layers">
+            <IcoChevron width="13" height="13" />
+            <h2>Layers</h2>
+            <span className="lp__count">{layers.length}</span>
+          </button>
+        ) : (
+          <h2>Layers</h2>
+        )}
         <div className="lp__head-actions">
           {selectedIds.length > 1 && (
             <button className="lp__group-btn" type="button" title="Group selection (⌘G)" onClick={groupSelection}>

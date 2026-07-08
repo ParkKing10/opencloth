@@ -54,6 +54,24 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
   const [view, setView] = useState('Front')
   const [tool, setTool] = useState('move')
   const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
+  // The bottom strip collapses so the stage can be the whole studio.
+  const [stripHidden, setStripHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('threados-strip-hidden') === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleStrip = () => {
+    setStripHidden((v) => {
+      try {
+        localStorage.setItem('threados-strip-hidden', v ? '0' : '1')
+      } catch {
+        /* ignore */
+      }
+      return !v
+    })
+  }
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(true)
@@ -419,7 +437,13 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
         </div>
       </div>
 
-      {/* Tech pack / size chart strip */}
+      {/* Tech pack / size chart strip — collapsible for a pure-canvas studio */}
+      {stripHidden ? (
+        <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show tech pack panel">
+          <span>Tech Pack · Size Chart</span>
+          <IcoChevron width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
+        </button>
+      ) : (
       <div className="ds-techpack">
         <div className="ds-techpack__tabs">
           {(['Tech Pack', 'Size Chart'] as const).map((t) => (
@@ -432,6 +456,16 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
               {t}
             </button>
           ))}
+          <button
+            className="cv-strip-hide"
+            type="button"
+            onClick={toggleStrip}
+            aria-expanded
+            aria-label="Hide tech pack panel"
+            title="Hide panel — more room for the canvas"
+          >
+            <IcoChevron width="14" height="14" />
+          </button>
         </div>
 
         {bottomTab === 'Tech Pack' ? (
@@ -478,6 +512,7 @@ export function StudioCanvas({ garmentName, garmentKind, garmentFit, showHints }
           </div>
         )}
       </div>
+      )}
     </main>
   )
 }

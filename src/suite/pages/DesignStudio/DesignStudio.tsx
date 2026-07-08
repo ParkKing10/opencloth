@@ -160,11 +160,48 @@ export function DesignStudio() {
       return false
     }
   })
+  const [leftHidden, setLeftHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('threados-left-hidden') === '1'
+    } catch {
+      return false
+    }
+  })
+  // Layers start minimized — the canvas is the star; one click opens the stack.
+  const [layersCollapsed, setLayersCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('threados-layers-open') !== '1'
+    } catch {
+      return true
+    }
+  })
 
   const toggleRight = useCallback(() => {
     setRightHidden((v) => {
       try {
         localStorage.setItem('threados-right-hidden', v ? '0' : '1')
+      } catch {
+        /* ignore */
+      }
+      return !v
+    })
+  }, [])
+
+  const toggleLeft = useCallback(() => {
+    setLeftHidden((v) => {
+      try {
+        localStorage.setItem('threados-left-hidden', v ? '0' : '1')
+      } catch {
+        /* ignore */
+      }
+      return !v
+    })
+  }, [])
+
+  const toggleLayersCollapsed = useCallback(() => {
+    setLayersCollapsed((v) => {
+      try {
+        localStorage.setItem('threados-layers-open', v ? '1' : '0')
       } catch {
         /* ignore */
       }
@@ -784,7 +821,7 @@ export function DesignStudio() {
       />
 
       {/* ---- Body ---- */}
-      <div className={`ds-body${rightHidden ? ' ds-body--focus' : ''}`}>
+      <div className={`ds-body${rightHidden ? ' ds-body--no-right' : ''}${leftHidden ? ' ds-body--no-left' : ''}`}>
         {/* Library rail — five human categories, all real */}
         <nav className="ds-rail" aria-label="Library">
           <span className="ds-rail__eyebrow">Library</span>
@@ -801,7 +838,22 @@ export function DesignStudio() {
           ))}
         </nav>
 
+        {/* Collapse the Library — mirror of the inspector handle */}
+        <button
+          type="button"
+          className={`ds-collapse ds-collapse--left${leftHidden ? ' is-collapsed' : ''}`}
+          onClick={toggleLeft}
+          aria-expanded={!leftHidden}
+          aria-label={leftHidden ? 'Show library' : 'Hide library'}
+          title={leftHidden ? 'Show library' : 'Hide library — focus on the canvas'}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d={leftHidden ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} />
+          </svg>
+        </button>
+
         {/* Left panel — the Library category currently open */}
+        {!leftHidden && (
         <aside className="ds-left">
           {rail === 'Assets' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
           {rail === 'Brand' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
@@ -897,39 +949,50 @@ export function DesignStudio() {
             )}
           </div>
 
-          {/* Drag to resize the Layers panel */}
-          <div
-            className="ds-resize"
-            role="separator"
-            aria-label="Resize layers panel"
-            title="Drag to resize"
-            onPointerDown={startLayersResize}
-            onDoubleClick={() => {
-              setLayersH(null)
-              try {
-                localStorage.removeItem('threados-layers-h')
-              } catch {
-                /* ignore */
-              }
-            }}
-          >
-            <span className="ds-resize__grip" />
-          </div>
+          {/* Drag to resize the Layers panel (hidden while minimized) */}
+          {!layersCollapsed && (
+            <div
+              className="ds-resize"
+              role="separator"
+              aria-label="Resize layers panel"
+              title="Drag to resize"
+              onPointerDown={startLayersResize}
+              onDoubleClick={() => {
+                setLayersH(null)
+                try {
+                  localStorage.removeItem('threados-layers-h')
+                } catch {
+                  /* ignore */
+                }
+              }}
+            >
+              <span className="ds-resize__grip" />
+            </div>
+          )}
 
           {/* Layers — Figma-grade: multi-select, rename, lock, groups, reorder */}
-          <div className="ds-layers-slot" style={layersH ? { height: layersH, flex: '0 0 auto' } : undefined}>
+          <div
+            className={`ds-layers-slot${layersCollapsed ? ' is-collapsed' : ''}`}
+            style={!layersCollapsed && layersH ? { height: layersH, flex: '0 0 auto' } : undefined}
+          >
             <LayersPanel
               layers={layers}
               hidden={hidden}
               selectedIds={liveSelected}
               onCommit={commitLayers}
               onSelect={setSelectedIds}
-              onAddLayer={addLayer}
+              onAddLayer={() => {
+                if (layersCollapsed) toggleLayersCollapsed()
+                addLayer()
+              }}
+              collapsed={layersCollapsed}
+              onToggleCollapse={toggleLayersCollapsed}
             />
           </div>
             </>
           )}
         </aside>
+        )}
 
         {/* Canvas — also a drop target for Drive assets and starter graphics */}
         <div

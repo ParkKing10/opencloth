@@ -361,15 +361,22 @@
   border-top: 0;
 }
 
-/* The inspector column width — single source for the grid AND the handle. */
+/* Panel column widths — single source for the grid AND the handles. */
 .ds-body {
   --inspector-w: 300px;
+  --library-w: 264px;
   position: relative;
 }
 
-/* Focus mode: the inspector column disappears, the canvas takes its width. */
-.ds-body--focus {
-  grid-template-columns: var(--s-rail-w) 264px minmax(0, 1fr) !important;
+/* Focus modes: collapsed columns disappear, the canvas takes their width. */
+.ds-body--no-right {
+  grid-template-columns: var(--s-rail-w) var(--library-w) minmax(0, 1fr) !important;
+}
+.ds-body--no-left {
+  grid-template-columns: var(--s-rail-w) minmax(0, 1fr) var(--inspector-w) !important;
+}
+.ds-body--no-left.ds-body--no-right {
+  grid-template-columns: var(--s-rail-w) minmax(0, 1fr) !important;
 }
 
 /* Floating handle at the canvas/inspector boundary — NOT a grid item. */
@@ -402,17 +409,74 @@
   right: 10px;
 }
 
+/* Mirror handle for the Library side */
+.ds-collapse--left {
+  right: auto;
+  left: calc(var(--s-rail-w) + var(--library-w) - 10px);
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease), left var(--s-dur-slow) var(--s-ease);
+}
+.ds-collapse--left.is-collapsed {
+  left: calc(var(--s-rail-w) + 10px);
+}
+
+/* Layers minimized to its header row */
+.ds-layers-slot.is-collapsed {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+.lp--collapsed {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-top: 1px solid var(--s-line);
+}
+.lp__collapsed-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: var(--s-r-sm);
+  background: transparent;
+  color: var(--s-text-3);
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.lp__collapsed-head:hover {
+  color: var(--s-text);
+  background: var(--s-hover);
+}
+.lp__collapsed-head h2 {
+  font-size: 13px;
+  font-weight: 640;
+  color: var(--s-text);
+}
+.lp__collapsed-head--open {
+  width: auto;
+  padding: 2px 4px;
+  margin-left: -4px;
+}
+.lp__count {
+  padding: 1px 8px;
+  border-radius: var(--s-r-pill);
+  background: var(--s-inset);
+  border: 1px solid var(--s-line);
+  font-size: 10.5px;
+  font-weight: 650;
+  color: var(--s-text-3);
+}
+
 @media (max-width: 1200px) {
   .ds-body {
     --inspector-w: 280px;
-  }
-  .ds-body--focus {
-    grid-template-columns: var(--s-rail-w) 240px minmax(0, 1fr) !important;
+    --library-w: 240px;
   }
 }
 @media (max-width: 1000px) {
   .ds-collapse {
-    display: none; /* the inspector is already hidden at this width */
+    display: none; /* the side panels are already hidden at this width */
   }
 }
 

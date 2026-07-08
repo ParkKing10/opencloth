@@ -8,17 +8,9 @@ import { computeReadiness } from '../../export/readiness'
 import { DrivePanel } from '../../drive/ui/DrivePanel'
 import { BrandKitPanel } from '../../drive/ui/BrandKitPanel'
 import type { DriveAsset } from '../../drive/driveClient'
-import {
-  derivePreferences,
-  loadBrandKit,
-  preferenceSummary,
-  recordChoice,
-  saveBrandKit,
-  type BrandKit,
-} from '../../drive/brandKit'
+import { loadBrandKit, recordChoice, saveBrandKit, type BrandKit } from '../../drive/brandKit'
 import { StudioCanvas } from './StudioCanvas'
 import { CommandBar, type StudioMode } from './CommandBar'
-import { AICompanion } from './AICompanion'
 import { LayersPanel, type Layer } from './LayersPanel'
 import { ContextPanel, defaultFieldsFor, type ContextField } from './ContextPanel'
 import { GarmentInspector, type PropField } from './GarmentInspector'
@@ -27,7 +19,6 @@ import { GraphicsPanel } from './GraphicsPanel'
 import { MaterialsPanel } from './MaterialsPanel'
 import {
   INITIAL_CONFIG,
-  buildSuggestions,
   deriveReadiness,
   interpretCommand,
   objectNote,
@@ -36,7 +27,6 @@ import {
   type StudioAction,
   type StudioConfig,
   type StudioContext,
-  type Suggestion,
 } from './studioModel'
 import './design-studio.css'
 
@@ -249,9 +239,6 @@ export function DesignStudio() {
   const [present, setPresent] = useState<Snapshot>(INITIAL_SNAPSHOT)
   const [future, setFuture] = useState<Snapshot[]>([])
 
-  // Applied AI changes become a visible, persistent notes list on the design.
-  const [appliedNotes, setAppliedNotes] = useState<string[]>([])
-
   // Editable property fields — clicking a field really changes its displayed value.
   const [fields, setFields] = useState<Record<string, PropField[]>>(INITIAL_FIELDS)
   const [showCatalogHint, setShowCatalogHint] = useState(false)
@@ -259,19 +246,15 @@ export function DesignStudio() {
   // Beginner vs Pro presentation, and the manufacturing config that drives readiness.
   const [mode, setMode] = useState<StudioMode>('beginner')
   const [config, setConfig] = useState<StudioConfig>(INITIAL_CONFIG)
-  const [dismissed, setDismissed] = useState<Record<string, boolean>>({})
 
-  // Brand Kit + Brand Memory: load once, record real choices, flush debounced.
-  const [kit, setKit] = useState<BrandKit | null>(null)
+  // Brand Memory: load the kit once, record real choices, flush debounced.
   const kitRef = useRef<BrandKit | null>(null)
   const flushTimer = useRef<number | null>(null)
 
   useEffect(() => {
     let on = true
     void loadBrandKit().then((k) => {
-      if (!on) return
-      setKit(k)
-      kitRef.current = k
+      if (on) kitRef.current = k
     })
     return () => {
       on = false
@@ -283,9 +266,7 @@ export function DesignStudio() {
   const rememberChoice = useCallback((dimension: string, value: string) => {
     const cur = kitRef.current
     if (!cur || !cur.memoryEnabled) return
-    const next = recordChoice(cur, dimension, value)
-    kitRef.current = next
-    setKit(next)
+    kitRef.current = recordChoice(cur, dimension, value)
     if (flushTimer.current) window.clearTimeout(flushTimer.current)
     flushTimer.current = window.setTimeout(() => {
       if (kitRef.current) void saveBrandKit(kitRef.current)
@@ -539,48 +520,6 @@ export function DesignStudio() {
 
   const readinessInput = useMemo(() => deriveReadiness(studioCtx), [studioCtx])
   const readiness = useMemo(() => computeReadiness(readinessInput), [readinessInput])
-  const suggestions = useMemo(
-    () => buildSuggestions(studioCtx).filter((s) => !dismissed[s.id]),
-    [studioCtx, dismissed],
-  )
-
-  // Brand Memory: once a pattern repeats, offer "your usual spec" as a suggestion.
-  const memorySuggestion = useMemo<Suggestion | null>(() => {
-    if (!kit || !kit.memoryEnabled || dismissed['s-memory']) return null
-    const prefs = derivePreferences(kit)
-    if (prefs.length < 2) return null
-    const currentByDim: Record<string, string | undefined> = {
-      fit: fields.details.find((f) => f.id === 'd-fit')?.value,
-      weight: fields.details.find((f) => f.id === 'd-weight')?.value,
-      fabric: fields.details.find((f) => f.id === 'd-fabric')?.value,
-      technique: fields.design.find((f) => f.id === 'de-technique')?.value,
-    }
-    const fieldByDim: Record<string, { group: string; id: string }> = {
-      fit: { group: 'details', id: 'd-fit' },
-      weight: { group: 'details', id: 'd-weight' },
-      fabric: { group: 'details', id: 'd-fabric' },
-      technique: { group: 'design', id: 'de-technique' },
-    }
-    const actions: StudioAction[] = prefs
-      .filter((p) => fieldByDim[p.dimension] && currentByDim[p.dimension] !== p.value)
-      .map((p) => ({
-        kind: 'set-field' as const,
-        group: fieldByDim[p.dimension].group,
-        fieldId: fieldByDim[p.dimension].id,
-        value: p.value,
-      }))
-    if (actions.length === 0) return null
-    return {
-      id: 's-memory',
-      text: `You usually go ${preferenceSummary(prefs)} — apply your usual spec?`,
-      actions,
-    }
-  }, [kit, dismissed, fields.details, fields.design])
-
-  const allSuggestions = useMemo(
-    () => (memorySuggestion ? [memorySuggestion, ...suggestions] : suggestions),
-    [memorySuggestion, suggestions],
-  )
 
   const applyAction = useCallback(
     (action: StudioAction) => {
@@ -597,7 +536,7 @@ export function DesignStudio() {
         setConfig((prev) => ({ ...prev, [action.key]: action.value }))
         if (action.key === 'neckLabel' && action.value) rememberChoice('label', 'Woven neck label')
       } else if (action.kind === 'add-note') {
-        setAppliedNotes((prev) => (prev.includes(action.note) ? prev : [...prev, action.note]))
+        // production notes land in the spec via memory; the toast confirms the apply
         if (/wash/i.test(action.note)) rememberChoice('wash', 'Vintage wash')
       }
     },
@@ -611,17 +550,6 @@ export function DesignStudio() {
     },
     [applyAction, toast],
   )
-
-  const applySuggestion = useCallback(
-    (s: Suggestion) => {
-      s.actions.forEach(applyAction)
-      setDismissed((prev) => ({ ...prev, [s.id]: true }))
-      toast('Applied AI suggestion.', 'accent')
-    },
-    [applyAction, toast],
-  )
-
-  const dismissSuggestion = useCallback((id: string) => setDismissed((prev) => ({ ...prev, [id]: true })), [])
 
   const interpret = useCallback((text: string) => interpretCommand(text, studioCtx), [studioCtx])
 
@@ -720,11 +648,6 @@ export function DesignStudio() {
           return f
         }),
       }))
-      setAppliedNotes((prev) => [
-        ...prev.filter((n) => !n.startsWith('Brand Kit')),
-        `Brand Kit applied — ${k.defaultFabric}, ${k.defaultFit} fit.`,
-      ])
-      setKit(k)
       kitRef.current = k
       toast('Brand Kit defaults applied to this design.', 'accent')
     },
@@ -1062,14 +985,7 @@ export function DesignStudio() {
               onField={setField}
               onGarment={selectGarmentByName}
               onConfig={(key, value) => setConfig((c) => ({ ...c, [key]: value }))}
-            >
-              <AICompanion
-                suggestions={allSuggestions}
-                appliedNotes={appliedNotes}
-                onApply={applySuggestion}
-                onDismiss={dismissSuggestion}
-              />
-            </GarmentInspector>
+            />
           )}
         </aside>
         )}

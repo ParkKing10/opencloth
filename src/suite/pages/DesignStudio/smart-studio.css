@@ -484,9 +484,9 @@
 .gi-hero {
   display: flex;
   flex-direction: column;
-  padding: 4px 0 10px;
+  /* same inset as .ds-group so beginner and pro content align */
+  padding: 14px 16px 14px;
   border-bottom: 1px solid var(--s-line);
-  margin-bottom: 10px;
 }
 .gi-hero__item {
   display: flex;

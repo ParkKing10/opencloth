@@ -263,6 +263,9 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  /* centers itself in the space left between the action group and undo/redo */
+  margin-inline: auto;
+  min-width: 0;
   padding: 8px 14px;
   border-radius: var(--s-r-pill);
   border: 1px solid var(--s-line);

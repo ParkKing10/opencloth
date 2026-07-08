@@ -668,6 +668,22 @@ export function DesignStudio() {
             THREADOS
             <span className="ds-logo__beta">Beta</span>
           </button>
+          <span className="ds-sep" />
+          <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
+            New
+          </button>
+          <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
+            <IcoUpload width="16" height="16" /> Share
+          </button>
+          <Suspense
+            fallback={
+              <button className="s-btn s-btn--accent" type="button" disabled>
+                Export
+              </button>
+            }
+          >
+            <ExportMenu input={exportInput} readiness={readinessInput} />
+          </Suspense>
         </div>
 
         {/* Journey progress — the user always knows where they are */}
@@ -714,22 +730,6 @@ export function DesignStudio() {
           >
             <IcoArrowRight width="17" height="17" />
           </button>
-          <span className="ds-sep" />
-          <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
-            New
-          </button>
-          <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
-            <IcoUpload width="16" height="16" /> Share
-          </button>
-          <Suspense
-            fallback={
-              <button className="s-btn s-btn--accent" type="button" disabled>
-                Export
-              </button>
-            }
-          >
-            <ExportMenu input={exportInput} readiness={readinessInput} />
-          </Suspense>
         </div>
       </header>
 

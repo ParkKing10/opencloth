@@ -1,12 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
+import { downloadBlob, slugify, svgElementToPngBlob } from '../../lib/download'
+import { downloadTechPackPdf } from '../../lib/exporters'
 
 const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
 const VIEWS = ['Front', 'Angle', 'Side', 'Hood']
 const FLATS = ['Front', 'Back', 'Side', 'Details']
 const CANVAS_TOOLS = ['orbit', 'zoom', 'fit', 'grid', 'measure', 'light']
+
+const ZOOM_STEP = 0.15
+const ZOOM_MIN = 0.5
+const ZOOM_MAX = 2.5
 
 const SIZE_ROWS: [string, string[]][] = [
   ['Chest', ['58', '60', '62', '64', '66']],
@@ -18,28 +24,102 @@ const SIZE_ROWS: [string, string[]][] = [
 type Props = {
   garmentName: string
   garmentKind: GarmentKind
+  garmentFit: string
 }
 
-export function StudioCanvas({ garmentName, garmentKind }: Props) {
+export function StudioCanvas({ garmentName, garmentKind, garmentFit }: Props) {
   const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
   const [view, setView] = useState('Front')
   const [tool, setTool] = useState('move')
   const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
+  const [zoom, setZoom] = useState(1)
+  const [showGrid, setShowGrid] = useState(true)
+  const [isRendering, setIsRendering] = useState(false)
+  // Editable design title, seeded from the active blank and re-synced when it changes.
+  const [designName, setDesignName] = useState(garmentName)
+
+  // Ref to the wrapper so we can grab the live <svg> and rasterise it to PNG.
+  const stageRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setDesignName(garmentName)
+  }, [garmentName])
 
   const Glyph = GARMENT_GLYPHS[garmentKind]
+
+  function renameDesign() {
+    const next = window.prompt('Rename this design', designName)
+    if (next == null) return
+    const trimmed = next.trim()
+    if (!trimmed || trimmed === designName) return
+    setDesignName(trimmed)
+    toast(`Renamed to “${trimmed}”.`, 'success')
+  }
+
+  async function renderPng() {
+    if (isRendering) return
+    const svg = stageRef.current?.querySelector('svg')
+    if (!svg) {
+      toast('Nothing to render yet.', 'info')
+      return
+    }
+    setIsRendering(true)
+    try {
+      const blob = await svgElementToPngBlob(svg)
+      downloadBlob(blob, `${slugify(designName)}.png`)
+      toast(`Rendered “${designName}” to PNG.`, 'accent')
+    } catch {
+      toast('Render failed — could not rasterise the garment.', 'info')
+    } finally {
+      setIsRendering(false)
+    }
+  }
+
+  function handleCanvasTool(t: string) {
+    switch (t) {
+      case 'zoom':
+        setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))
+        toast('Zoomed in.')
+        break
+      case 'fit':
+        setZoom(1)
+        toast('Fit to view.')
+        break
+      case 'grid':
+        setShowGrid((g) => !g)
+        toast(showGrid ? 'Grid hidden.' : 'Grid shown.')
+        break
+      case 'orbit':
+        setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))
+        toast('Zoomed out.')
+        break
+      default:
+        setTool(t)
+        toast(`${t.charAt(0).toUpperCase() + t.slice(1)} tool`)
+    }
+  }
+
+  function openFlat(flat: string) {
+    try {
+      const filename = downloadTechPackPdf({
+        name: `${designName} — ${flat}`,
+        kind: garmentKind,
+        fit: garmentFit,
+        placement: flat,
+      })
+      toast(`Exported ${filename}`, 'accent')
+    } catch {
+      toast('Could not generate the flat. Please try again.', 'info')
+    }
+  }
 
   return (
     <main className="ds-canvas">
       {/* Title bar */}
       <div className="ds-canvas__bar">
-        <button
-          className="ds-name"
-          type="button"
-          title="Rename this design"
-          onClick={() => toast('Rename coming soon — pick a blank from the catalog to switch.', 'info')}
-        >
-          {garmentName} <IcoChevron width="15" height="15" />
+        <button className="ds-name" type="button" title="Rename this design" onClick={renameDesign}>
+          {designName} <IcoChevron width="15" height="15" />
         </button>
         <span className="ds-saved">
           <span className="s-dot" style={{ background: 'var(--s-good)' }} /> Saved
@@ -71,8 +151,8 @@ export function StudioCanvas({ garmentName, garmentKind }: Props) {
         </div>
 
         <div className="ds-viewport">
-          <div className="ds-viewport__grid" aria-hidden="true" />
-          <div className="ds-garment-3d">
+          {showGrid && <div className="ds-viewport__grid" aria-hidden="true" />}
+          <div className="ds-garment-3d" ref={stageRef} style={{ transform: `scale(${zoom})` }}>
             <Glyph width="340" height="340" />
             <span className="ds-print">VISIONARY</span>
           </div>
@@ -104,7 +184,7 @@ export function StudioCanvas({ garmentName, garmentKind }: Props) {
                 type="button"
                 aria-label={t}
                 title={t.charAt(0).toUpperCase() + t.slice(1)}
-                onClick={() => toast(`${t.charAt(0).toUpperCase() + t.slice(1)} tool`, 'default')}
+                onClick={() => handleCanvasTool(t)}
               >
                 <ToolGlyph i={i} small />
               </button>
@@ -113,10 +193,11 @@ export function StudioCanvas({ garmentName, garmentKind }: Props) {
           <button
             className="ds-render"
             type="button"
-            title="Render a photoreal preview"
-            onClick={() => toast(`Rendering “${garmentName}” in ${mode}…`, 'accent')}
+            title="Render a PNG of the current garment"
+            disabled={isRendering}
+            onClick={renderPng}
           >
-            Render <IcoChevron width="14" height="14" />
+            {isRendering ? 'Rendering…' : 'Render'} <IcoChevron width="14" height="14" />
           </button>
         </div>
       </div>
@@ -143,8 +224,8 @@ export function StudioCanvas({ garmentName, garmentKind }: Props) {
                 className="ds-flat"
                 type="button"
                 key={f}
-                title={`Open ${f} flat`}
-                onClick={() => toast(`${garmentName} — ${f} flat`, 'default')}
+                title={`Download ${f} flat as a PDF tech pack`}
+                onClick={() => openFlat(f)}
               >
                 <div className="ds-flat__art">
                   <Glyph width="66" height="66" />
@@ -170,8 +251,8 @@ export function StudioCanvas({ garmentName, garmentKind }: Props) {
                 {SIZE_ROWS.map(([label, vals]) => (
                   <tr key={label}>
                     <td>{label}</td>
-                    {vals.map((v, i) => (
-                      <td key={i}>{v}</td>
+                    {vals.map((v) => (
+                      <td key={v}>{v}</td>
                     ))}
                   </tr>
                 ))}

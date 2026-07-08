@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IcoDesign,
@@ -16,8 +16,13 @@ import {
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
+import type { ProjectInput } from '../../export/project'
 import { StudioCanvas } from './StudioCanvas'
 import './design-studio.css'
+
+// The export system pulls in jsPDF + JSZip; load it as its own chunk on demand
+// so the manufacturing-export weight never lands in the initial bundle.
+const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
 const RAIL = ['Catalog', 'Templates', 'Graphics', 'Fabrics', 'Colors', 'Trims', 'Text', 'Uploads', 'AI Tools']
 
@@ -49,6 +54,12 @@ const GARMENTS: Garment[] = [
 
 type Layer = { id: string; name: string; type: string }
 
+/** A single undoable snapshot of the editable canvas state. */
+type Snapshot = {
+  layers: Layer[]
+  hidden: Record<string, boolean>
+}
+
 const INITIAL_LAYERS: Layer[] = [
   { id: 'l-puff', name: 'Puff Print Front', type: 'Graphic' },
   { id: 'l-back', name: 'Back Print', type: 'Graphic' },
@@ -57,19 +68,41 @@ const INITIAL_LAYERS: Layer[] = [
   { id: 'l-rib', name: 'Ribbing', type: 'Material' },
 ]
 
-const DETAILS: [string, string][] = [
-  ['Size', 'M'],
-  ['Fit', 'Oversized'],
-  ['Length', 'Regular'],
-  ['Fabric', 'French Terry 450 GSM'],
-  ['Weight', '450 GSM'],
-]
+const INITIAL_SNAPSHOT: Snapshot = { layers: INITIAL_LAYERS, hidden: {} }
 
-const DESIGN: [string, string][] = [
-  ['Technique', 'Puff Print'],
-  ['Placement', 'Front Center'],
-  ['Size', '28 cm'],
-]
+/** Editable property fields, keyed by a stable id so edits target the right row. */
+type PropField = { id: string; label: string; value: string; swatch?: boolean }
+
+const INITIAL_FIELDS: Record<string, PropField[]> = {
+  details: [
+    { id: 'd-size', label: 'Size', value: 'M' },
+    { id: 'd-fit', label: 'Fit', value: 'Oversized' },
+    { id: 'd-length', label: 'Length', value: 'Regular' },
+    { id: 'd-fabric', label: 'Fabric', value: 'French Terry 450 GSM' },
+    { id: 'd-weight', label: 'Weight', value: '450 GSM' },
+    { id: 'd-color', label: 'Color', value: '#2A2A2A', swatch: true },
+  ],
+  design: [
+    { id: 'de-technique', label: 'Technique', value: 'Puff Print' },
+    { id: 'de-placement', label: 'Placement', value: 'Front Center' },
+    { id: 'de-size', label: 'Size', value: '28 cm' },
+    { id: 'de-color', label: 'Color', value: '#F2F2F2', swatch: true },
+  ],
+  materials: [
+    { id: 'm-body', label: 'Body', value: 'French Terry 450 GSM' },
+    { id: 'm-ribbing', label: 'Ribbing', value: '2x2 Rib · Cotton' },
+    { id: 'm-lining', label: 'Lining', value: 'None' },
+    { id: 'm-thread', label: 'Thread', value: 'Tex 40 · Matte' },
+  ],
+  colors: [
+    { id: 'c-base', label: 'Base', value: '#2A2A2A', swatch: true },
+    { id: 'c-print', label: 'Print', value: '#F2F2F2', swatch: true },
+    { id: 'c-rib', label: 'Rib', value: '#1E1E1E', swatch: true },
+    { id: 'c-stitch', label: 'Stitch', value: '#D1F94F', swatch: true },
+  ],
+}
+
+const AI_SUGGESTION = 'Make it more vintage washed and add a small woven label on the hem.'
 
 export function DesignStudio() {
   const navigate = useNavigate()
@@ -79,8 +112,30 @@ export function DesignStudio() {
   const [query, setQuery] = useState('')
   const [activeName, setActiveName] = useState('Hoodie')
   const [propTab, setPropTab] = useState<'Properties' | 'Materials' | 'Colors'>('Properties')
-  const [hidden, setHidden] = useState<Record<string, boolean>>({})
-  const [layers, setLayers] = useState<Layer[]>(INITIAL_LAYERS)
+
+  // Undo/redo history: `past` and `future` are real snapshot stacks, `present` is live.
+  const [past, setPast] = useState<Snapshot[]>([])
+  const [present, setPresent] = useState<Snapshot>(INITIAL_SNAPSHOT)
+  const [future, setFuture] = useState<Snapshot[]>([])
+
+  // Applied AI suggestions become a visible, persistent notes list on the design.
+  const [appliedNotes, setAppliedNotes] = useState<string[]>([])
+  const [suggestionApplied, setSuggestionApplied] = useState(false)
+
+  // Editable property fields — clicking a field really changes its displayed value.
+  const [fields, setFields] = useState<Record<string, PropField[]>>(INITIAL_FIELDS)
+  const [showCatalogHint, setShowCatalogHint] = useState(false)
+
+  const { layers, hidden } = present
+  const canUndo = past.length > 0
+  const canRedo = future.length > 0
+
+  /** Commit a new snapshot, pushing the current one onto the undo stack. */
+  const commit = useCallback((next: Snapshot) => {
+    setPast((prev) => [...prev, present])
+    setPresent(next)
+    setFuture([])
+  }, [present])
 
   const activeGarment = useMemo(
     () => GARMENTS.find((g) => g.name === activeName) ?? GARMENTS[1],
@@ -109,22 +164,79 @@ export function DesignStudio() {
   function addLayer() {
     const n = layers.filter((l) => l.type === 'Graphic').length + 1
     const layer: Layer = { id: `l-${Date.now().toString(36)}`, name: `New Graphic ${n}`, type: 'Graphic' }
-    setLayers((prev) => [layer, ...prev])
+    commit({ layers: [layer, ...layers], hidden })
     toast('Layer added — drop a graphic or type onto it.', 'success')
   }
 
   function removeLayer(layer: Layer) {
-    setLayers((prev) => prev.filter((l) => l.id !== layer.id))
-    setHidden((h) => {
-      const next = { ...h }
-      delete next[layer.id]
-      return next
-    })
+    const nextHidden = { ...hidden }
+    delete nextHidden[layer.id]
+    commit({ layers: layers.filter((l) => l.id !== layer.id), hidden: nextHidden })
     toast(`Removed “${layer.name}”.`)
   }
 
+  function toggleLayer(layer: Layer) {
+    commit({ layers, hidden: { ...hidden, [layer.id]: !hidden[layer.id] } })
+  }
+
+  function undo() {
+    if (!canUndo) return
+    const previous = past[past.length - 1]
+    setPast((prev) => prev.slice(0, -1))
+    setFuture((prev) => [present, ...prev])
+    setPresent(previous)
+    toast('Undid last change.')
+  }
+
+  function redo() {
+    if (!canRedo) return
+    const next = future[0]
+    setFuture((prev) => prev.slice(1))
+    setPast((prev) => [...prev, present])
+    setPresent(next)
+    toast('Redid change.')
+  }
+
+  // The design's identity, handed to the Manufacturing Export System.
+  const exportInput: ProjectInput = useMemo(
+    () => ({ styleName: activeGarment.name, kind: activeGarment.kind }),
+    [activeGarment.name, activeGarment.kind],
+  )
+
+  async function shareDesign() {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      toast('Link copied — anyone with it can view this design.', 'success')
+    } catch {
+      toast('Could not copy the link. Copy it from the address bar.', 'info')
+    }
+  }
+
   function applySuggestion() {
+    if (suggestionApplied) return
+    setAppliedNotes((prev) => [...prev, AI_SUGGESTION])
+    setSuggestionApplied(true)
     toast('Applied AI suggestion — vintage wash + woven hem label.', 'accent')
+  }
+
+  function changeGarment() {
+    const idx = GARMENTS.findIndex((g) => g.name === activeGarment.name)
+    const next = GARMENTS[(idx + 1) % GARMENTS.length]
+    setRail('Catalog')
+    setActiveName(next.name)
+    toast(`Switched to ${next.name}.`, 'success')
+  }
+
+  function editField(group: string, field: PropField) {
+    const next = window.prompt(`Edit ${field.label}`, field.value)
+    if (next == null) return
+    const trimmed = next.trim()
+    if (!trimmed || trimmed === field.value) return
+    setFields((prev) => ({
+      ...prev,
+      [group]: prev[group].map((f) => (f.id === field.id ? { ...f, value: trimmed } : f)),
+    }))
+    toast(`${field.label} set to ${trimmed}.`, 'success')
   }
 
   return (
@@ -159,27 +271,39 @@ export function DesignStudio() {
         </div>
 
         <div className="ds-top__right">
-          <button className="ds-icon" type="button" aria-label="Undo" title="Undo" onClick={() => toast('Nothing left to undo.')}>
+          <button
+            className="ds-icon"
+            type="button"
+            aria-label="Undo"
+            title={canUndo ? 'Undo' : 'Nothing to undo'}
+            disabled={!canUndo}
+            onClick={undo}
+          >
             <IcoArrowRight width="17" height="17" style={{ transform: 'scaleX(-1)' }} />
           </button>
-          <button className="ds-icon" type="button" aria-label="Redo" title="Redo" onClick={() => toast('Nothing to redo.')}>
+          <button
+            className="ds-icon"
+            type="button"
+            aria-label="Redo"
+            title={canRedo ? 'Redo' : 'Nothing to redo'}
+            disabled={!canRedo}
+            onClick={redo}
+          >
             <IcoArrowRight width="17" height="17" />
           </button>
           <span className="ds-sep" />
-          <button
-            className="s-btn s-btn--ghost"
-            type="button"
-            onClick={() => toast('Share link copied — anyone with it can view this design.', 'info')}
-          >
+          <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
             <IcoUpload width="16" height="16" /> Share
           </button>
-          <button
-            className="s-btn s-btn--accent"
-            type="button"
-            onClick={() => toast(`Exporting “${activeGarment.name}” as a PDF tech pack…`, 'accent')}
+          <Suspense
+            fallback={
+              <button className="s-btn s-btn--accent" type="button" disabled>
+                Export
+              </button>
+            }
           >
-            <IcoUpload width="16" height="16" style={{ transform: 'rotate(180deg)' }} /> Export
-          </button>
+            <ExportMenu input={exportInput} />
+          </Suspense>
         </div>
       </header>
 
@@ -206,15 +330,23 @@ export function DesignStudio() {
             <div className="ds-panel-head">
               <h2>Catalog</h2>
               <button
-                className="ds-mini"
+                className={`ds-mini${showCatalogHint ? ' is-active' : ''}`}
                 type="button"
-                aria-label="Catalog help"
-                title="Pick a blank to start designing"
-                onClick={() => toast('Pick a garment blank, then design it on the canvas.', 'info')}
+                aria-label="Toggle catalog help"
+                aria-pressed={showCatalogHint}
+                title="Show how the catalog works"
+                onClick={() => setShowCatalogHint((v) => !v)}
               >
                 <IcoDots width="15" height="15" />
               </button>
             </div>
+
+            {showCatalogHint && (
+              <p className="ds-hint">
+                Pick a garment blank below, then design it on the canvas. Use the Layers panel to stack
+                graphics and materials.
+              </p>
+            )}
 
             <label className="ds-search">
               <IcoSearch width="15" height="15" />
@@ -296,7 +428,7 @@ export function DesignStudio() {
                     type="button"
                     aria-label={hidden[l.id] ? 'Show layer' : 'Hide layer'}
                     title={hidden[l.id] ? 'Show layer' : 'Hide layer'}
-                    onClick={() => setHidden((h) => ({ ...h, [l.id]: !h[l.id] }))}
+                    onClick={() => toggleLayer(l)}
                   >
                     <IcoEye width="15" height="15" />
                   </button>
@@ -319,7 +451,7 @@ export function DesignStudio() {
         </aside>
 
         {/* Canvas */}
-        <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} />
+        <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} garmentFit={activeGarment.fit} />
 
         {/* Properties */}
         <aside className="ds-right">
@@ -354,7 +486,8 @@ export function DesignStudio() {
                     <button
                       className="ds-change"
                       type="button"
-                      onClick={() => toast('Pick a different blank from the catalog on the left.', 'info')}
+                      title="Switch to the next blank in the catalog"
+                      onClick={changeGarment}
                     >
                       Change
                     </button>
@@ -362,17 +495,15 @@ export function DesignStudio() {
                 </section>
 
                 <Accordion title="Details" open>
-                  {DETAILS.map(([k, v]) => (
-                    <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k}…`)} />
+                  {fields.details.map((f) => (
+                    <Field key={f.id} field={f} onEdit={() => editField('details', f)} />
                   ))}
-                  <Field label="Color" value="#2A2A2A" swatch="#2A2A2A" onEdit={() => toast('Editing base colour…')} />
                 </Accordion>
 
                 <Accordion title="Design" open>
-                  {DESIGN.map(([k, v]) => (
-                    <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k}…`)} />
+                  {fields.design.map((f) => (
+                    <Field key={f.id} field={f} onEdit={() => editField('design', f)} />
                   ))}
-                  <Field label="Color" value="#F2F2F2" swatch="#F2F2F2" onEdit={() => toast('Editing print colour…')} />
                 </Accordion>
 
                 <Accordion title="Stitching" />
@@ -383,26 +514,16 @@ export function DesignStudio() {
 
             {propTab === 'Materials' && (
               <Accordion title="Materials" open>
-                {[
-                  ['Body', 'French Terry 450 GSM'],
-                  ['Ribbing', '2x2 Rib · Cotton'],
-                  ['Lining', 'None'],
-                  ['Thread', 'Tex 40 · Matte'],
-                ].map(([k, v]) => (
-                  <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k} material…`)} />
+                {fields.materials.map((f) => (
+                  <Field key={f.id} field={f} onEdit={() => editField('materials', f)} />
                 ))}
               </Accordion>
             )}
 
             {propTab === 'Colors' && (
               <Accordion title="Palette" open>
-                {[
-                  ['Base', '#2A2A2A'],
-                  ['Print', '#F2F2F2'],
-                  ['Rib', '#1E1E1E'],
-                  ['Stitch', '#D1F94F'],
-                ].map(([k, v]) => (
-                  <Field key={k} label={k} value={v} swatch={v} onEdit={() => toast(`Editing ${k} colour…`)} />
+                {fields.colors.map((f) => (
+                  <Field key={f.id} field={f} onEdit={() => editField('colors', f)} />
                 ))}
               </Accordion>
             )}
@@ -412,12 +533,22 @@ export function DesignStudio() {
                 <IcoSparkle width="15" height="15" />
                 <span>AI Assistant</span>
               </div>
-              <p className="ds-ai__msg">
-                Make it more vintage washed and add a small woven label on the hem.
-              </p>
-              <button className="s-btn s-btn--accent ds-ai__apply" type="button" onClick={applySuggestion}>
-                <IcoSparkle width="15" height="15" /> Apply Suggestion
+              <p className="ds-ai__msg">{AI_SUGGESTION}</p>
+              <button
+                className="s-btn s-btn--accent ds-ai__apply"
+                type="button"
+                disabled={suggestionApplied}
+                onClick={applySuggestion}
+              >
+                <IcoSparkle width="15" height="15" /> {suggestionApplied ? 'Applied' : 'Apply Suggestion'}
               </button>
+              {appliedNotes.length > 0 && (
+                <ul className="ds-ai__notes">
+                  {appliedNotes.map((note, i) => (
+                    <li key={`${note}-${i}`}>{note}</li>
+                  ))}
+                </ul>
+              )}
             </section>
           </div>
         </aside>
@@ -464,13 +595,13 @@ function RailIcon({ name }: { name: string }) {
   }
 }
 
-function Field({ label, value, swatch, onEdit }: { label: string; value: string; swatch?: string; onEdit: () => void }) {
+function Field({ field, onEdit }: { field: PropField; onEdit: () => void }) {
   return (
     <div className="ds-field">
-      <span className="ds-field__label">{label}</span>
-      <button className="ds-field__value" type="button" onClick={onEdit} title={`Edit ${label}`}>
-        {swatch && <span className="ds-field__swatch" style={{ background: swatch }} />}
-        <span>{value}</span>
+      <span className="ds-field__label">{field.label}</span>
+      <button className="ds-field__value" type="button" onClick={onEdit} title={`Edit ${field.label}`}>
+        {field.swatch && <span className="ds-field__swatch" style={{ background: field.value }} />}
+        <span>{field.value}</span>
         <IcoChevron width="14" height="14" />
       </button>
     </div>

@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { IcoChevron } from '../../components/ui/Icons'
-import { GHoodie } from '../../components/ui/Garments'
+import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { useToast } from '../../components/ui/Toast'
 
 const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
 const VIEWS = ['Front', 'Angle', 'Side', 'Hood']
 const FLATS = ['Front', 'Back', 'Side', 'Details']
+const CANVAS_TOOLS = ['orbit', 'zoom', 'fit', 'grid', 'measure', 'light']
 
 const SIZE_ROWS: [string, string[]][] = [
   ['Chest', ['58', '60', '62', '64', '66']],
@@ -13,17 +15,31 @@ const SIZE_ROWS: [string, string[]][] = [
   ['Sleeve', ['60', '61', '62', '63', '64']],
 ]
 
-export function StudioCanvas() {
+type Props = {
+  garmentName: string
+  garmentKind: GarmentKind
+}
+
+export function StudioCanvas({ garmentName, garmentKind }: Props) {
+  const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
   const [view, setView] = useState('Front')
+  const [tool, setTool] = useState('move')
   const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
+
+  const Glyph = GARMENT_GLYPHS[garmentKind]
 
   return (
     <main className="ds-canvas">
       {/* Title bar */}
       <div className="ds-canvas__bar">
-        <button className="ds-name" type="button">
-          Vintage Washed Hoodie <IcoChevron width="15" height="15" />
+        <button
+          className="ds-name"
+          type="button"
+          title="Rename this design"
+          onClick={() => toast('Rename coming soon — pick a blank from the catalog to switch.', 'info')}
+        >
+          {garmentName} <IcoChevron width="15" height="15" />
         </button>
         <span className="ds-saved">
           <span className="s-dot" style={{ background: 'var(--s-good)' }} /> Saved
@@ -41,7 +57,14 @@ export function StudioCanvas() {
       <div className="ds-stage">
         <div className="ds-toolrail">
           {TOOLS.map((t, i) => (
-            <button key={t} type="button" className={i === 0 ? 'is-active' : ''} aria-label={t}>
+            <button
+              key={t}
+              type="button"
+              className={tool === t ? 'is-active' : ''}
+              aria-label={t}
+              title={t.charAt(0).toUpperCase() + t.slice(1)}
+              onClick={() => setTool(t)}
+            >
               <ToolGlyph i={i} />
             </button>
           ))}
@@ -50,7 +73,7 @@ export function StudioCanvas() {
         <div className="ds-viewport">
           <div className="ds-viewport__grid" aria-hidden="true" />
           <div className="ds-garment-3d">
-            <GHoodie width="340" height="340" />
+            <Glyph width="340" height="340" />
             <span className="ds-print">VISIONARY</span>
           </div>
         </div>
@@ -61,22 +84,38 @@ export function StudioCanvas() {
               key={v}
               type="button"
               className={`ds-view${view === v ? ' is-active' : ''}`}
-              onClick={() => setView(v)}
+              aria-label={`${v} view`}
+              title={`${v} view`}
+              onClick={() => {
+                setView(v)
+                toast(`${v} view`, 'default')
+              }}
             >
-              <GHoodie width="34" height="34" />
+              <Glyph width="34" height="34" />
             </button>
           ))}
         </div>
 
         <div className="ds-canvas-toolbar">
           <div className="ds-canvas-toolbar__group">
-            {['orbit', 'zoom', 'fit', 'grid', 'measure', 'light'].map((t, i) => (
-              <button key={t} type="button" aria-label={t}>
+            {CANVAS_TOOLS.map((t, i) => (
+              <button
+                key={t}
+                type="button"
+                aria-label={t}
+                title={t.charAt(0).toUpperCase() + t.slice(1)}
+                onClick={() => toast(`${t.charAt(0).toUpperCase() + t.slice(1)} tool`, 'default')}
+              >
                 <ToolGlyph i={i} small />
               </button>
             ))}
           </div>
-          <button className="ds-render" type="button">
+          <button
+            className="ds-render"
+            type="button"
+            title="Render a photoreal preview"
+            onClick={() => toast(`Rendering “${garmentName}” in ${mode}…`, 'accent')}
+          >
             Render <IcoChevron width="14" height="14" />
           </button>
         </div>
@@ -100,12 +139,18 @@ export function StudioCanvas() {
         {bottomTab === 'Tech Pack' ? (
           <div className="ds-flats">
             {FLATS.map((f) => (
-              <div className="ds-flat" key={f}>
+              <button
+                className="ds-flat"
+                type="button"
+                key={f}
+                title={`Open ${f} flat`}
+                onClick={() => toast(`${garmentName} — ${f} flat`, 'default')}
+              >
                 <div className="ds-flat__art">
-                  <GHoodie width="66" height="66" />
+                  <Glyph width="66" height="66" />
                 </div>
                 <span>{f}</span>
-              </div>
+              </button>
             ))}
           </div>
         ) : (

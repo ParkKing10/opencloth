@@ -207,6 +207,24 @@
   background: var(--s-accent-2);
 }
 
+/* "View all" is a real button — strip native chrome so it matches .s-link */
+.s-section-head button.s-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ---- Recent designs empty state ---- */
+.dash-empty {
+  min-height: 260px;
+  padding: 24px;
+}
+.dash-empty__cta {
+  margin-top: 18px;
+}
+
 /* ---- Recent designs ---- */
 .dash-designs {
   display: grid;

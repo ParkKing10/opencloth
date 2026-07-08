@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -14,6 +14,9 @@ import {
   IcoArrowRight,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { useToast } from '../../components/ui/Toast'
+import { useAuth } from '../../auth/auth'
+import { useStore } from '../../data/store'
 import './aid.css'
 
 /* ---- Static option sets ---- */
@@ -46,6 +49,7 @@ const TINTS = [
 ]
 
 type Variation = {
+  id: string
   seed: string
   name: string
   kind: GarmentKind
@@ -54,37 +58,75 @@ type Variation = {
 }
 
 const INITIAL_VARIATIONS: Variation[] = [
-  { seed: '0x8F2A', name: 'Washed Boxy Hoodie', kind: 'hoodie', style: 'Vintage Wash', isFav: true },
-  { seed: '0x1D77', name: 'Panelled Track Hoodie', kind: 'hoodie', style: 'Sportswear', isFav: false },
-  { seed: '0xB4C0', name: 'Drop-Shoulder Heavyweight', kind: 'hoodie', style: 'Streetwear', isFav: false },
+  { id: 'v-seed-1', seed: '0x8F2A', name: 'Washed Boxy Hoodie', kind: 'hoodie', style: 'Vintage Wash', isFav: true },
+  { id: 'v-seed-2', seed: '0x1D77', name: 'Panelled Track Hoodie', kind: 'hoodie', style: 'Sportswear', isFav: false },
+  { id: 'v-seed-3', seed: '0xB4C0', name: 'Drop-Shoulder Heavyweight', kind: 'hoodie', style: 'Streetwear', isFav: false },
 ]
 
-type HistoryItem = { prompt: string; kind: GarmentKind; style: Style; time: string; count: number }
-const HISTORY: HistoryItem[] = [
-  { prompt: 'Faded acid-wash hoodie, oversized fit, raw hem', kind: 'hoodie', style: 'Vintage Wash', time: '4m ago', count: 4 },
-  { prompt: 'Minimal boxy tee, heavyweight cotton, tonal stitch', kind: 'tee', style: 'Minimal', time: '1h ago', count: 4 },
-  { prompt: 'Cropped moto jacket, matte black hardware', kind: 'jacket', style: 'Luxury', time: '3h ago', count: 6 },
-  { prompt: 'Baggy cargo pants, ripstop, utility pockets', kind: 'pants', style: 'Streetwear', time: 'Yesterday', count: 4 },
-  { prompt: 'Structured 6-panel cap, embroidered crest', kind: 'cap', style: 'Sportswear', time: 'Yesterday', count: 4 },
+let variationCounter = 0
+function makeVariationId(): string {
+  variationCounter += 1
+  return `v-${Date.now().toString(36)}-${variationCounter.toString(36)}`
+}
+
+type HistoryItem = { id: string; prompt: string; kind: GarmentKind; style: Style; time: string; count: number }
+const INITIAL_HISTORY: HistoryItem[] = [
+  { id: 'h1', prompt: 'Faded acid-wash hoodie, oversized fit, raw hem', kind: 'hoodie', style: 'Vintage Wash', time: '4m ago', count: 4 },
+  { id: 'h2', prompt: 'Minimal boxy tee, heavyweight cotton, tonal stitch', kind: 'tee', style: 'Minimal', time: '1h ago', count: 4 },
+  { id: 'h3', prompt: 'Cropped moto jacket, matte black hardware', kind: 'jacket', style: 'Luxury', time: '3h ago', count: 6 },
+  { id: 'h4', prompt: 'Baggy cargo pants, ripstop, utility pockets', kind: 'pants', style: 'Streetwear', time: 'Yesterday', count: 4 },
+  { id: 'h5', prompt: 'Structured 6-panel cap, embroidered crest', kind: 'cap', style: 'Sportswear', time: 'Yesterday', count: 4 },
 ]
+
+let historyCounter = 0
+function makeHistoryId(): string {
+  historyCounter += 1
+  return `h-${Date.now().toString(36)}-${historyCounter.toString(36)}`
+}
 
 const GEN_COST = 4
+const GEN_COUNT = 4
+const UPSCALE_COST = 2
 const PROMPT_MAX = 480
+const GEN_MS = 2400
+
+/** Descriptive nouns used to name freshly generated variations. */
+const NAME_FORMS = ['Boxy', 'Cropped', 'Relaxed', 'Panelled', 'Draped', 'Structured', 'Washed', 'Heavyweight']
+
+function makeSeed(): string {
+  return `0x${Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0')}`
+}
+
+function makeVariationName(style: Style, kind: GarmentKind): string {
+  const form = NAME_FORMS[Math.floor(Math.random() * NAME_FORMS.length)]
+  const label = TYPES.find((t) => t.key === kind)?.label ?? 'Garment'
+  return `${form} ${style} ${label}`
+}
+
+const DEFAULT_PROMPT =
+  'Oversized boxy hoodie, heavyweight fleece with a faded vintage wash, dropped shoulders, ribbed cuffs and a raw-cut hem. Muted concrete grey.'
 
 export function AIDesigner() {
   const navigate = useNavigate()
+  const toast = useToast()
+  const { user } = useAuth()
+  const { mutate } = useStore()
 
-  const [prompt, setPrompt] = useState(
-    'Oversized boxy hoodie, heavyweight fleece with a faded vintage wash, dropped shoulders, ribbed cuffs and a raw-cut hem. Muted concrete grey.',
-  )
+  const [prompt, setPrompt] = useState(DEFAULT_PROMPT)
   const [style, setStyle] = useState<Style>('Vintage Wash')
   const [type, setType] = useState<GarmentKind>('hoodie')
   const [aspect, setAspect] = useState<Aspect>('portrait')
   const [refs, setRefs] = useState<boolean[]>([true, false, false])
   const [variations, setVariations] = useState<Variation[]>(INITIAL_VARIATIONS)
+  const [history, setHistory] = useState<HistoryItem[]>(INITIAL_HISTORY)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const genTimer = useRef<number | null>(null)
 
-  const canGenerate = prompt.trim().length > 0
-  const totalVariations = variations.length + 1 // + the generating card
+  // Coins live on the authenticated user in the store — read them there rather
+  // than showing a hardcoded balance that never reflects a generation spend.
+  const coins = user?.coins ?? 0
+  const canGenerate = prompt.trim().length > 0 && !isGenerating && coins >= GEN_COST
+  const totalVariations = variations.length + (isGenerating ? GEN_COUNT : 0)
 
   const genLabel = useMemo(() => {
     const label = TYPES.find((x) => x.key === type)?.label ?? 'garment'
@@ -94,8 +136,118 @@ export function AIDesigner() {
   const toggleRef = (index: number) =>
     setRefs((prev) => prev.map((value, i) => (i === index ? !value : value)))
 
-  const toggleFav = (seed: string) =>
-    setVariations((prev) => prev.map((v) => (v.seed === seed ? { ...v, isFav: !v.isFav } : v)))
+  const toggleFav = (id: string) =>
+    setVariations((prev) => prev.map((v) => (v.id === id ? { ...v, isFav: !v.isFav } : v)))
+
+  // Clear any in-flight generation timer if the component unmounts mid-run, so
+  // the delayed setState never fires on an unmounted component.
+  useEffect(() => {
+    return () => {
+      if (genTimer.current !== null) {
+        window.clearTimeout(genTimer.current)
+        genTimer.current = null
+      }
+    }
+  }, [])
+
+  function handleGenerate() {
+    const clean = prompt.trim()
+    if (!clean) {
+      toast('Describe the garment you want before generating.', 'info')
+      return
+    }
+    if (isGenerating) return
+    if (!user) {
+      toast('Sign in to generate designs.', 'info')
+      return
+    }
+    if (coins < GEN_COST) {
+      toast(`Not enough coins — generating costs ${GEN_COST}.`, 'info')
+      return
+    }
+
+    // Spend coins immutably against the current user, preserving all other data.
+    mutate((d) => ({
+      ...d,
+      users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - GEN_COST } : u)),
+    }))
+
+    setIsGenerating(true)
+    genTimer.current = window.setTimeout(() => {
+      const fresh: Variation[] = Array.from({ length: GEN_COUNT }, () => ({
+        id: makeVariationId(),
+        seed: makeSeed(),
+        name: makeVariationName(style, type),
+        kind: type,
+        style,
+        isFav: false,
+      }))
+      setVariations((prev) => [...fresh, ...prev])
+      setHistory((prev) => [
+        { id: makeHistoryId(), prompt: clean, kind: type, style, time: 'just now', count: GEN_COUNT },
+        ...prev,
+      ])
+      setIsGenerating(false)
+      genTimer.current = null
+      toast(`Generated ${GEN_COUNT} ${genLabel} variations.`, 'success')
+    }, GEN_MS)
+  }
+
+  function enhancePrompt() {
+    const clean = prompt.trim()
+    if (!clean) {
+      toast('Write a short prompt first, then enhance it.', 'info')
+      return
+    }
+    const additions = 'studio product shot, soft diffused lighting, crisp fabric detail, neutral backdrop'
+    if (clean.toLowerCase().includes('studio product shot')) {
+      toast('Prompt already enhanced.', 'info')
+      return
+    }
+    const next = `${clean.replace(/\s*[.,]?\s*$/, '')}. ${additions}.`.slice(0, PROMPT_MAX)
+    setPrompt(next)
+    toast('Prompt enhanced with studio detail.', 'accent')
+  }
+
+  function newSession() {
+    if (genTimer.current !== null) {
+      window.clearTimeout(genTimer.current)
+      genTimer.current = null
+    }
+    setPrompt(DEFAULT_PROMPT)
+    setStyle('Vintage Wash')
+    setType('hoodie')
+    setAspect('portrait')
+    setRefs([true, false, false])
+    setVariations(INITIAL_VARIATIONS)
+    setIsGenerating(false)
+    toast('Started a fresh session.', 'info')
+  }
+
+  function clearHistory() {
+    if (history.length === 0) {
+      toast('History is already empty.', 'info')
+      return
+    }
+    setHistory([])
+    toast('Prompt history cleared.')
+  }
+
+  function upscale(v: Variation) {
+    if (!user) {
+      toast('Sign in to upscale designs.', 'info')
+      return
+    }
+    if (coins < UPSCALE_COST) {
+      toast(`Not enough coins — upscaling costs ${UPSCALE_COST}.`, 'info')
+      return
+    }
+    mutate((d) => ({
+      ...d,
+      users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - UPSCALE_COST } : u)),
+    }))
+    toast(`Upscaling “${v.name}” to 4K…`, 'accent')
+  }
 
   const RefGlyph = GARMENT_GLYPHS[type]
 
@@ -116,10 +268,10 @@ export function AIDesigner() {
         <div className="aid-head__actions">
           <span className="aid-coins">
             <IcoCoins width="16" height="16" />
-            <b>184</b>
+            <b>{coins}</b>
             <small>coins</small>
           </span>
-          <button className="s-btn s-btn--ghost" type="button">
+          <button className="s-btn s-btn--ghost" type="button" onClick={newSession}>
             <IcoPlus width="15" height="15" /> New session
           </button>
         </div>
@@ -144,7 +296,7 @@ export function AIDesigner() {
                 aria-label="Prompt"
               />
               <div className="aid-prompt__foot">
-                <button className="aid-prompt__enhance" type="button">
+                <button className="aid-prompt__enhance" type="button" onClick={enhancePrompt}>
                   <IcoBolt width="12" height="12" /> Enhance
                 </button>
                 <span className="aid-prompt__count">
@@ -244,8 +396,10 @@ export function AIDesigner() {
               className="s-btn s-btn--accent aid-generate"
               type="button"
               disabled={!canGenerate}
+              onClick={handleGenerate}
             >
-              <IcoSparkle width="17" height="17" /> Generate 4 variations
+              <IcoSparkle width="17" height="17" />
+              {isGenerating ? 'Generating…' : `Generate ${GEN_COUNT} variations`}
             </button>
             <p className="aid-cost-hint">
               <IcoCoins width="13" height="13" /> Costs <b>{GEN_COST} coins</b> per generation
@@ -267,10 +421,20 @@ export function AIDesigner() {
                 <IcoSparkle width="12" height="12" /> {style}
               </span>
               <div className="aid-view">
-                <button className="aid-view__btn is-active" type="button" aria-label="Grid view">
+                <button
+                  className="aid-view__btn is-active"
+                  type="button"
+                  aria-label="Grid view"
+                  aria-pressed="true"
+                >
                   <IcoGrid width="15" height="15" />
                 </button>
-                <button className="aid-view__btn" type="button" aria-label="More options">
+                <button
+                  className="aid-view__btn"
+                  type="button"
+                  aria-label="More options"
+                  onClick={() => toast('More result options coming soon.', 'info')}
+                >
                   <IcoDots width="15" height="15" />
                 </button>
               </div>
@@ -281,14 +445,14 @@ export function AIDesigner() {
             {variations.map((v, i) => {
               const Glyph = GARMENT_GLYPHS[v.kind]
               return (
-                <article className="aid-card" key={v.seed} tabIndex={0}>
+                <article className="aid-card" key={v.id} tabIndex={0}>
                   <div className="aid-card__canvas" style={{ background: TINTS[i % TINTS.length] }}>
                     <span className="aid-card__grain" aria-hidden="true" />
                     <span className="aid-card__seed">{v.seed}</span>
                     <button
                       type="button"
                       className={`aid-card__fav${v.isFav ? ' is-fav' : ''}`}
-                      onClick={() => toggleFav(v.seed)}
+                      onClick={() => toggleFav(v.id)}
                       aria-label={v.isFav ? 'Unfavorite' : 'Favorite'}
                     >
                       <IcoStar width="15" height="15" />
@@ -298,11 +462,23 @@ export function AIDesigner() {
                     </span>
 
                     <div className="aid-toolbar">
-                      <button className="aid-tool aid-tool--primary" type="button">
+                      <button
+                        className="aid-tool aid-tool--primary"
+                        type="button"
+                        onClick={() => upscale(v)}
+                      >
                         <IcoSparkle width="14" height="14" /> Upscale
-                        <span className="aid-tool__tip">Upscale to 4K · 2 coins</span>
+                        <span className="aid-tool__tip">Upscale to 4K · {UPSCALE_COST} coins</span>
                       </button>
-                      <button className="aid-tool" type="button" aria-label="Create tech pack">
+                      <button
+                        className="aid-tool"
+                        type="button"
+                        aria-label="Create tech pack"
+                        onClick={() => {
+                          toast(`Creating a tech pack from “${v.name}”…`, 'accent')
+                          navigate('/suite/tech-packs')
+                        }}
+                      >
                         <IcoTechPack width="16" height="16" />
                         <span className="aid-tool__tip">Create Tech Pack</span>
                       </button>
@@ -310,12 +486,20 @@ export function AIDesigner() {
                         className="aid-tool"
                         type="button"
                         aria-label="Send to Design Studio"
-                        onClick={() => navigate('/suite/design')}
+                        onClick={() => {
+                          toast(`Sending “${v.name}” to the Design Studio…`, 'accent')
+                          navigate('/suite/design')
+                        }}
                       >
                         <IcoArrowRight width="16" height="16" />
                         <span className="aid-tool__tip">Send to Design Studio</span>
                       </button>
-                      <button className="aid-tool" type="button" aria-label="Download">
+                      <button
+                        className="aid-tool"
+                        type="button"
+                        aria-label="Download"
+                        onClick={() => toast(`Preparing “${v.name}” for download…`)}
+                      >
                         <IcoUpload width="16" height="16" style={{ transform: 'rotate(180deg)' }} />
                         <span className="aid-tool__tip">Download</span>
                       </button>
@@ -329,23 +513,36 @@ export function AIDesigner() {
               )
             })}
 
-            {/* Generating shimmer placeholder */}
-            <article className="aid-card aid-card--gen">
-              <div className="aid-gen">
-                <span className="aid-gen__shimmer" aria-hidden="true" />
-                <span className="aid-gen__orb">
+            {/* Generating shimmer placeholders — shown only while a run is in flight */}
+            {isGenerating &&
+              Array.from({ length: GEN_COUNT }, (_, i) => (
+                <article className="aid-card aid-card--gen" key={`gen-${i}`} aria-hidden="true">
+                  <div className="aid-gen">
+                    <span className="aid-gen__shimmer" />
+                    <span className="aid-gen__orb">
+                      <IcoSparkle width="22" height="22" />
+                    </span>
+                    <span className="aid-gen__label">Rendering variation {i + 1}…</span>
+                    <span className="aid-gen__bar">
+                      <span />
+                    </span>
+                  </div>
+                  <div className="aid-card__meta">
+                    <span className="aid-card__name">Generating…</span>
+                    <span className="aid-card__style">~{Math.ceil(GEN_MS / 1000)}s</span>
+                  </div>
+                </article>
+              ))}
+
+            {variations.length === 0 && !isGenerating && (
+              <div className="aid-empty">
+                <span className="aid-empty__orb">
                   <IcoSparkle width="22" height="22" />
                 </span>
-                <span className="aid-gen__label">Rendering variation 4…</span>
-                <span className="aid-gen__bar">
-                  <span />
-                </span>
+                <h3>No variations yet</h3>
+                <p>Describe a garment on the left and generate your first set.</p>
               </div>
-              <div className="aid-card__meta">
-                <span className="aid-card__name">Generating…</span>
-                <span className="aid-card__style">~8s</span>
-              </div>
-            </article>
+            )}
           </div>
 
           {/* ---- History strip ---- */}
@@ -354,37 +551,41 @@ export function AIDesigner() {
               <span className="aid-history__title">
                 <IcoBolt width="13" height="13" /> Prompt history
               </span>
-              <button className="aid-history__clear" type="button">
+              <button className="aid-history__clear" type="button" onClick={clearHistory}>
                 Clear
               </button>
             </div>
-            <div className="aid-history__row">
-              {HISTORY.map((h) => {
-                const Glyph = GARMENT_GLYPHS[h.kind]
-                return (
-                  <button
-                    key={h.prompt}
-                    type="button"
-                    className="aid-hist"
-                    onClick={() => setPrompt(h.prompt)}
-                  >
-                    <span className="aid-hist__thumb">
-                      <Glyph width="22" height="22" />
-                    </span>
-                    <span className="aid-hist__body">
-                      <span className="aid-hist__prompt">{h.prompt}</span>
-                      <span className="aid-hist__meta">
-                        <span>{h.style}</span>
-                        <span className="aid-hist__dot" />
-                        <span>{h.count} variations</span>
-                        <span className="aid-hist__dot" />
-                        <span>{h.time}</span>
+            {history.length > 0 ? (
+              <div className="aid-history__row">
+                {history.map((h) => {
+                  const Glyph = GARMENT_GLYPHS[h.kind]
+                  return (
+                    <button
+                      key={h.id}
+                      type="button"
+                      className="aid-hist"
+                      onClick={() => setPrompt(h.prompt)}
+                    >
+                      <span className="aid-hist__thumb">
+                        <Glyph width="22" height="22" />
                       </span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                      <span className="aid-hist__body">
+                        <span className="aid-hist__prompt">{h.prompt}</span>
+                        <span className="aid-hist__meta">
+                          <span>{h.style}</span>
+                          <span className="aid-hist__dot" />
+                          <span>{h.count} variations</span>
+                          <span className="aid-hist__dot" />
+                          <span>{h.time}</span>
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="aid-history__empty">No prompts yet — your generations will show up here.</p>
+            )}
           </div>
         </section>
       </div>

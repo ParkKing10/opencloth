@@ -94,6 +94,31 @@
   border-radius: 5px;
   border: 1px solid var(--s-line-2);
   background: var(--s-inset);
+  font-variant-numeric: tabular-nums;
+}
+.pr-search__clear {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  color: var(--s-text-4);
+  cursor: pointer;
+  transition:
+    background var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease);
+}
+.pr-search__clear:hover {
+  background: var(--s-hover);
+  color: var(--s-text);
+}
+
+/* Automate toggle — active state */
+.s-btn--ghost.is-on {
+  color: var(--s-accent-2);
+  border-color: var(--s-accent-line);
+  background: var(--s-accent-soft);
 }
 
 /* ---- Board scroll wrapper ---- */
@@ -551,6 +576,243 @@
   background: color-mix(in srgb, var(--s-pink) 14%, transparent);
 }
 
+/* ---- Advance affordance (moves order to next stage) ---- */
+.pr-advance {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  border-radius: var(--s-r-sm);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--s-text-2);
+  background: var(--s-inset);
+  border: 1px solid var(--s-line-2);
+  cursor: pointer;
+  transition:
+    background var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease);
+}
+.pr-advance svg {
+  transition: transform var(--s-dur) var(--s-ease);
+}
+.pr-advance:hover {
+  color: var(--s-accent-ink);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+.pr-advance:hover svg {
+  transform: translateX(2px);
+}
+.pr-advance:focus-visible {
+  outline: none;
+  border-color: var(--s-accent-line);
+  box-shadow: var(--s-shadow-glow);
+}
+.pr-advance:active {
+  transform: scale(0.98);
+}
+
+/* Terminal "delivered" state — no advance, just confirmation */
+.pr-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  border-radius: var(--s-r-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--s-good);
+  background: color-mix(in srgb, var(--s-good) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--s-good) 28%, transparent);
+}
+
+/* ---- Empty board state ---- */
+.pr-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  max-width: 440px;
+  margin: clamp(48px, 6vw, 96px) auto;
+  padding: 8px;
+}
+.pr-empty__ico {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-accent-line);
+}
+.pr-empty__title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--s-text);
+}
+.pr-empty__sub {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--s-text-3);
+  margin-bottom: 6px;
+}
+
+/* ---- Order composer (create dialog) ---- */
+.pr-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(6, 7, 10, 0.62);
+  backdrop-filter: blur(4px);
+  animation: pr-scrim-in var(--s-dur) var(--s-ease);
+}
+@keyframes pr-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.pr-composer {
+  width: min(460px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: var(--s-r-lg);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-strong);
+  box-shadow: var(--s-shadow-lg);
+  animation: pr-composer-in var(--s-dur-slow) var(--s-ease);
+}
+@keyframes pr-composer-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.pr-composer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pr-composer__eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--s-accent-2);
+  margin-bottom: 5px;
+}
+.pr-composer__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--s-text);
+}
+.pr-composer__close {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--s-text-3);
+  cursor: pointer;
+  transition:
+    background var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease);
+}
+.pr-composer__close:hover {
+  background: var(--s-hover);
+  color: var(--s-text);
+}
+
+.pr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.pr-field__label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--s-text-3);
+}
+.pr-field-row {
+  display: flex;
+  gap: 12px;
+}
+.pr-field-row .pr-field {
+  flex: 1;
+}
+.pr-field--qty {
+  max-width: 130px;
+}
+.pr-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-inset);
+  border: 1px solid var(--s-line);
+  color: var(--s-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  outline: none;
+  transition:
+    border-color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease);
+}
+.pr-input::placeholder {
+  color: var(--s-text-4);
+}
+.pr-input:focus {
+  border-color: var(--s-accent-line);
+  background: var(--s-panel);
+}
+select.pr-input {
+  appearance: none;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--s-text-3) 50%), linear-gradient(135deg, var(--s-text-3) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 17px, calc(100% - 11px) 17px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 30px;
+}
+.pr-composer__error {
+  font-size: 12.5px;
+  color: var(--s-warn);
+}
+.pr-composer__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 2px;
+}
+
 /* Responsive: keep columns readable, allow horizontal scroll */
 @media (max-width: 720px) {
   .pr-board {
@@ -571,6 +833,14 @@
   }
   .pr-card,
   .pr-bar__fill {
+    transition: none;
+  }
+  .pr-scrim,
+  .pr-composer {
+    animation: none;
+  }
+  .pr-advance,
+  .pr-advance svg {
     transition: none;
   }
 }

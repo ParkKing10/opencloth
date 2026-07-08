@@ -585,6 +585,71 @@
   background: var(--s-panel-3);
 }
 
+/* ---- More menu (download / delete) --------------------------------------- */
+.tp-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.tp-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  min-width: 184px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line-2);
+  box-shadow: var(--s-shadow);
+  animation: tp-menu-in var(--s-dur) var(--s-ease);
+}
+@keyframes tp-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.tp-menu__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.tp-menu__item:hover:not(:disabled) {
+  color: var(--s-text);
+  background: var(--s-panel-3);
+}
+.tp-menu__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.tp-menu__item--danger {
+  color: #ff8f8f;
+}
+.tp-menu__item--danger:hover:not(:disabled) {
+  color: #ff8f8f;
+  background: rgba(255, 90, 90, 0.12);
+}
+
 /* ---- Empty (no results) -------------------------------------------------- */
 .tp-empty {
   display: grid;
@@ -614,6 +679,12 @@
   margin-top: 6px;
   font-size: 13px;
   color: var(--s-text-3);
+  max-width: 340px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.tp-empty__cta {
+  margin-top: 16px;
 }
 
 /* ---- Responsive ---------------------------------------------------------- */

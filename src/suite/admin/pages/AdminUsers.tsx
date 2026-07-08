@@ -48,9 +48,9 @@ export function AdminUsers() {
         </label>
       </header>
 
-      <div className="s-tabs" style={{ marginBottom: 16 }}>
+      <div className="adm-tabs" style={{ marginBottom: 16 }}>
         {(['all', 'admin', 'suspended'] as const).map((f) => (
-          <button key={f} type="button" className={`s-tab${filter === f ? ' is-active' : ''}`} onClick={() => setFilter(f)}>
+          <button key={f} type="button" className={`adm-tab${filter === f ? ' is-active' : ''}`} onClick={() => setFilter(f)}>
             {f === 'all' ? 'All' : f === 'admin' ? 'Admins' : 'Suspended'}
           </button>
         ))}
@@ -68,6 +68,13 @@ export function AdminUsers() {
             </tr>
           </thead>
           <tbody>
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '32px 18px', color: 'var(--s-text-3)' }}>
+                  No users match your search.
+                </td>
+              </tr>
+            )}
             {users.map((u) => {
               const isSelf = u.id === me?.id
               return (

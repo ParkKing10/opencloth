@@ -353,6 +353,36 @@
   color: var(--s-text-3);
 }
 
+/* Filter tabs (self-contained so the admin console never depends on a
+   suite page's stylesheet having been loaded first). */
+.adm-tabs {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+}
+.adm-tab {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--s-text-3);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.adm-tab:hover {
+  color: var(--s-text);
+}
+.adm-tab.is-active {
+  color: var(--s-text);
+  background: var(--s-panel-3);
+}
+
 .adm-row-actions {
   display: flex;
   gap: 6px;

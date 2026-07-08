@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type SVGProps } from 'react'
 import {
   IcoPlus,
   IcoSearch,
@@ -8,222 +8,195 @@ import {
   IcoUpload,
   IcoCommand,
 } from '../../components/ui/Icons'
-import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { GARMENT_GLYPHS } from '../../components/ui/Garments'
+import { useStore } from '../../data/store'
+import { useAuth } from '../../auth/auth'
+import { useToast } from '../../components/ui/Toast'
+import { uid, relativeTime } from '../../data/utils'
+import type { TechPack, TechPackStatus, GarmentKind } from '../../data/types'
 import { SuitePage } from '../_shared/SuitePage'
 import './tp.css'
 
-/* --- Domain model --------------------------------------------------------- */
-type PackStatus = 'ready' | 'review' | 'draft'
-
-interface TechPack {
-  id: string
-  name: string
-  code: string
-  kind: GarmentKind
-  status: PackStatus
-  /** Light "flat sketch on paper" preview tile vs. dark technical tile. */
-  lightTile?: boolean
-  maker: string | null
-  country: string | null
-  flag: string
-  updated: string
-  pages: number
-  size: string
+/* --- Local icon (no trash icon exists in the shared set) ------------------ */
+function IcoTrash(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...p}
+    >
+      <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V7" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  )
 }
 
-const PACKS: TechPack[] = [
-  {
-    id: 'tp-1042',
-    name: 'Vintage Washed Hoodie',
-    code: 'TP-1042 · SS26',
-    kind: 'hoodie',
-    status: 'ready',
-    lightTile: true,
-    maker: 'Anadolu Knitwear',
-    country: 'Istanbul, Turkey',
-    flag: '🇹🇷',
-    updated: 'Updated 2h ago',
-    pages: 14,
-    size: 'PDF · 4.2 MB',
-  },
-  {
-    id: 'tp-1039',
-    name: 'Oversized Street Tee',
-    code: 'TP-1039 · SS26',
-    kind: 'tee',
-    status: 'review',
-    maker: 'Porto Textile Co.',
-    country: 'Porto, Portugal',
-    flag: '🇵🇹',
-    updated: 'Updated 5h ago',
-    pages: 9,
-    size: 'PDF · 2.8 MB',
-  },
-  {
-    id: 'tp-1036',
-    name: 'Cargo Pocket Jacket',
-    code: 'TP-1036 · FW26',
-    kind: 'jacket',
-    status: 'ready',
-    maker: 'Saigon Garment Group',
-    country: 'Ho Chi Minh, Vietnam',
-    flag: '🇻🇳',
-    updated: 'Updated 1d ago',
-    pages: 22,
-    size: 'PDF · 7.1 MB',
-  },
-  {
-    id: 'tp-1031',
-    name: 'Baggy Cargo Pants',
-    code: 'TP-1031 · FW26',
-    kind: 'pants',
-    status: 'draft',
-    maker: null,
-    country: null,
-    flag: '📄',
-    updated: 'Updated 1d ago',
-    pages: 6,
-    size: 'Draft · 1.4 MB',
-  },
-  {
-    id: 'tp-1028',
-    name: 'Structured Dad Cap',
-    code: 'TP-1028 · SS26',
-    kind: 'cap',
-    status: 'ready',
-    lightTile: true,
-    maker: 'Dongguan Headwear',
-    country: 'Dongguan, China',
-    flag: '🇨🇳',
-    updated: 'Updated 2d ago',
-    pages: 8,
-    size: 'PDF · 2.1 MB',
-  },
-  {
-    id: 'tp-1024',
-    name: 'Boxy Cropped Hoodie',
-    code: 'TP-1024 · SS26',
-    kind: 'hoodie',
-    status: 'review',
-    maker: 'Lisbon Knit Studio',
-    country: 'Lisbon, Portugal',
-    flag: '🇵🇹',
-    updated: 'Updated 3d ago',
-    pages: 12,
-    size: 'PDF · 3.6 MB',
-  },
-  {
-    id: 'tp-1019',
-    name: 'Heavyweight Pocket Tee',
-    code: 'TP-1019 · SS26',
-    kind: 'tee',
-    status: 'ready',
-    maker: 'Tirupur Apparel Mills',
-    country: 'Tirupur, India',
-    flag: '🇮🇳',
-    updated: 'Updated 4d ago',
-    pages: 10,
-    size: 'PDF · 3.0 MB',
-  },
-  {
-    id: 'tp-1015',
-    name: 'Quilted Bomber Jacket',
-    code: 'TP-1015 · FW26',
-    kind: 'jacket',
-    status: 'draft',
-    maker: null,
-    country: null,
-    flag: '📄',
-    updated: 'Updated 5d ago',
-    pages: 5,
-    size: 'Draft · 0.9 MB',
-  },
-  {
-    id: 'tp-1011',
-    name: 'Pleated Wide Trousers',
-    code: 'TP-1011 · FW26',
-    kind: 'pants',
-    status: 'review',
-    maker: 'Bangkok Fashion House',
-    country: 'Bangkok, Thailand',
-    flag: '🇹🇭',
-    updated: 'Updated 6d ago',
-    pages: 16,
-    size: 'PDF · 5.4 MB',
-  },
-  {
-    id: 'tp-1007',
-    name: 'Terry Zip Hoodie',
-    code: 'TP-1007 · SS26',
-    kind: 'hoodie',
-    status: 'ready',
-    lightTile: true,
-    maker: 'Anadolu Knitwear',
-    country: 'Istanbul, Turkey',
-    flag: '🇹🇷',
-    updated: 'Updated 1w ago',
-    pages: 13,
-    size: 'PDF · 4.0 MB',
-  },
-  {
-    id: 'tp-1003',
-    name: 'Panelled Trucker Cap',
-    code: 'TP-1003 · SS26',
-    kind: 'cap',
-    status: 'review',
-    maker: 'Guangzhou Cap Works',
-    country: 'Guangzhou, China',
-    flag: '🇨🇳',
-    updated: 'Updated 1w ago',
-    pages: 7,
-    size: 'PDF · 1.9 MB',
-  },
-  {
-    id: 'tp-0998',
-    name: 'Ringspun Longsleeve Tee',
-    code: 'TP-0998 · SS26',
-    kind: 'tee',
-    status: 'ready',
-    maker: 'Porto Textile Co.',
-    country: 'Porto, Portugal',
-    flag: '🇵🇹',
-    updated: 'Updated 2w ago',
-    pages: 11,
-    size: 'PDF · 3.3 MB',
-  },
-]
-
-const STATUS_LABEL: Record<PackStatus, string> = {
+/* --- Status presentation --------------------------------------------------
+   The store status is 'draft' | 'in_review' | 'ready'. The premium chip CSS
+   is keyed on 'draft' | 'review' | 'ready', so we translate for styling. */
+type ChipKey = 'ready' | 'review' | 'draft'
+const STATUS_CHIP: Record<TechPackStatus, ChipKey> = {
+  ready: 'ready',
+  in_review: 'review',
+  draft: 'draft',
+}
+const STATUS_LABEL: Record<TechPackStatus, string> = {
   ready: 'Ready',
-  review: 'In Review',
+  in_review: 'In Review',
   draft: 'Draft',
 }
 
-type FilterKey = 'all' | PackStatus
+/* --- Filters -------------------------------------------------------------- */
+type FilterKey = 'all' | TechPackStatus
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'ready', label: 'Ready' },
-  { key: 'review', label: 'In Review' },
+  { key: 'in_review', label: 'In Review' },
   { key: 'draft', label: 'Draft' },
 ]
 
 type ViewMode = 'grid' | 'list'
 
-function StatusChip({ status }: { status: PackStatus }) {
+/** Newest-first, then a spread of names so "New Tech Pack" cycles variety. */
+const NEW_PACK_NAMES = [
+  'Untitled Hoodie',
+  'Untitled Tee',
+  'Untitled Jacket',
+  'Untitled Pants',
+  'Untitled Cap',
+]
+const NEW_PACK_KINDS: GarmentKind[] = ['hoodie', 'tee', 'jacket', 'pants', 'cap']
+
+/** Derived, view-only fields so the card/row markup stays declarative. */
+function packCode(pack: TechPack, index: number): string {
+  const short = pack.id.replace(/[^a-z0-9]/gi, '').slice(-4).toUpperCase() || String(index)
+  return `TP-${short}`
+}
+function packSize(pack: TechPack): string {
+  if (pack.status === 'draft') return `Draft · ${(pack.pages * 0.18 + 0.4).toFixed(1)} MB`
+  return `PDF · ${(pack.pages * 0.32 + 0.6).toFixed(1)} MB`
+}
+
+/* --- Status chip ---------------------------------------------------------- */
+function StatusChip({ status }: { status: TechPackStatus }) {
   return (
-    <span className={`tp-status tp-status--${status}`}>
+    <span className={`tp-status tp-status--${STATUS_CHIP[status]}`}>
       <span className="tp-status__dot" />
       {STATUS_LABEL[status]}
     </span>
   )
 }
 
-/* --- Cards ---------------------------------------------------------------- */
-function PackCard({ pack }: { pack: TechPack }) {
+/* --- Row actions (download + more/delete menu) ---------------------------- */
+type ActionProps = {
+  pack: TechPack
+  menuOpen: boolean
+  onToggleMenu: () => void
+  onDownload: () => void
+  onDelete: () => void
+}
+
+function CardActions({ pack, menuOpen, onToggleMenu, onDownload, onDelete }: ActionProps) {
+  const isDraft = pack.status === 'draft'
+  return (
+    <div className="tp-card__foot">
+      <button
+        className="tp-download"
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onDownload()
+        }}
+        disabled={isDraft}
+        title={isDraft ? 'Finish the draft to export a PDF' : 'Download the tech pack PDF'}
+      >
+        <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
+        Download PDF
+      </button>
+      <div className="tp-menu-wrap">
+        <button
+          className="tp-more"
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleMenu()
+          }}
+          aria-label="More options"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          title="More options"
+        >
+          <IcoDots width="16" height="16" />
+        </button>
+        {menuOpen && (
+          <PackMenu pack={pack} onDownload={onDownload} onDelete={onDelete} />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PackMenu({
+  pack,
+  onDownload,
+  onDelete,
+}: {
+  pack: TechPack
+  onDownload: () => void
+  onDelete: () => void
+}) {
+  const isDraft = pack.status === 'draft'
+  return (
+    <div className="tp-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+      <button
+        className="tp-menu__item"
+        type="button"
+        role="menuitem"
+        disabled={isDraft}
+        onClick={onDownload}
+      >
+        <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
+        Download PDF
+      </button>
+      <button
+        className="tp-menu__item tp-menu__item--danger"
+        type="button"
+        role="menuitem"
+        onClick={onDelete}
+      >
+        <IcoTrash width="14" height="14" />
+        Delete tech pack
+      </button>
+    </div>
+  )
+}
+
+/* --- Card ----------------------------------------------------------------- */
+function PackCard({
+  pack,
+  index,
+  menuOpen,
+  onToggleMenu,
+  onDownload,
+  onDelete,
+}: {
+  pack: TechPack
+  index: number
+  menuOpen: boolean
+  onToggleMenu: () => void
+  onDownload: () => void
+  onDelete: () => void
+}) {
   const Glyph = GARMENT_GLYPHS[pack.kind]
   return (
-    <article className={`tp-card${pack.lightTile ? ' tp-card--light' : ''}`} tabIndex={0}>
-      <div className={`tp-card__preview${pack.lightTile ? ' tp-card__preview--light' : ''}`}>
+    <article className="tp-card" tabIndex={0}>
+      <div className="tp-card__preview">
         <div className="tp-card__preview-top">
           <StatusChip status={pack.status} />
           <span className="tp-card__pages">
@@ -237,19 +210,21 @@ function PackCard({ pack }: { pack: TechPack }) {
         <div className="tp-card__title-row">
           <div>
             <h3 className="tp-card__name">{pack.name}</h3>
-            <p className="tp-card__code">{pack.code}</p>
+            <p className="tp-card__code">
+              {packCode(pack, index)} · Updated {relativeTime(pack.updatedAt)}
+            </p>
           </div>
         </div>
 
         <div className="tp-maker">
           <span className="tp-maker__flag" aria-hidden="true">
-            {pack.flag}
+            <IcoTechPack width="14" height="14" />
           </span>
           <span className="tp-maker__text">
-            {pack.maker ? (
+            {pack.manufacturer ? (
               <>
-                <span className="tp-maker__name">{pack.maker}</span>
-                <span className="tp-maker__place">{pack.country}</span>
+                <span className="tp-maker__name">{pack.manufacturer}</span>
+                <span className="tp-maker__place">Matched manufacturer</span>
               </>
             ) : (
               <>
@@ -261,40 +236,43 @@ function PackCard({ pack }: { pack: TechPack }) {
         </div>
 
         <div className="tp-card__meta">
-          <span>{pack.updated}</span>
+          <span>Updated {relativeTime(pack.updatedAt)}</span>
           <span className="tp-card__meta-sep" aria-hidden="true" />
           <span>
-            {pack.pages} pages · {pack.size}
+            {pack.pages} pages · {packSize(pack)}
           </span>
         </div>
       </div>
 
-      <div className="tp-card__foot">
-        <button
-          className="tp-download"
-          type="button"
-          onClick={(e) => e.stopPropagation()}
-          disabled={pack.status === 'draft'}
-        >
-          <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
-          Download PDF
-        </button>
-        <button
-          className="tp-more"
-          type="button"
-          onClick={(e) => e.stopPropagation()}
-          aria-label="More options"
-        >
-          <IcoDots width="16" height="16" />
-        </button>
-      </div>
+      <CardActions
+        pack={pack}
+        menuOpen={menuOpen}
+        onToggleMenu={onToggleMenu}
+        onDownload={onDownload}
+        onDelete={onDelete}
+      />
     </article>
   )
 }
 
-/* --- List rows ------------------------------------------------------------ */
-function PackRow({ pack }: { pack: TechPack }) {
+/* --- List row ------------------------------------------------------------- */
+function PackRow({
+  pack,
+  index,
+  menuOpen,
+  onToggleMenu,
+  onDownload,
+  onDelete,
+}: {
+  pack: TechPack
+  index: number
+  menuOpen: boolean
+  onToggleMenu: () => void
+  onDownload: () => void
+  onDelete: () => void
+}) {
   const Glyph = GARMENT_GLYPHS[pack.kind]
+  const isDraft = pack.status === 'draft'
   return (
     <div className="tp-row" tabIndex={0}>
       <div className="tp-row__file">
@@ -304,7 +282,7 @@ function PackRow({ pack }: { pack: TechPack }) {
         <span className="tp-row__names">
           <span className="tp-row__name">{pack.name}</span>
           <span className="tp-row__code">
-            {pack.code} · {pack.pages} pages · {pack.size}
+            {packCode(pack, index)} · {pack.pages} pages · {packSize(pack)}
           </span>
         </span>
       </div>
@@ -314,38 +292,48 @@ function PackRow({ pack }: { pack: TechPack }) {
       </div>
 
       <div className="tp-row__maker">
-        {pack.maker ? (
-          <>
-            <span aria-hidden="true">{pack.flag}</span>
-            <span>
-              {pack.maker} — {pack.country}
-            </span>
-          </>
+        {pack.manufacturer ? (
+          <span>{pack.manufacturer}</span>
         ) : (
           <span className="tp-maker__unmatched">No manufacturer yet</span>
         )}
       </div>
 
-      <div className="tp-row__updated">{pack.updated.replace('Updated ', '')}</div>
+      <div className="tp-row__updated">{relativeTime(pack.updatedAt)}</div>
 
       <div className="tp-row__actions">
         <button
           className="tp-row__dl"
           type="button"
-          onClick={(e) => e.stopPropagation()}
-          disabled={pack.status === 'draft'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDownload()
+          }}
+          disabled={isDraft}
+          title={isDraft ? 'Finish the draft to export a PDF' : 'Download the tech pack PDF'}
         >
           <IcoUpload width="13" height="13" style={{ transform: 'rotate(180deg)' }} />
           PDF
         </button>
-        <button
-          className="tp-row__more"
-          type="button"
-          onClick={(e) => e.stopPropagation()}
-          aria-label="More options"
-        >
-          <IcoDots width="16" height="16" />
-        </button>
+        <div className="tp-menu-wrap">
+          <button
+            className="tp-row__more"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleMenu()
+            }}
+            aria-label="More options"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            title="More options"
+          >
+            <IcoDots width="16" height="16" />
+          </button>
+          {menuOpen && (
+            <PackMenu pack={pack} onDownload={onDownload} onDelete={onDelete} />
+          )}
+        </div>
       </div>
     </div>
   )
@@ -353,34 +341,85 @@ function PackRow({ pack }: { pack: TechPack }) {
 
 /* --- Page ----------------------------------------------------------------- */
 export function TechPacks() {
+  const { data, mutate } = useStore()
+  const { user } = useAuth()
+  const toast = useToast()
+
   const [filter, setFilter] = useState<FilterKey>('all')
   const [view, setView] = useState<ViewMode>('grid')
   const [query, setQuery] = useState('')
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+
+  /* Scope to the signed-in creator; fall back to all if we somehow have no user. */
+  const myPacks = useMemo<TechPack[]>(() => {
+    const owned = user ? data.techPacks.filter((p) => p.ownerId === user.id) : data.techPacks
+    return [...owned].sort((a, b) => b.updatedAt - a.updatedAt)
+  }, [data.techPacks, user])
 
   const counts = useMemo(
     () => ({
-      all: PACKS.length,
-      ready: PACKS.filter((p) => p.status === 'ready').length,
-      review: PACKS.filter((p) => p.status === 'review').length,
-      draft: PACKS.filter((p) => p.status === 'draft').length,
+      all: myPacks.length,
+      ready: myPacks.filter((p) => p.status === 'ready').length,
+      in_review: myPacks.filter((p) => p.status === 'in_review').length,
+      draft: myPacks.filter((p) => p.status === 'draft').length,
     }),
-    [],
+    [myPacks],
   )
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return PACKS.filter((p) => {
-      const matchesFilter = filter === 'all' || p.status === filter
-      if (!matchesFilter) return false
+    return myPacks.filter((p) => {
+      if (filter !== 'all' && p.status !== filter) return false
       if (!q) return true
       return (
         p.name.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        (p.maker?.toLowerCase().includes(q) ?? false) ||
-        (p.country?.toLowerCase().includes(q) ?? false)
+        (p.manufacturer?.toLowerCase().includes(q) ?? false)
       )
     })
-  }, [filter, query])
+  }, [myPacks, filter, query])
+
+  function toggleMenu(id: string) {
+    setOpenMenuId((current) => (current === id ? null : id))
+  }
+
+  function createPack() {
+    if (!user) {
+      toast('Sign in to create a tech pack.', 'info')
+      return
+    }
+    const seed = data.techPacks.length
+    const newPack: TechPack = {
+      id: uid('t'),
+      ownerId: user.id,
+      name: NEW_PACK_NAMES[seed % NEW_PACK_NAMES.length],
+      kind: NEW_PACK_KINDS[seed % NEW_PACK_KINDS.length],
+      status: 'draft',
+      pages: 1,
+      updatedAt: Date.now(),
+    }
+    mutate((d) => ({ ...d, techPacks: [newPack, ...d.techPacks] }))
+    setFilter('all')
+    setQuery('')
+    toast('New draft tech pack created.', 'success')
+  }
+
+  function downloadPack(pack: TechPack) {
+    setOpenMenuId(null)
+    if (pack.status === 'draft') {
+      toast('Finish this draft before exporting a PDF.', 'info')
+      return
+    }
+    toast(`Preparing “${pack.name}” PDF…`, 'accent')
+  }
+
+  function deletePack(pack: TechPack) {
+    setOpenMenuId(null)
+    mutate((d) => ({ ...d, techPacks: d.techPacks.filter((p) => p.id !== pack.id) }))
+    toast(`“${pack.name}” deleted.`, 'default')
+  }
+
+  const hasAnyPacks = myPacks.length > 0
+  const isFiltering = filter !== 'all' || query.trim().length > 0
 
   return (
     <SuitePage
@@ -388,12 +427,12 @@ export function TechPacks() {
       title="Tech Packs"
       subtitle="Production-ready specs for every garment — preview, status, matched manufacturer and PDF export."
       actions={
-        <button className="s-btn s-btn--accent" type="button">
+        <button className="s-btn s-btn--accent" type="button" onClick={createPack}>
           <IcoPlus width="16" height="16" /> New Tech Pack
         </button>
       }
     >
-      {/* Count summary */}
+      {/* Count summary — reflects real, owned packs */}
       <section className="tp-summary" aria-label="Tech pack summary">
         <div className="tp-summary__cell">
           <span className="tp-summary__value">{counts.all}</span>
@@ -409,7 +448,7 @@ export function TechPacks() {
         <div className="tp-summary__cell">
           <span className="tp-summary__value">
             <span className="tp-summary__dot" style={{ background: 'var(--s-warn)' }} />
-            {counts.review}
+            {counts.in_review}
           </span>
           <span className="tp-summary__label">In review</span>
         </div>
@@ -464,6 +503,7 @@ export function TechPacks() {
               onClick={() => setView('grid')}
               aria-label="Grid view"
               aria-pressed={view === 'grid'}
+              title="Grid view"
             >
               <IcoGrid width="16" height="16" />
             </button>
@@ -473,6 +513,7 @@ export function TechPacks() {
               onClick={() => setView('list')}
               aria-label="List view"
               aria-pressed={view === 'list'}
+              title="List view"
             >
               <IcoTechPack width="16" height="16" />
             </button>
@@ -485,16 +526,48 @@ export function TechPacks() {
         <div className="tp-empty">
           <div>
             <div className="tp-empty__ico">
-              <IcoSearch width="24" height="24" />
+              {hasAnyPacks ? <IcoSearch width="24" height="24" /> : <IcoTechPack width="24" height="24" />}
             </div>
-            <h3>No tech packs found</h3>
-            <p>Try a different search term or filter.</p>
+            {hasAnyPacks ? (
+              <>
+                <h3>No tech packs found</h3>
+                <p>Try a different search term or filter.</p>
+                {isFiltering && (
+                  <button
+                    className="s-btn tp-empty__cta"
+                    type="button"
+                    onClick={() => {
+                      setFilter('all')
+                      setQuery('')
+                    }}
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <h3>No tech packs yet</h3>
+                <p>Create your first spec sheet — status, pages and a matched manufacturer, all in one place.</p>
+                <button className="s-btn s-btn--accent tp-empty__cta" type="button" onClick={createPack}>
+                  <IcoPlus width="16" height="16" /> New Tech Pack
+                </button>
+              </>
+            )}
           </div>
         </div>
       ) : view === 'grid' ? (
         <section className="tp-grid">
-          {visible.map((pack) => (
-            <PackCard key={pack.id} pack={pack} />
+          {visible.map((pack, i) => (
+            <PackCard
+              key={pack.id}
+              pack={pack}
+              index={i}
+              menuOpen={openMenuId === pack.id}
+              onToggleMenu={() => toggleMenu(pack.id)}
+              onDownload={() => downloadPack(pack)}
+              onDelete={() => deletePack(pack)}
+            />
           ))}
         </section>
       ) : (
@@ -506,8 +579,16 @@ export function TechPacks() {
             <span>Updated</span>
             <span />
           </div>
-          {visible.map((pack) => (
-            <PackRow key={pack.id} pack={pack} />
+          {visible.map((pack, i) => (
+            <PackRow
+              key={pack.id}
+              pack={pack}
+              index={i}
+              menuOpen={openMenuId === pack.id}
+              onToggleMenu={() => toggleMenu(pack.id)}
+              onDownload={() => downloadPack(pack)}
+              onDelete={() => deletePack(pack)}
+            />
           ))}
         </section>
       )}

@@ -12,13 +12,13 @@ export function AdminDesigns() {
   const { data } = useStore()
   const [query, setQuery] = useState('')
 
-  const ownerName = (id: string) => data.users.find((u) => u.id === id)?.name ?? 'Unknown'
-
   const rows = useMemo(() => {
+    const nameById = new Map(data.users.map((u) => [u.id, u.name]))
     const q = query.trim().toLowerCase()
-    return data.designs.filter((d) => !q || d.name.toLowerCase().includes(q) || ownerName(d.ownerId).toLowerCase().includes(q))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.designs, query])
+    return data.designs
+      .map((d) => ({ ...d, owner: nameById.get(d.ownerId) ?? 'Unknown' }))
+      .filter((d) => !q || d.name.toLowerCase().includes(q) || d.owner.toLowerCase().includes(q))
+  }, [data.designs, data.users, query])
 
   return (
     <div>
@@ -45,10 +45,17 @@ export function AdminDesigns() {
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '32px 18px', color: 'var(--s-text-3)' }}>
+                  No designs match your search.
+                </td>
+              </tr>
+            )}
             {rows.map((d) => (
               <tr key={d.id}>
                 <td style={{ color: 'var(--s-text)', fontWeight: 600 }}>{d.name}</td>
-                <td>{ownerName(d.ownerId)}</td>
+                <td>{d.owner}</td>
                 <td style={{ textTransform: 'capitalize' }}>{d.kind}</td>
                 <td>
                   <span className={`adm-badge ${STATUS_BADGE[d.status]}`}>{d.status.replace('_', ' ')}</span>

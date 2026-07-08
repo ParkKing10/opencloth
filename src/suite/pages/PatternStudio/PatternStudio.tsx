@@ -9,8 +9,21 @@ import {
   IcoPlus,
   IcoUpload,
   IcoDots,
+  IcoCheck,
 } from '../../components/ui/Icons'
+import { useToast } from '../../components/ui/Toast'
 import './pt.css'
+
+/* Local export/download glyph — Icons.tsx has no download icon, so define inline. */
+function IcoExport(p: SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 3v12" />
+      <path d="M8 11l4 4 4-4" />
+      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+    </svg>
+  )
+}
 
 /* ------------------------------------------------------------------ */
 /* Piece geometry — hand-authored polygon paths on a 640×520 canvas.   */
@@ -265,17 +278,56 @@ const MEASUREMENTS: Measurement[] = [
 const GRADE_INCREMENT: Record<SizeKey, string> = { S: '−2.4', M: 'base', L: '+2.6', XL: '+5.6' }
 
 export function PatternStudio() {
+  const toast = useToast()
+
   const [activePiece, setActivePiece] = useState<PieceKind>('bodice-f')
   const [size, setSize] = useState<SizeKey>('M')
-  const [tool, setTool] = useState('select')
+  const [tool, setTool] = useState<ToolId>('select')
   const [showGrid, setShowGrid] = useState(true)
   const [snap, setSnap] = useState(true)
   const [zoom, setZoom] = useState(100)
+  /** True once the current sheet state has been committed by the user. */
+  const [saved, setSaved] = useState(true)
 
   const geo = GEO[activePiece]
   const piece = PIECES.find((p) => p.id === activePiece) as Piece
+  const activeTool = TOOLS.find((t) => t.id === tool) as (typeof TOOLS)[number]
+  const ToolIcon = activeTool.icon
 
   const clampZoom = (z: number) => Math.min(240, Math.max(40, z))
+
+  /* Any edit to the sheet marks it dirty so "Save" and the status pill stay honest. */
+  const markDirty = () => setSaved(false)
+
+  const selectPiece = (id: PieceKind) => {
+    if (id === activePiece) return
+    setActivePiece(id)
+    markDirty()
+  }
+  const selectSize = (s: SizeKey) => {
+    if (s === size) return
+    setSize(s)
+    markDirty()
+  }
+  const selectTool = (id: ToolId) => {
+    if (id === tool) return
+    setTool(id)
+    markDirty()
+  }
+  // Grid, snap and zoom are viewport-only preferences — they must NOT mark the
+  // pattern sheet as unsaved (that would show a false "Unsaved changes" state
+  // and enable Save for a change that isn't part of the document).
+  const toggleGrid = () => setShowGrid((v) => !v)
+  const toggleSnap = () => setSnap((v) => !v)
+  const changeZoom = (next: number) => setZoom(clampZoom(next))
+
+  const handleSave = () => {
+    setSaved(true)
+    toast(`${piece.name} · size ${size} saved`, 'success')
+  }
+  const handleExport = () => {
+    toast(`Exporting ${piece.name} (${geo.dims}) as DXF…`, 'accent')
+  }
 
   return (
     <div className="pt-root">
@@ -297,10 +349,10 @@ export function PatternStudio() {
               key={t.id}
               type="button"
               className={`pt-tool${tool === t.id ? ' is-active' : ''}`}
-              onClick={() => setTool(t.id)}
+              onClick={() => selectTool(t.id)}
               aria-label={t.label}
               aria-pressed={tool === t.id}
-              title={t.label}
+              title={`${t.label} tool`}
             >
               <t.icon width="17" height="17" />
             </button>
@@ -312,8 +364,9 @@ export function PatternStudio() {
         <button
           type="button"
           className={`pt-toggle${showGrid ? ' is-on' : ''}`}
-          onClick={() => setShowGrid((v) => !v)}
+          onClick={toggleGrid}
           aria-pressed={showGrid}
+          title={showGrid ? 'Hide blueprint grid' : 'Show blueprint grid'}
         >
           <span className="pt-toggle__led" aria-hidden="true" />
           Grid
@@ -321,8 +374,9 @@ export function PatternStudio() {
         <button
           type="button"
           className={`pt-toggle${snap ? ' is-on' : ''}`}
-          onClick={() => setSnap((v) => !v)}
+          onClick={toggleSnap}
           aria-pressed={snap}
+          title={snap ? 'Turn snapping off' : 'Snap points to a 1 cm grid'}
         >
           <span className="pt-toggle__led" aria-hidden="true" />
           Snap 1&nbsp;cm
@@ -331,16 +385,36 @@ export function PatternStudio() {
         <span className="pt-spacer" />
 
         <div className="pt-zoom" role="group" aria-label="Zoom">
-          <button type="button" className="pt-zoom__btn" onClick={() => setZoom((z) => clampZoom(z - 10))} aria-label="Zoom out">
+          <button type="button" className="pt-zoom__btn" onClick={() => changeZoom(zoom - 10)} aria-label="Zoom out" title="Zoom out">
             −
           </button>
-          <button type="button" className="pt-zoom__val" onClick={() => setZoom(100)} title="Reset to 100%">
+          <button type="button" className="pt-zoom__val" onClick={() => changeZoom(100)} title="Reset to 100%">
             {zoom}%
           </button>
-          <button type="button" className="pt-zoom__btn" onClick={() => setZoom((z) => clampZoom(z + 10))} aria-label="Zoom in">
+          <button type="button" className="pt-zoom__btn" onClick={() => changeZoom(zoom + 10)} aria-label="Zoom in" title="Zoom in">
             +
           </button>
         </div>
+
+        <button
+          type="button"
+          className="pt-toggle"
+          onClick={handleExport}
+          title="Export the active piece as a DXF cut file"
+        >
+          <IcoExport width="15" height="15" />
+          Export
+        </button>
+        <button
+          type="button"
+          className={`pt-save${saved ? ' is-saved' : ''}`}
+          onClick={handleSave}
+          disabled={saved}
+          title={saved ? 'All changes saved' : 'Save this pattern sheet'}
+        >
+          {saved ? <IcoCheck width="15" height="15" /> : <IcoUpload width="15" height="15" />}
+          {saved ? 'Saved' : 'Save'}
+        </button>
       </header>
 
       {/* ================= 3-pane workspace ================= */}
@@ -357,7 +431,9 @@ export function PatternStudio() {
                 key={p.id}
                 type="button"
                 className={`pt-piece${activePiece === p.id ? ' is-active' : ''}`}
-                onClick={() => setActivePiece(p.id)}
+                onClick={() => selectPiece(p.id)}
+                aria-pressed={activePiece === p.id}
+                title={`Edit ${p.name}`}
               >
                 <span className="pt-piece__glyph" aria-hidden="true">
                   <PieceGlyph kind={p.id} width="22" height="22" />
@@ -383,7 +459,7 @@ export function PatternStudio() {
         </aside>
 
         {/* ---------- Center: CAD canvas ---------- */}
-        <main className={`pt-canvas${showGrid ? '' : ' is-nogrid'}`}>
+        <main className={`pt-canvas${showGrid ? '' : ' is-nogrid'}`} data-tool={tool}>
           <div className="pt-canvas__grid" aria-hidden="true" />
 
           <div className="pt-canvas__tag">
@@ -394,9 +470,9 @@ export function PatternStudio() {
           </div>
 
           <div className="pt-canvas__ruler">
-            <IcoGrid width="13" height="13" />
+            <ToolIcon width="13" height="13" />
             <span>
-              Snap <b>{snap ? '1 cm' : 'off'}</b> · scale 1:{Math.round(1000 / zoom)}
+              <b>{activeTool.label}</b> · snap <b>{snap ? '1 cm' : 'off'}</b> · scale 1:{Math.round(1000 / zoom)}
             </span>
           </div>
 
@@ -506,8 +582,9 @@ export function PatternStudio() {
                   key={s}
                   type="button"
                   className={`pt-size__btn${size === s ? ' is-active' : ''}`}
-                  onClick={() => setSize(s)}
+                  onClick={() => selectSize(s)}
                   aria-pressed={size === s}
+                  title={`Show size ${s} measurements`}
                 >
                   {s}
                 </button>
@@ -530,7 +607,11 @@ export function PatternStudio() {
                       {cur.toFixed(1)}
                       <i>{m.unit}</i>
                     </span>
-                    <span className={`pt-measure__delta${delta > 0 ? ' is-up' : ''}`}>{deltaStr}</span>
+                    <span
+                      className={`pt-measure__delta${delta > 0 ? ' is-up' : delta < 0 ? ' is-down' : ''}`}
+                    >
+                      {deltaStr}
+                    </span>
                   </div>
                 )
               })}
@@ -568,10 +649,14 @@ export function PatternStudio() {
       {/* ================= Status bar ================= */}
       <footer className="pt-status">
         <span className="pt-status__item">
-          <span className="s-dot" style={{ background: 'var(--s-good)' }} /> <b>Synced</b>
+          <span className="s-dot" style={{ background: saved ? 'var(--s-good)' : 'var(--s-accent-2)' }} />{' '}
+          <b>{saved ? 'Synced' : 'Unsaved changes'}</b>
         </span>
         <span className="pt-status__item pt-status__item--hide">
           Active&nbsp;<b>{piece.name}</b>
+        </span>
+        <span className="pt-status__item pt-status__item--hide">
+          Tool&nbsp;<b>{activeTool.label}</b>
         </span>
         <span className="pt-status__item pt-status__item--hide">
           Size&nbsp;<b>{size}</b> · {SIZES.length} nested
@@ -586,10 +671,12 @@ export function PatternStudio() {
   )
 }
 
-const TOOLS = [
+type ToolId = 'select' | 'pen' | 'measure' | 'notch' | 'more'
+
+const TOOLS: ReadonlyArray<{ id: ToolId; label: string; icon: typeof IcoGrid }> = [
   { id: 'select', label: 'Select', icon: IcoGrid },
   { id: 'pen', label: 'Add point', icon: IcoPlus },
   { id: 'measure', label: 'Measure', icon: IcoBolt },
   { id: 'notch', label: 'Notch', icon: IcoUpload },
   { id: 'more', label: 'More', icon: IcoDots },
-] as const
+]

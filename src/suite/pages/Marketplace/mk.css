@@ -288,6 +288,47 @@
   border-color: rgba(62, 207, 142, 0.28);
 }
 
+/* Like / save toggle (top-left of preview, below any chip) */
+.mk-like {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--s-text-2);
+  background: rgba(10, 10, 14, 0.72);
+  border: 1px solid var(--s-line-2);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(4px) scale(0.92);
+  transition:
+    opacity var(--s-dur) var(--s-ease),
+    transform var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease),
+    border-color var(--s-dur) var(--s-ease);
+}
+.mk-card:hover .mk-like,
+.mk-like:focus-visible,
+.mk-like.is-liked {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.mk-like:hover {
+  color: var(--s-pink);
+  border-color: rgba(255, 107, 166, 0.4);
+}
+.mk-like.is-liked {
+  color: var(--s-pink);
+  border-color: rgba(255, 107, 166, 0.5);
+}
+.mk-like:active {
+  transform: scale(0.9);
+}
+
 /* Body */
 .mk-card__body {
   padding: 14px;
@@ -416,6 +457,15 @@
 .mk-use--buy:hover {
   background: var(--s-accent-2);
   box-shadow: 0 8px 22px -8px var(--s-accent-glow);
+}
+.mk-use--owned {
+  background: var(--s-good-soft);
+  color: var(--s-good);
+  border-color: rgba(62, 207, 142, 0.28);
+  cursor: default;
+}
+.mk-use--owned svg {
+  color: var(--s-good);
 }
 
 /* ---- Seller CTA strip (footer) ---- */

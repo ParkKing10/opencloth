@@ -1,7 +1,10 @@
 import { useNavigate } from 'react-router-dom'
-import { IcoArrowRight } from '../../components/ui/Icons'
-import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { IcoArrowRight, IcoPlus } from '../../components/ui/Icons'
+import { GARMENT_GLYPHS } from '../../components/ui/Garments'
 import { PatternWireframe, TechPackFlats, GlobePins } from './FeatureArt'
+import { useStore } from '../../data/store'
+import { useAuth } from '../../auth/auth'
+import { relativeTime } from '../../data/utils'
 import teeImg from '../../../assets/cards/tee.png'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import './dashboard.css'
@@ -80,17 +83,21 @@ function FeatureArt({ art }: { art: ArtKind }) {
   }
 }
 
-type Design = { name: string; kind: GarmentKind; modified: string }
-const RECENT_DESIGNS: Design[] = [
-  { name: 'Vintage Washed Hoodie', kind: 'hoodie', modified: '2h ago' },
-  { name: 'Oversized Street Tee', kind: 'tee', modified: '1d ago' },
-  { name: 'Cargo Pocket Jacket', kind: 'jacket', modified: '2d ago' },
-  { name: 'Baggy Cargo Pants', kind: 'pants', modified: '3d ago' },
-  { name: 'Washed Cap', kind: 'cap', modified: '4d ago' },
-]
+const RECENT_LIMIT = 5
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const { data } = useStore()
+  const { user } = useAuth()
+
+  const firstName = user?.name.split(' ')[0] ?? 'there'
+
+  // Real designs, scoped to the current user. When the user owns none, fall
+  // back to showing all designs so the dashboard never looks empty for a fresh
+  // demo account — but still surface an empty state when there are truly none.
+  const ownDesigns = user ? data.designs.filter((d) => d.ownerId === user.id) : []
+  const source = ownDesigns.length > 0 ? ownDesigns : data.designs
+  const recentDesigns = [...source].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT)
 
   return (
     <div className="dash">
@@ -99,7 +106,7 @@ export function Dashboard() {
           {/* Hero */}
           <header className="dash-hero">
             <h1 className="dash-hero__title">
-              Welcome back, Mike <span className="dash-hero__wave">👋</span>
+              Welcome back, {firstName} <span className="dash-hero__wave">👋</span>
             </h1>
             <p className="dash-hero__sub">Let's bring your next collection to life.</p>
           </header>
@@ -143,26 +150,55 @@ export function Dashboard() {
           <section>
             <div className="s-section-head">
               <h2 className="s-section-title">Recent Designs</h2>
-              <a className="s-link" href="/suite/collections">
-                View all <IcoArrowRight width="13" height="13" />
-              </a>
+              {recentDesigns.length > 0 && (
+                <button
+                  className="s-link"
+                  type="button"
+                  onClick={() => navigate('/suite/collections')}
+                >
+                  View all <IcoArrowRight width="13" height="13" />
+                </button>
+              )}
             </div>
-            <div className="dash-designs">
-              {RECENT_DESIGNS.map((d) => {
-                const Glyph = GARMENT_GLYPHS[d.kind]
-                return (
-                  <article className="design" key={d.name} onClick={() => navigate('/suite/design')}>
-                    <div className="design__preview">
-                      <Glyph width="52" height="52" />
-                    </div>
-                    <div className="design__meta">
-                      <span className="design__name">{d.name}</span>
-                      <span className="design__mod">Modified {d.modified}</span>
-                    </div>
-                  </article>
-                )
-              })}
-            </div>
+
+            {recentDesigns.length > 0 ? (
+              <div className="dash-designs">
+                {recentDesigns.map((d) => {
+                  const Glyph = GARMENT_GLYPHS[d.kind]
+                  return (
+                    <article
+                      className="design"
+                      key={d.id}
+                      title={`Open ${d.name} in the Design Studio`}
+                      onClick={() => navigate('/suite/design')}
+                    >
+                      <div className="design__preview">
+                        <Glyph width="52" height="52" />
+                      </div>
+                      <div className="design__meta">
+                        <span className="design__name">{d.name}</span>
+                        <span className="design__mod">Modified {relativeTime(d.updatedAt)}</span>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="page-empty dash-empty">
+                <div className="page-empty__ico">
+                  <IcoPlus width="24" height="24" />
+                </div>
+                <h3>No designs yet</h3>
+                <p>Your recent designs will show up here. Start your first one to get going.</p>
+                <button
+                  className="s-btn s-btn--accent dash-empty__cta"
+                  type="button"
+                  onClick={() => navigate('/suite/design')}
+                >
+                  <IcoPlus width="15" height="15" /> Create your first design
+                </button>
+              </div>
+            )}
           </section>
         </div>
       </div>

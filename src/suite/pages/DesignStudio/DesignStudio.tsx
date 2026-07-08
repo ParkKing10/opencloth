@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   IcoDesign,
@@ -14,32 +14,47 @@ import {
   IcoUpload,
   IcoArrowRight,
 } from '../../components/ui/Icons'
-import { GARMENT_GLYPHS } from '../../components/ui/Garments'
+import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { useToast } from '../../components/ui/Toast'
 import { StudioCanvas } from './StudioCanvas'
 import './design-studio.css'
 
 const RAIL = ['Catalog', 'Templates', 'Graphics', 'Fabrics', 'Colors', 'Trims', 'Text', 'Uploads', 'AI Tools']
 
-const CATS = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
+type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
+const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
 
-const GARMENTS = [
-  { name: 'T-Shirt', kind: 'tee' },
-  { name: 'Hoodie', kind: 'hoodie' },
-  { name: 'Zip Hoodie', kind: 'hoodie' },
-  { name: 'Sweatshirt', kind: 'hoodie' },
-  { name: 'Tank Top', kind: 'tee' },
-  { name: 'Longsleeve', kind: 'tee' },
-  { name: 'Oversized Tee', kind: 'tee' },
-  { name: 'Raglan Hoodie', kind: 'hoodie' },
-  { name: 'Crop Hoodie', kind: 'hoodie' },
-] as const
+/** A studio garment blank — the base the creator designs on. */
+type Garment = {
+  name: string
+  kind: GarmentKind
+  cat: Cat
+  fit: string
+}
 
-const LAYERS = [
-  { name: 'Puff Print Front', type: 'Graphic' },
-  { name: 'Back Print', type: 'Graphic' },
-  { name: 'Hood', type: 'Material' },
-  { name: 'Main Fabric', type: 'Material' },
-  { name: 'Ribbing', type: 'Material' },
+const GARMENTS: Garment[] = [
+  { name: 'T-Shirt', kind: 'tee', cat: 'Tops', fit: 'Regular Fit' },
+  { name: 'Hoodie', kind: 'hoodie', cat: 'Tops', fit: 'Oversized Fit' },
+  { name: 'Zip Hoodie', kind: 'hoodie', cat: 'Tops', fit: 'Relaxed Fit' },
+  { name: 'Sweatshirt', kind: 'hoodie', cat: 'Tops', fit: 'Boxy Fit' },
+  { name: 'Tank Top', kind: 'tee', cat: 'Tops', fit: 'Slim Fit' },
+  { name: 'Longsleeve', kind: 'tee', cat: 'Tops', fit: 'Regular Fit' },
+  { name: 'Oversized Tee', kind: 'tee', cat: 'Tops', fit: 'Oversized Fit' },
+  { name: 'Bomber Jacket', kind: 'jacket', cat: 'Outerwear', fit: 'Regular Fit' },
+  { name: 'Cargo Jacket', kind: 'jacket', cat: 'Outerwear', fit: 'Relaxed Fit' },
+  { name: 'Cargo Pants', kind: 'pants', cat: 'Bottoms', fit: 'Baggy Fit' },
+  { name: 'Wide Trousers', kind: 'pants', cat: 'Bottoms', fit: 'Wide Fit' },
+  { name: 'Dad Cap', kind: 'cap', cat: 'Accessories', fit: 'Adjustable' },
+]
+
+type Layer = { id: string; name: string; type: string }
+
+const INITIAL_LAYERS: Layer[] = [
+  { id: 'l-puff', name: 'Puff Print Front', type: 'Graphic' },
+  { id: 'l-back', name: 'Back Print', type: 'Graphic' },
+  { id: 'l-hood', name: 'Hood', type: 'Material' },
+  { id: 'l-main', name: 'Main Fabric', type: 'Material' },
+  { id: 'l-rib', name: 'Ribbing', type: 'Material' },
 ]
 
 const DETAILS: [string, string][] = [
@@ -58,11 +73,59 @@ const DESIGN: [string, string][] = [
 
 export function DesignStudio() {
   const navigate = useNavigate()
+  const toast = useToast()
   const [rail, setRail] = useState('Catalog')
-  const [cat, setCat] = useState('Tops')
-  const [active, setActive] = useState('Hoodie')
+  const [cat, setCat] = useState<Cat>('All')
+  const [query, setQuery] = useState('')
+  const [activeName, setActiveName] = useState('Hoodie')
   const [propTab, setPropTab] = useState<'Properties' | 'Materials' | 'Colors'>('Properties')
   const [hidden, setHidden] = useState<Record<string, boolean>>({})
+  const [layers, setLayers] = useState<Layer[]>(INITIAL_LAYERS)
+
+  const activeGarment = useMemo(
+    () => GARMENTS.find((g) => g.name === activeName) ?? GARMENTS[1],
+    [activeName],
+  )
+
+  const visibleGarments = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return GARMENTS.filter((g) => {
+      if (cat !== 'All' && g.cat !== cat) return false
+      if (!q) return true
+      return g.name.toLowerCase().includes(q)
+    })
+  }, [cat, query])
+
+  function selectRail(name: string) {
+    setRail(name)
+    if (name !== 'Catalog') toast(`${name} panel — coming to your workspace soon.`, 'info')
+  }
+
+  function selectGarment(g: Garment) {
+    setActiveName(g.name)
+    toast(`Loaded ${g.name} blank onto the canvas.`, 'success')
+  }
+
+  function addLayer() {
+    const n = layers.filter((l) => l.type === 'Graphic').length + 1
+    const layer: Layer = { id: `l-${Date.now().toString(36)}`, name: `New Graphic ${n}`, type: 'Graphic' }
+    setLayers((prev) => [layer, ...prev])
+    toast('Layer added — drop a graphic or type onto it.', 'success')
+  }
+
+  function removeLayer(layer: Layer) {
+    setLayers((prev) => prev.filter((l) => l.id !== layer.id))
+    setHidden((h) => {
+      const next = { ...h }
+      delete next[layer.id]
+      return next
+    })
+    toast(`Removed “${layer.name}”.`)
+  }
+
+  function applySuggestion() {
+    toast('Applied AI suggestion — vintage wash + woven hem label.', 'accent')
+  }
 
   return (
     <div className="suite studio">
@@ -96,17 +159,25 @@ export function DesignStudio() {
         </div>
 
         <div className="ds-top__right">
-          <button className="ds-icon" type="button" aria-label="Undo">
+          <button className="ds-icon" type="button" aria-label="Undo" title="Undo" onClick={() => toast('Nothing left to undo.')}>
             <IcoArrowRight width="17" height="17" style={{ transform: 'scaleX(-1)' }} />
           </button>
-          <button className="ds-icon" type="button" aria-label="Redo">
+          <button className="ds-icon" type="button" aria-label="Redo" title="Redo" onClick={() => toast('Nothing to redo.')}>
             <IcoArrowRight width="17" height="17" />
           </button>
           <span className="ds-sep" />
-          <button className="s-btn s-btn--ghost" type="button">
+          <button
+            className="s-btn s-btn--ghost"
+            type="button"
+            onClick={() => toast('Share link copied — anyone with it can view this design.', 'info')}
+          >
             <IcoUpload width="16" height="16" /> Share
           </button>
-          <button className="s-btn s-btn--accent" type="button">
+          <button
+            className="s-btn s-btn--accent"
+            type="button"
+            onClick={() => toast(`Exporting “${activeGarment.name}” as a PDF tech pack…`, 'accent')}
+          >
             <IcoUpload width="16" height="16" style={{ transform: 'rotate(180deg)' }} /> Export
           </button>
         </div>
@@ -121,7 +192,7 @@ export function DesignStudio() {
               key={r}
               type="button"
               className={`ds-rail__item${rail === r ? ' is-active' : ''}`}
-              onClick={() => setRail(r)}
+              onClick={() => selectRail(r)}
             >
               <RailIcon name={r} />
               <span>{r}</span>
@@ -134,14 +205,25 @@ export function DesignStudio() {
           <div className="ds-left__scroll">
             <div className="ds-panel-head">
               <h2>Catalog</h2>
-              <button className="ds-mini" type="button" aria-label="Expand">
+              <button
+                className="ds-mini"
+                type="button"
+                aria-label="Catalog help"
+                title="Pick a blank to start designing"
+                onClick={() => toast('Pick a garment blank, then design it on the canvas.', 'info')}
+              >
                 <IcoDots width="15" height="15" />
               </button>
             </div>
 
             <label className="ds-search">
               <IcoSearch width="15" height="15" />
-              <input placeholder="Search for items…" />
+              <input
+                placeholder="Search for items…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search garments"
+              />
             </label>
 
             <div className="ds-cats">
@@ -157,64 +239,87 @@ export function DesignStudio() {
               ))}
             </div>
 
-            <div className="ds-garments">
-              {GARMENTS.map((g) => {
-                const Glyph = GARMENT_GLYPHS[g.kind]
-                return (
-                  <button
-                    key={g.name}
-                    type="button"
-                    className={`ds-garment${active === g.name ? ' is-active' : ''}`}
-                    onClick={() => setActive(g.name)}
-                  >
-                    <span className="ds-garment__thumb">
-                      <Glyph width="40" height="40" />
-                    </span>
-                    <span className="ds-garment__name">{g.name}</span>
-                  </button>
-                )
-              })}
-            </div>
+            {visibleGarments.length > 0 ? (
+              <div className="ds-garments">
+                {visibleGarments.map((g) => {
+                  const Glyph = GARMENT_GLYPHS[g.kind]
+                  return (
+                    <button
+                      key={g.name}
+                      type="button"
+                      className={`ds-garment${activeName === g.name ? ' is-active' : ''}`}
+                      onClick={() => selectGarment(g)}
+                      title={`${g.name} · ${g.fit}`}
+                    >
+                      <span className="ds-garment__thumb">
+                        <Glyph width="40" height="40" />
+                      </span>
+                      <span className="ds-garment__name">{g.name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="ds-empty">
+                No blanks match “{query.trim()}”.
+                <button type="button" className="ds-empty__reset" onClick={() => setQuery('')}>
+                  Clear search
+                </button>
+              </p>
+            )}
           </div>
 
           {/* Layers */}
           <div className="ds-layers">
             <div className="ds-panel-head ds-panel-head--tight">
               <h2>Layers</h2>
-              <button className="ds-mini" type="button" aria-label="Options">
-                <IcoDots width="15" height="15" />
+              <button
+                className="ds-mini"
+                type="button"
+                aria-label="Add layer"
+                title="Add a new layer"
+                onClick={addLayer}
+              >
+                <IcoPlus width="15" height="15" />
               </button>
             </div>
             <div className="ds-layer-list">
-              {LAYERS.map((l) => (
-                <div className="ds-layer" key={l.name}>
+              {layers.map((l) => (
+                <div className="ds-layer" key={l.id}>
                   <span className="ds-layer__thumb" />
                   <span className="ds-layer__text">
                     <b>{l.name}</b>
                     <small>{l.type}</small>
                   </span>
                   <button
-                    className={`ds-layer__eye${hidden[l.name] ? ' is-off' : ''}`}
+                    className={`ds-layer__eye${hidden[l.id] ? ' is-off' : ''}`}
                     type="button"
-                    aria-label="Toggle visibility"
-                    onClick={() => setHidden((h) => ({ ...h, [l.name]: !h[l.name] }))}
+                    aria-label={hidden[l.id] ? 'Show layer' : 'Hide layer'}
+                    title={hidden[l.id] ? 'Show layer' : 'Hide layer'}
+                    onClick={() => setHidden((h) => ({ ...h, [l.id]: !h[l.id] }))}
                   >
                     <IcoEye width="15" height="15" />
                   </button>
-                  <button className="ds-layer__more" type="button" aria-label="More">
+                  <button
+                    className="ds-layer__more"
+                    type="button"
+                    aria-label="Remove layer"
+                    title="Remove layer"
+                    onClick={() => removeLayer(l)}
+                  >
                     <IcoDots width="14" height="14" />
                   </button>
                 </div>
               ))}
             </div>
-            <button className="ds-add-layer" type="button">
+            <button className="ds-add-layer" type="button" onClick={addLayer}>
               <IcoPlus width="15" height="15" /> Add Layer
             </button>
           </div>
         </aside>
 
         {/* Canvas */}
-        <StudioCanvas />
+        <StudioCanvas garmentName={activeGarment.name} garmentKind={activeGarment.kind} />
 
         {/* Properties */}
         <aside className="ds-right">
@@ -232,41 +337,75 @@ export function DesignStudio() {
           </div>
 
           <div className="ds-right__scroll">
-            <section className="ds-group">
-              <div className="ds-group__head">
-                <span>Item</span>
-              </div>
-              <div className="ds-item">
-                <span className="ds-item__thumb">
-                  <GARMENT_GLYPHS.hoodie width="26" height="26" />
-                </span>
-                <span className="ds-item__text">
-                  <b>Hoodie</b>
-                  <small>Oversized Fit</small>
-                </span>
-                <button className="ds-change" type="button">
-                  Change
-                </button>
-              </div>
-            </section>
+            {propTab === 'Properties' && (
+              <>
+                <section className="ds-group">
+                  <div className="ds-group__head">
+                    <span>Item</span>
+                  </div>
+                  <div className="ds-item">
+                    <span className="ds-item__thumb">
+                      <ActiveGlyph kind={activeGarment.kind} />
+                    </span>
+                    <span className="ds-item__text">
+                      <b>{activeGarment.name}</b>
+                      <small>{activeGarment.fit}</small>
+                    </span>
+                    <button
+                      className="ds-change"
+                      type="button"
+                      onClick={() => toast('Pick a different blank from the catalog on the left.', 'info')}
+                    >
+                      Change
+                    </button>
+                  </div>
+                </section>
 
-            <Accordion title="Details" open>
-              {DETAILS.map(([k, v]) => (
-                <Field key={k} label={k} value={v} />
-              ))}
-              <Field label="Color" value="#2A2A2A" swatch="#2A2A2A" />
-            </Accordion>
+                <Accordion title="Details" open>
+                  {DETAILS.map(([k, v]) => (
+                    <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k}…`)} />
+                  ))}
+                  <Field label="Color" value="#2A2A2A" swatch="#2A2A2A" onEdit={() => toast('Editing base colour…')} />
+                </Accordion>
 
-            <Accordion title="Design" open>
-              {DESIGN.map(([k, v]) => (
-                <Field key={k} label={k} value={v} />
-              ))}
-              <Field label="Color" value="#F2F2F2" swatch="#F2F2F2" />
-            </Accordion>
+                <Accordion title="Design" open>
+                  {DESIGN.map(([k, v]) => (
+                    <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k}…`)} />
+                  ))}
+                  <Field label="Color" value="#F2F2F2" swatch="#F2F2F2" onEdit={() => toast('Editing print colour…')} />
+                </Accordion>
 
-            <Accordion title="Stitching" />
-            <Accordion title="Labels" />
-            <Accordion title="Packaging" />
+                <Accordion title="Stitching" />
+                <Accordion title="Labels" />
+                <Accordion title="Packaging" />
+              </>
+            )}
+
+            {propTab === 'Materials' && (
+              <Accordion title="Materials" open>
+                {[
+                  ['Body', 'French Terry 450 GSM'],
+                  ['Ribbing', '2x2 Rib · Cotton'],
+                  ['Lining', 'None'],
+                  ['Thread', 'Tex 40 · Matte'],
+                ].map(([k, v]) => (
+                  <Field key={k} label={k} value={v} onEdit={() => toast(`Editing ${k} material…`)} />
+                ))}
+              </Accordion>
+            )}
+
+            {propTab === 'Colors' && (
+              <Accordion title="Palette" open>
+                {[
+                  ['Base', '#2A2A2A'],
+                  ['Print', '#F2F2F2'],
+                  ['Rib', '#1E1E1E'],
+                  ['Stitch', '#D1F94F'],
+                ].map(([k, v]) => (
+                  <Field key={k} label={k} value={v} swatch={v} onEdit={() => toast(`Editing ${k} colour…`)} />
+                ))}
+              </Accordion>
+            )}
 
             <section className="ds-ai">
               <div className="ds-ai__head">
@@ -276,7 +415,7 @@ export function DesignStudio() {
               <p className="ds-ai__msg">
                 Make it more vintage washed and add a small woven label on the hem.
               </p>
-              <button className="s-btn s-btn--accent ds-ai__apply" type="button">
+              <button className="s-btn s-btn--accent ds-ai__apply" type="button" onClick={applySuggestion}>
                 <IcoSparkle width="15" height="15" /> Apply Suggestion
               </button>
             </section>
@@ -285,6 +424,11 @@ export function DesignStudio() {
       </div>
     </div>
   )
+}
+
+function ActiveGlyph({ kind }: { kind: GarmentKind }) {
+  const Glyph = GARMENT_GLYPHS[kind]
+  return <Glyph width="26" height="26" />
 }
 
 function RailIcon({ name }: { name: string }) {
@@ -320,11 +464,11 @@ function RailIcon({ name }: { name: string }) {
   }
 }
 
-function Field({ label, value, swatch }: { label: string; value: string; swatch?: string }) {
+function Field({ label, value, swatch, onEdit }: { label: string; value: string; swatch?: string; onEdit: () => void }) {
   return (
     <div className="ds-field">
       <span className="ds-field__label">{label}</span>
-      <button className="ds-field__value" type="button">
+      <button className="ds-field__value" type="button" onClick={onEdit} title={`Edit ${label}`}>
         {swatch && <span className="ds-field__swatch" style={{ background: swatch }} />}
         <span>{value}</span>
         <IcoChevron width="14" height="14" />

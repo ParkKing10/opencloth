@@ -45,6 +45,65 @@
   color: var(--s-text-4);
 }
 
+/* ---- Range dropdown menu ---- */
+.an-rangewrap {
+  position: relative;
+}
+.an-rangemenu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  min-width: 176px;
+  padding: 6px;
+  border-radius: var(--s-r-lg);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line-2);
+  box-shadow: var(--s-shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: an-menu-in var(--s-dur) var(--s-ease);
+}
+@keyframes an-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.an-rangeopt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border-radius: var(--s-r-sm);
+  background: transparent;
+  border: none;
+  color: var(--s-text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background var(--s-dur) var(--s-ease),
+    color var(--s-dur) var(--s-ease);
+}
+.an-rangeopt:hover {
+  background: var(--s-panel-2);
+  color: var(--s-text);
+}
+.an-rangeopt.is-active {
+  color: var(--s-accent-2);
+  background: var(--s-accent-soft);
+}
+
 /* ============================================================
    KPI stat row
    ============================================================ */

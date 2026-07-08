@@ -224,6 +224,22 @@
 .set-input::placeholder {
   color: var(--s-text-4);
 }
+/* Native select rendered with the shared input skin */
+select.set-input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 34px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--s-text-3) 50%),
+    linear-gradient(135deg, var(--s-text-3) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 19px, calc(100% - 11px) 19px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+select.set-input:hover {
+  background-image: linear-gradient(45deg, transparent 50%, var(--s-text-2) 50%),
+    linear-gradient(135deg, var(--s-text-2) 50%, transparent 50%);
+}
 .set-input:hover {
   border-color: var(--s-line-strong);
 }

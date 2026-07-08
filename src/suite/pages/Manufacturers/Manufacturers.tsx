@@ -9,34 +9,22 @@ import {
   IcoFactory,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { useStore } from '../../data/store'
+import { useAuth } from '../../auth/auth'
+import { useToast } from '../../components/ui/Toast'
+import { uid } from '../../data/utils'
+import type { Manufacturer, Order } from '../../data/types'
 import { SuitePage } from '../_shared/SuitePage'
 import './mf.css'
 
-/* ---------- Domain model ---------- */
-
-type Capability = 'Knitwear' | 'Cut & Sew' | 'Denim' | 'Outerwear' | 'Accessories'
+/* ---------- Presentation helpers ----------
+   The store's Manufacturer only carries real business fields. We derive purely
+   cosmetic details (accent dot, banner wash, glyph, specialty blurb) from that
+   data so the premium card stays identical without duplicating a second model. */
 
 type BannerHue = 'a' | 'b' | 'c' | 'd'
 
-interface Factory {
-  id: string
-  name: string
-  country: string
-  city: string
-  flag: string
-  caps: Capability[]
-  rating: number
-  reviews: number
-  moq: number
-  leadDays: number
-  priceFrom: number
-  specialty: string
-  glyph: GarmentKind
-  hue: BannerHue
-  verified: boolean
-}
-
-/* Country accent dots — muted tones kept within the violet/neutral discipline */
+/* Country accent dots — muted tones kept within the lime/neutral discipline */
 const COUNTRY_FLAGS: Record<string, string> = {
   Portugal: '#3ecf8e',
   Turkey: '#ff6ba6',
@@ -46,182 +34,61 @@ const COUNTRY_FLAGS: Record<string, string> = {
   India: '#d1f94f',
 }
 
-const CAPABILITIES: Capability[] = ['Knitwear', 'Cut & Sew', 'Denim', 'Outerwear', 'Accessories']
+const FALLBACK_FLAG = '#9b7bff'
 
-const COUNTRIES = ['Portugal', 'Turkey', 'Vietnam', 'Italy', 'China', 'India'] as const
+const HUES: BannerHue[] = ['a', 'b', 'c', 'd']
 
-const FACTORIES: Factory[] = [
-  {
-    id: 'atelier-norte',
-    name: 'Atelier Norte',
-    country: 'Portugal',
-    city: 'Porto',
-    flag: COUNTRY_FLAGS.Portugal,
-    caps: ['Knitwear', 'Cut & Sew'],
-    rating: 4.9,
-    reviews: 128,
-    moq: 50,
-    leadDays: 18,
-    priceFrom: 14,
-    specialty: 'Heavyweight fleece & organic cotton',
-    glyph: 'hoodie',
-    hue: 'a',
-    verified: true,
-  },
-  {
-    id: 'bosphorus-mills',
-    name: 'Bosphorus Mills',
-    country: 'Turkey',
-    city: 'Istanbul',
-    flag: COUNTRY_FLAGS.Turkey,
-    caps: ['Cut & Sew', 'Knitwear', 'Accessories'],
-    rating: 4.8,
-    reviews: 214,
-    moq: 100,
-    leadDays: 16,
-    priceFrom: 9,
-    specialty: 'Fast-turn jersey & ribbed knits',
-    glyph: 'tee',
-    hue: 'b',
-    verified: true,
-  },
-  {
-    id: 'saigon-craft',
-    name: 'Saigon Craft Co.',
-    country: 'Vietnam',
-    city: 'Ho Chi Minh City',
-    flag: COUNTRY_FLAGS.Vietnam,
-    caps: ['Outerwear', 'Cut & Sew'],
-    rating: 4.7,
-    reviews: 96,
-    moq: 150,
-    leadDays: 24,
-    priceFrom: 21,
-    specialty: 'Technical shells & padded jackets',
-    glyph: 'jacket',
-    hue: 'c',
-    verified: true,
-  },
-  {
-    id: 'milano-forma',
-    name: 'Milano Forma',
-    country: 'Italy',
-    city: 'Milan',
-    flag: COUNTRY_FLAGS.Italy,
-    caps: ['Outerwear', 'Cut & Sew'],
-    rating: 5.0,
-    reviews: 74,
-    moq: 30,
-    leadDays: 28,
-    priceFrom: 46,
-    specialty: 'Luxury tailoring & wool outerwear',
-    glyph: 'jacket',
-    hue: 'd',
-    verified: true,
-  },
-  {
-    id: 'canton-thread',
-    name: 'Canton Thread Works',
-    country: 'China',
-    city: 'Guangzhou',
-    flag: COUNTRY_FLAGS.China,
-    caps: ['Cut & Sew', 'Denim', 'Accessories'],
-    rating: 4.6,
-    reviews: 331,
-    moq: 200,
-    leadDays: 20,
-    priceFrom: 7,
-    specialty: 'Full-package streetwear at scale',
-    glyph: 'pants',
-    hue: 'a',
-    verified: true,
-  },
-  {
-    id: 'indigo-house',
-    name: 'Indigo House Denim',
-    country: 'India',
-    city: 'Ahmedabad',
-    flag: COUNTRY_FLAGS.India,
-    caps: ['Denim', 'Cut & Sew'],
-    rating: 4.8,
-    reviews: 152,
-    moq: 120,
-    leadDays: 26,
-    priceFrom: 16,
-    specialty: 'Selvedge denim & signature washes',
-    glyph: 'pants',
-    hue: 'b',
-    verified: true,
-  },
-  {
-    id: 'lisbon-loop',
-    name: 'Lisbon Loop Knits',
-    country: 'Portugal',
-    city: 'Lisbon',
-    flag: COUNTRY_FLAGS.Portugal,
-    caps: ['Knitwear', 'Accessories'],
-    rating: 4.9,
-    reviews: 88,
-    moq: 40,
-    leadDays: 22,
-    priceFrom: 19,
-    specialty: 'Fine-gauge merino & beanies',
-    glyph: 'cap',
-    hue: 'c',
-    verified: true,
-  },
-  {
-    id: 'anatolia-denim',
-    name: 'Anatolia Denim Lab',
-    country: 'Turkey',
-    city: 'Izmir',
-    flag: COUNTRY_FLAGS.Turkey,
-    caps: ['Denim', 'Outerwear'],
-    rating: 4.7,
-    reviews: 119,
-    moq: 80,
-    leadDays: 19,
-    priceFrom: 15,
-    specialty: 'Laser-wash denim & trucker jackets',
-    glyph: 'jacket',
-    hue: 'd',
-    verified: false,
-  },
-  {
-    id: 'hanoi-stitch',
-    name: 'Hanoi Stitch House',
-    country: 'Vietnam',
-    city: 'Hanoi',
-    flag: COUNTRY_FLAGS.Vietnam,
-    caps: ['Cut & Sew', 'Knitwear'],
-    rating: 4.6,
-    reviews: 143,
-    moq: 100,
-    leadDays: 21,
-    priceFrom: 11,
-    specialty: 'Oversized tees & heavyweight hoodies',
-    glyph: 'hoodie',
-    hue: 'a',
-    verified: true,
-  },
-  {
-    id: 'delhi-trim',
-    name: 'Delhi Trim & Co.',
-    country: 'India',
-    city: 'New Delhi',
-    flag: COUNTRY_FLAGS.India,
-    caps: ['Accessories', 'Cut & Sew'],
-    rating: 4.5,
-    reviews: 67,
-    moq: 60,
-    leadDays: 23,
-    priceFrom: 6,
-    specialty: 'Caps, patches & custom hardware',
-    glyph: 'cap',
-    hue: 'b',
-    verified: false,
-  },
-]
+/** Deterministic hash so a factory always renders with the same banner wash. */
+function hueFor(id: string): BannerHue {
+  let sum = 0
+  for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i)
+  return HUES[sum % HUES.length]
+}
+
+/** Map capabilities to a representative garment glyph for the banner. */
+function glyphFor(caps: string[]): GarmentKind {
+  if (caps.includes('Denim')) return 'pants'
+  if (caps.includes('Outerwear')) return 'jacket'
+  if (caps.includes('Accessories') && !caps.includes('Cut & Sew')) return 'cap'
+  if (caps.includes('Knitwear')) return 'hoodie'
+  return 'tee'
+}
+
+/** Short human-friendly specialty line derived from capabilities. */
+function specialtyFor(caps: string[]): string {
+  if (caps.length === 0) return 'Full-package apparel production'
+  if (caps.length === 1) return `${caps[0]} specialist`
+  return `${caps[0]} · ${caps[1]}${caps.length > 2 ? ' +more' : ''}`
+}
+
+function flagFor(country: string): string {
+  return COUNTRY_FLAGS[country] ?? FALLBACK_FLAG
+}
+
+/* ---------- Filter option definitions ---------- */
+
+const CAPABILITIES = ['Knitwear', 'Cut & Sew', 'Denim', 'Outerwear', 'Accessories'] as const
+type Capability = (typeof CAPABILITIES)[number]
+
+const ALL_CAPS = 'All' as const
+type CapFilter = typeof ALL_CAPS | Capability
+
+const MOQ_ORDER = ['Any MOQ', 'Under 50', 'Under 100', 'Under 200'] as const
+type MoqFilter = (typeof MOQ_ORDER)[number]
+
+const MOQ_CEILINGS: Record<Exclude<MoqFilter, 'Any MOQ'>, number> = {
+  'Under 50': 50,
+  'Under 100': 100,
+  'Under 200': 200,
+}
+
+const SORTS = [
+  { id: 'rating', label: 'Top rated' },
+  { id: 'moq', label: 'Lowest MOQ' },
+  { id: 'price', label: 'Lowest price' },
+  { id: 'lead', label: 'Fastest lead time' },
+] as const
+type SortId = (typeof SORTS)[number]['id']
 
 /* ---------- Small presentational pieces ---------- */
 
@@ -247,27 +114,23 @@ function Heart({ filled }: HeartProps) {
   )
 }
 
-interface FactoryCardProps {
-  factory: Factory
-  saved: boolean
-  onToggleSave: (id: string) => void
-}
-
 const MAX_TAGS = 3
 
-function FactoryCard({ factory, saved, onToggleSave }: FactoryCardProps) {
-  const Glyph = GARMENT_GLYPHS[factory.glyph]
-  const visibleTags = factory.caps.slice(0, MAX_TAGS)
-  const hiddenCount = factory.caps.length - visibleTags.length
+interface FactoryCardProps {
+  factory: Manufacturer
+  onToggleSave: (m: Manufacturer) => void
+  onRequestSample: (m: Manufacturer) => void
+}
 
-  const handleSave = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    onToggleSave(factory.id)
-  }
+function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProps) {
+  const Glyph = GARMENT_GLYPHS[glyphFor(factory.capabilities)]
+  const visibleTags = factory.capabilities.slice(0, MAX_TAGS)
+  const hiddenCount = factory.capabilities.length - visibleTags.length
+  const saved = factory.saved
 
   return (
     <article className="mf-card">
-      <div className={`mf-banner mf-banner--${factory.hue}`}>
+      <div className={`mf-banner mf-banner--${hueFor(factory.id)}`}>
         <span className="mf-banner__glyph" aria-hidden="true">
           <Glyph width="128" height="128" />
         </span>
@@ -283,8 +146,9 @@ function FactoryCard({ factory, saved, onToggleSave }: FactoryCardProps) {
           <button
             type="button"
             className={`mf-save${saved ? ' is-saved' : ''}`}
-            onClick={handleSave}
+            onClick={() => onToggleSave(factory)}
             aria-pressed={saved}
+            title={saved ? 'Remove from saved' : 'Save factory'}
             aria-label={saved ? 'Remove from saved' : 'Save factory'}
           >
             <Heart filled={saved} />
@@ -303,7 +167,7 @@ function FactoryCard({ factory, saved, onToggleSave }: FactoryCardProps) {
           <div>
             <h3 className="mf-name">{factory.name}</h3>
             <span className="mf-loc">
-              <span className="mf-flag" style={{ background: factory.flag }} />
+              <span className="mf-flag" style={{ background: flagFor(factory.country) }} />
               {factory.city}, {factory.country}
             </span>
           </div>
@@ -345,12 +209,13 @@ function FactoryCard({ factory, saved, onToggleSave }: FactoryCardProps) {
         <div className="mf-foot">
           <span className="mf-foot__spec">
             <b>Specialty</b>
-            <small>{factory.specialty}</small>
+            <small>{specialtyFor(factory.capabilities)}</small>
           </span>
           <button
             type="button"
             className="s-btn s-btn--accent mf-sample"
-            onClick={(e) => e.stopPropagation()}
+            onClick={() => onRequestSample(factory)}
+            title={`Request a sample from ${factory.name}`}
           >
             Request Sample <IcoArrowRight width="14" height="14" />
           </button>
@@ -362,42 +227,28 @@ function FactoryCard({ factory, saved, onToggleSave }: FactoryCardProps) {
 
 /* ---------- Page ---------- */
 
-const ALL_CAPS = 'All' as const
-type CapFilter = typeof ALL_CAPS | Capability
-type CountryFilter = 'Any country' | (typeof COUNTRIES)[number]
-type MoqFilter = 'Any MOQ' | 'Under 50' | 'Under 100' | 'Under 200'
-
-const MOQ_CEILINGS: Record<Exclude<MoqFilter, 'Any MOQ'>, number> = {
-  'Under 50': 50,
-  'Under 100': 100,
-  'Under 200': 200,
-}
-
-const MOQ_ORDER: MoqFilter[] = ['Any MOQ', 'Under 50', 'Under 100', 'Under 200']
-
 export function Manufacturers() {
+  const { data, mutate } = useStore()
+  const { user } = useAuth()
+  const toast = useToast()
+
   const [activeCap, setActiveCap] = useState<CapFilter>(ALL_CAPS)
-  const [country, setCountry] = useState<CountryFilter>('Any country')
+  const [country, setCountry] = useState<string>('Any country')
   const [moq, setMoq] = useState<MoqFilter>('Any MOQ')
   const [query, setQuery] = useState('')
-  const [saved, setSaved] = useState<Set<string>>(() => new Set(['milano-forma', 'lisbon-loop']))
+  const [sort, setSort] = useState<SortId>('rating')
+  const [sortOpen, setSortOpen] = useState(false)
 
-  const toggleSave = (id: string) => {
-    setSaved((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
+  /* Countries actually present in the data, so the pill never offers a dead option. */
+  const countryOptions = useMemo<string[]>(() => {
+    const set = new Set<string>()
+    data.manufacturers.forEach((m) => set.add(m.country))
+    return ['Any country', ...Array.from(set).sort()]
+  }, [data.manufacturers])
 
   const cycleCountry = () => {
-    const options: CountryFilter[] = ['Any country', ...COUNTRIES]
-    const idx = options.indexOf(country)
-    setCountry(options[(idx + 1) % options.length])
+    const idx = countryOptions.indexOf(country)
+    setCountry(countryOptions[(idx + 1) % countryOptions.length])
   }
 
   const cycleMoq = () => {
@@ -405,19 +256,89 @@ export function Manufacturers() {
     setMoq(MOQ_ORDER[(idx + 1) % MOQ_ORDER.length])
   }
 
+  const toggleSave = (m: Manufacturer) => {
+    const nowSaved = !m.saved
+    mutate((d) => ({
+      ...d,
+      manufacturers: d.manufacturers.map((x) => (x.id === m.id ? { ...x, saved: nowSaved } : x)),
+    }))
+    toast(nowSaved ? `Saved ${m.name}` : `Removed ${m.name} from saved`, nowSaved ? 'success' : 'default')
+  }
+
+  const requestSample = (m: Manufacturer) => {
+    if (!user) {
+      toast('Sign in to request a sample.', 'info')
+      return
+    }
+    const glyph = glyphFor(m.capabilities)
+    const newOrder: Order = {
+      id: uid('o'),
+      ownerId: user.id,
+      designName: `Sample — ${m.name}`,
+      kind: glyph,
+      qty: 1,
+      manufacturer: m.name,
+      country: m.country,
+      stage: 'sample',
+      progress: 5,
+      eta: `~${m.leadDays} days`,
+    }
+    mutate((d) => ({ ...d, orders: [newOrder, ...d.orders] }))
+    toast(`Sample requested from ${m.name}`, 'accent')
+  }
+
+  const postRequest = () => {
+    toast('Request posted — matched factories will reach out shortly.', 'accent')
+  }
+
+  const chooseSort = (id: SortId) => {
+    setSort(id)
+    setSortOpen(false)
+  }
+
+  const clearFilters = () => {
+    setActiveCap(ALL_CAPS)
+    setCountry('Any country')
+    setMoq('Any MOQ')
+    setQuery('')
+  }
+
+  const hasActiveFilter =
+    activeCap !== ALL_CAPS || country !== 'Any country' || moq !== 'Any MOQ' || query.trim() !== ''
+
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return FACTORIES.filter((f) => {
-      if (activeCap !== ALL_CAPS && !f.caps.includes(activeCap)) return false
+    const filtered = data.manufacturers.filter((f) => {
+      if (activeCap !== ALL_CAPS && !f.capabilities.includes(activeCap)) return false
       if (country !== 'Any country' && f.country !== country) return false
       if (moq !== 'Any MOQ' && f.moq > MOQ_CEILINGS[moq]) return false
       if (q) {
-        const haystack = `${f.name} ${f.city} ${f.country} ${f.specialty}`.toLowerCase()
+        const haystack = `${f.name} ${f.city} ${f.country} ${f.capabilities.join(' ')}`.toLowerCase()
         if (!haystack.includes(q)) return false
       }
       return true
     })
-  }, [activeCap, country, moq, query])
+
+    const sorted = [...filtered]
+    switch (sort) {
+      case 'rating':
+        sorted.sort((a, b) => b.rating - a.rating || b.reviews - a.reviews)
+        break
+      case 'moq':
+        sorted.sort((a, b) => a.moq - b.moq)
+        break
+      case 'price':
+        sorted.sort((a, b) => a.priceFrom - b.priceFrom)
+        break
+      case 'lead':
+        sorted.sort((a, b) => a.leadDays - b.leadDays)
+        break
+    }
+    return sorted
+  }, [data.manufacturers, activeCap, country, moq, query, sort])
+
+  const savedCount = useMemo(() => data.manufacturers.filter((m) => m.saved).length, [data.manufacturers])
+  const activeSortLabel = SORTS.find((s) => s.id === sort)?.label ?? 'Top rated'
 
   return (
     <SuitePage
@@ -425,7 +346,7 @@ export function Manufacturers() {
       title="Manufacturers"
       subtitle="Discover vetted factories across the globe — filter by capability, country, MOQ and lead time, then request a sample in one tap."
       actions={
-        <button type="button" className="s-btn s-btn--accent">
+        <button type="button" className="s-btn s-btn--accent" onClick={postRequest}>
           <IcoPlus width="16" height="16" /> Post a Request
         </button>
       }
@@ -454,11 +375,16 @@ export function Manufacturers() {
           </div>
 
           <div className="mf-toolbar__right">
-            <button type="button" className="mf-select" onClick={cycleCountry}>
+            <button
+              type="button"
+              className="mf-select"
+              onClick={cycleCountry}
+              title="Cycle country filter"
+            >
               <b>{country}</b>
               <IcoChevron className="mf-select__chev" width="14" height="14" />
             </button>
-            <button type="button" className="mf-select" onClick={cycleMoq}>
+            <button type="button" className="mf-select" onClick={cycleMoq} title="Cycle MOQ ceiling">
               <b>{moq}</b>
               <IcoChevron className="mf-select__chev" width="14" height="14" />
             </button>
@@ -469,6 +395,7 @@ export function Manufacturers() {
                 placeholder="Search factories, cities…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search factories"
               />
             </label>
           </div>
@@ -484,11 +411,57 @@ export function Manufacturers() {
                 {activeCap}
               </>
             )}
+            {savedCount > 0 && (
+              <>
+                {' · '}
+                {savedCount} saved
+              </>
+            )}
+            {hasActiveFilter && (
+              <button type="button" className="mf-clear" onClick={clearFilters}>
+                Clear filters
+              </button>
+            )}
           </p>
-          <button type="button" className="mf-sort">
-            Sort by <b>Top rated</b>
-            <IcoChevron width="13" height="13" />
-          </button>
+
+          <div className="mf-sortwrap">
+            <button
+              type="button"
+              className="mf-sort"
+              onClick={() => setSortOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={sortOpen}
+            >
+              Sort by <b>{activeSortLabel}</b>
+              <IcoChevron width="13" height="13" />
+            </button>
+            {sortOpen && (
+              <>
+                <button
+                  type="button"
+                  className="mf-menu__scrim"
+                  aria-label="Close sort menu"
+                  onClick={() => setSortOpen(false)}
+                />
+                <ul className="mf-menu" role="listbox">
+                  {SORTS.map((s) => (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={sort === s.id}
+                        className={`mf-menu__item${sort === s.id ? ' is-active' : ''}`}
+                        onClick={() => chooseSort(s.id)}
+                      >
+                        {s.label}
+                        {sort === s.id && <IcoCheck width="14" height="14" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Grid */}
@@ -498,8 +471,8 @@ export function Manufacturers() {
               <FactoryCard
                 key={factory.id}
                 factory={factory}
-                saved={saved.has(factory.id)}
                 onToggleSave={toggleSave}
+                onRequestSample={requestSample}
               />
             ))}
           </div>
@@ -511,6 +484,11 @@ export function Manufacturers() {
               </div>
               <h3>No factories match those filters</h3>
               <p>Try widening the country or MOQ range, or clear your search.</p>
+              {hasActiveFilter && (
+                <button type="button" className="s-btn s-btn--subtle mf-empty-cta" onClick={clearFilters}>
+                  Clear all filters
+                </button>
+              )}
             </div>
           </div>
         )}

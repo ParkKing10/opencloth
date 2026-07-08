@@ -119,6 +119,14 @@ alter table public.tech_packs    enable row level security;
 alter table public.orders        enable row level security;
 alter table public.manufacturers enable row level security;
 
+-- ---------- TABLE GRANTS ----------
+-- RLS decides which ROWS a request may touch, but the API roles still need
+-- table-level privileges. Tables created via raw SQL don't always inherit
+-- Supabase's default grants, so grant them explicitly (RLS remains the gate).
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant select on public.manufacturers to anon;
+
 -- Profiles: read your own or (admin) everyone; update your own; admins update anyone.
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles
@@ -129,6 +137,28 @@ create policy profiles_update_self on public.profiles
 drop policy if exists profiles_admin_update on public.profiles;
 create policy profiles_admin_update on public.profiles
   for update using (public.is_admin());
+
+-- Privilege guard: the self-update policy lets a user edit their own row, but they
+-- must not be able to escalate role or lift their own suspension. This trigger pins
+-- role/status to their previous values for non-admins (admins bypass it).
+create or replace function public.profiles_guard()
+returns trigger
+language plpgsql security definer
+set search_path = public
+as $$
+begin
+  if not public.is_admin() then
+    new.role   := old.role;
+    new.status := old.status;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists profiles_protect on public.profiles;
+create trigger profiles_protect
+  before update on public.profiles
+  for each row execute function public.profiles_guard();
 
 -- Owner-scoped tables: owners get full CRUD on their rows; admins can read all.
 do $$

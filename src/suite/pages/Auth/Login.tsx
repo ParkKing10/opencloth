@@ -2,13 +2,16 @@ import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/auth'
 import { DEMO_CREDENTIALS } from '../../data/seed'
+import { isSupabaseConfigured } from '../../../lib/supabase'
 import { AuthBrand } from './AuthBrand'
 import './auth-screen.css'
 
 type LocationState = { from?: string }
 
+const DEMO_NAMES = { user: 'Mike Carter', admin: 'Ava Reyes' } as const
+
 export function Login() {
-  const { login } = useAuth()
+  const { login, signup } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const from = (location.state as LocationState | null)?.from ?? '/suite'
@@ -30,11 +33,21 @@ export function Login() {
     else setError(res.error ?? 'Could not sign in.')
   }
 
-  function fillDemo(role: 'user' | 'admin') {
+  async function fillDemo(role: 'user' | 'admin') {
     const creds = DEMO_CREDENTIALS[role]
     setEmail(creds.email)
     setPassword(creds.password)
-    void submit(new Event('submit') as unknown as FormEvent, creds)
+    setBusy(true)
+    setError('')
+    let res = await login(creds.email, creds.password)
+    // In Supabase mode the demo account may not exist yet — create it, then sign in.
+    if (!res.ok && isSupabaseConfigured) {
+      const created = await signup(DEMO_NAMES[role], creds.email, creds.password)
+      res = created.ok ? created : await login(creds.email, creds.password)
+    }
+    setBusy(false)
+    if (res.ok) navigate(from, { replace: true })
+    else setError(res.error ?? 'Could not sign in.')
   }
 
   return (

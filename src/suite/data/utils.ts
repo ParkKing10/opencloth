@@ -2,10 +2,26 @@
 
 let counter = 0
 
-/** Reasonably-unique client id. */
+/**
+ * A UUID for new records. Owner-scoped tables use a `uuid` primary key, so client
+ * ids must be valid UUIDs to insert with their own id (no server round-trip).
+ * `prefix` is accepted for call-site readability but no longer changes the format.
+ */
 export function uid(prefix = 'id'): string {
+  void prefix
+  const c = globalThis.crypto
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID()
+  // Fallback (older/non-secure contexts): RFC-4122-shaped v4 from getRandomValues/Math.random
   counter += 1
-  return `${prefix}_${Date.now().toString(36)}${counter.toString(36)}${Math.random().toString(36).slice(2, 7)}`
+  const rnd = () =>
+    c && typeof c.getRandomValues === 'function'
+      ? c.getRandomValues(new Uint8Array(1))[0] / 255
+      : Math.random()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = (rnd() * 16) | 0
+    const v = ch === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
 }
 
 /** SHA-256 hex — used so we never persist plaintext passwords in localStorage. */

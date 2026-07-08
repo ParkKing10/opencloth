@@ -403,6 +403,37 @@
   color: var(--s-text-3);
 }
 
+/* ---------- Production stage nav (top center) ---------- */
+.ds-nav {
+  display: flex;
+  gap: 2px;
+  margin-inline: auto;
+  padding: 3px;
+  border-radius: var(--s-r-pill);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+}
+.ds-nav__tab {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: var(--s-r-pill);
+  background: transparent;
+  color: var(--s-text-3);
+  font-size: 12.5px;
+  font-weight: 560;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.ds-nav__tab:hover {
+  color: var(--s-text);
+}
+.ds-nav__tab.is-active {
+  background: var(--s-panel-3);
+  color: var(--s-text);
+  box-shadow: var(--s-shadow-sm);
+}
+
 /* ---------- Library rail eyebrow ---------- */
 .ds-rail__eyebrow {
   display: block;

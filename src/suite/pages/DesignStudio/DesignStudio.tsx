@@ -39,6 +39,8 @@ import { GarmentInspector, type PropField } from './GarmentInspector'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { GraphicsPanel } from './GraphicsPanel'
 import { MaterialsPanel } from './MaterialsPanel'
+import { InspirationPanel } from './InspirationPanel'
+import { StudioDock } from './StudioDock'
 import {
   INITIAL_CONFIG,
   deriveReadiness,
@@ -56,8 +58,8 @@ import './design-studio.css'
 // so the manufacturing-export weight never lands in the initial bundle.
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
-/** The Library — five human categories, every one opens a real panel. */
-const RAIL = ['Garments', 'Graphics', 'Materials', 'Brand', 'Assets']
+/** The Library — six human categories, every one opens a real panel. */
+const RAIL = ['Garments', 'Graphics', 'Materials', 'Brand Kit', 'Assets', 'Inspiration']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -154,6 +156,7 @@ export function DesignStudio() {
   const { user } = useAuth()
   const { data, mutate } = useStore()
   const [rail, setRail] = useState('Garments')
+  const [dockView, setDockView] = useState('front')
 
   // The design being edited — one stable id per piece so auto-save upserts it.
   const [designId, setDesignId] = useState<string>(() => {
@@ -912,28 +915,24 @@ export function DesignStudio() {
           </button>
         </div>
 
-        {/* Journey progress — the user always knows where they are */}
-        <button
-          className="ds-progress"
-          type="button"
-          title={readiness.missing.length > 0 ? `Next: ${readiness.missing[0].label}` : 'Ready for production'}
-          onClick={() => readiness.missing.length > 0 && fixCheck(readiness.missing[0].id)}
-        >
-          <span className="ds-progress__label">Design</span>
-          <span className="ds-progress__track">
-            <span className="ds-progress__fill" style={{ width: `${readiness.score}%` }} />
-          </span>
-          <span className="ds-progress__pct">{readiness.score}%</span>
-          <span className="ds-progress__next">
-            {readiness.missing.length > 0 ? (
-              <>
-                Next · <b>{readiness.missing[0].label}</b>
-              </>
-            ) : (
-              <b className="is-done">Ready ✓</b>
-            )}
-          </span>
-        </button>
+        {/* Production journey — Design → Tech Pack → Manufacturer → Launch */}
+        <nav className="ds-nav" aria-label="Production stages">
+          {[
+            { id: 'Design', to: '/suite/design' },
+            { id: 'Tech Pack', to: '/suite/tech-packs' },
+            { id: 'Manufacturer', to: '/suite/manufacturers' },
+            { id: 'Launch', to: '/suite/production' },
+          ].map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              className={`ds-nav__tab${s.id === 'Design' ? ' is-active' : ''}`}
+              onClick={() => s.id !== 'Design' && navigate(s.to)}
+            >
+              {s.id}
+            </button>
+          ))}
+        </nav>
 
         <div className="ds-top__right">
           <button
@@ -1061,7 +1060,19 @@ export function DesignStudio() {
         {!leftHidden && (
         <aside className="ds-left">
           {rail === 'Assets' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
-          {rail === 'Brand' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
+          {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
+          {rail === 'Inspiration' && (
+            <InspirationPanel
+              onApply={(p) => {
+                setActiveName(GARMENTS.some((g) => g.name === p.garment) ? p.garment : 'Hoodie')
+                setField('details', 'd-fit', p.fit)
+                setField('details', 'd-fabric', p.fabric)
+                setField('details', 'd-color', p.colorHex)
+                if (p.text) commit({ layers: [makeTextLayer(p.text, p.textColor ?? '#F4F4F6'), ...presentRef.current.layers], hidden: presentRef.current.hidden })
+                toast(`“${p.name}” look applied.`, 'accent')
+              }}
+            />
+          )}
           {rail === 'Graphics' && <GraphicsPanel onAdd={(name) => addGraphicObject(name)} />}
           {rail === 'Materials' && (
             <MaterialsPanel
@@ -1295,11 +1306,36 @@ export function DesignStudio() {
         )}
       </div>
 
+      {/* Bottom dock — checklist, AI suggestion, garment views, next step */}
+      <StudioDock
+        garmentKind={activeGarment.kind}
+        checklistPct={readiness.score}
+        aiSuggestion={readiness.missing[0] ? `${readiness.missing[0].label} — ${readiness.missing[0].hint ?? 'add it to reach 100%.'}` : null}
+        onViewSuggestion={() => readiness.missing[0] && fixCheck(readiness.missing[0].id)}
+        views={DOCK_VIEWS}
+        activeView={dockView}
+        onSelectView={(id) => {
+          setDockView(id)
+          toast(`${DOCK_VIEWS.find((v) => v.id === id)?.label ?? id} view`, 'default')
+        }}
+        onCreateTechPack={() => navigate('/suite/tech-packs')}
+      />
+
       {/* New-design wizard — nobody ever starts on an empty editor */}
       <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
     </div>
   )
 }
+
+const DOCK_VIEWS = [
+  { id: 'front', label: 'Front' },
+  { id: 'back', label: 'Back' },
+  { id: 'left', label: 'Left' },
+  { id: 'right', label: 'Right' },
+  { id: 'hood', label: 'Hood' },
+  { id: 'pocket', label: 'Pocket' },
+  { id: 'label', label: 'Label' },
+]
 
 function RailIcon({ name }: { name: string }) {
   const common = { width: 20, height: 20 }
@@ -1318,7 +1354,7 @@ function RailIcon({ name }: { name: string }) {
           <path d="M4 7c2.7-2 5.3-2 8 0s5.3 2 8 0M4 12c2.7-2 5.3-2 8 0s5.3 2 8 0M4 17c2.7-2 5.3-2 8 0s5.3 2 8 0" />
         </svg>
       )
-    case 'Brand':
+    case 'Brand Kit':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
           <path d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5Z" />
@@ -1329,6 +1365,12 @@ function RailIcon({ name }: { name: string }) {
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
           <path d="M3.5 8.5V6.8c0-1 .8-1.8 1.8-1.8h4l2 2.4h7.4c1 0 1.8.8 1.8 1.8v8c0 1-.8 1.8-1.8 1.8H5.3c-1 0-1.8-.8-1.8-1.8V8.5Z" />
+        </svg>
+      )
+    case 'Inspiration':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M12 3a6 6 0 0 1 4 10.5c-.7.7-1 1.2-1 2.5H9c0-1.3-.3-1.8-1-2.5A6 6 0 0 1 12 3ZM9.5 20h5M10 22h4" />
         </svg>
       )
     default:

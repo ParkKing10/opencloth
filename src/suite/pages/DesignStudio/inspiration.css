@@ -1,0 +1,74 @@
+/* Inspiration library — curated starting looks. insp- prefix. */
+.insp {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.insp__hint {
+  padding: 0 14px 10px;
+  font-size: 11.5px;
+  color: var(--s-text-3);
+  line-height: 1.4;
+}
+.insp__grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 10px;
+}
+.insp__card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--s-r);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease);
+}
+.insp__card:hover {
+  border-color: var(--s-accent-line);
+  transform: translateY(-1px);
+}
+.insp__thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 auto;
+  border-radius: var(--s-r-sm);
+  color: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+  border: 1px solid var(--s-line);
+}
+.insp__print {
+  position: absolute;
+  bottom: 12px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.insp__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.insp__meta b {
+  font-size: 13px;
+  font-weight: 620;
+  color: var(--s-text);
+}
+.insp__meta small {
+  font-size: 11px;
+  color: var(--s-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

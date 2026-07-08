@@ -189,3 +189,28 @@
   color: var(--s-text);
   background: var(--s-panel);
 }
+
+/* Photoreal garment backdrop */
+.ds-garment-photo {
+  width: auto;
+  height: 440px;
+  max-height: 62vh;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Add-text / add-image tools in the left rail */
+.ds-toolrail__add {
+  color: var(--s-accent) !important;
+}
+.ds-toolrail__add:hover {
+  background: var(--s-accent-soft) !important;
+}
+.ds-toolrail__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--s-line);
+}

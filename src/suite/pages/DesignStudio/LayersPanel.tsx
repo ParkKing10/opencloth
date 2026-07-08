@@ -15,6 +15,8 @@ export type Layer = {
   groupId?: string
   /** Groups only: collapse their members in the list. */
   collapsed?: boolean
+  /** A placeable canvas object (text / image / graphic). Absent = garment part. */
+  obj?: import('./objectModel').CanvasObject
 }
 
 export const LAYER_COLORS = ['', '#d1f94f', '#5aa2ff', '#ff6ba6', '#f5b544', '#3ecf8e'] as const

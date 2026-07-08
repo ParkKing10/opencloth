@@ -1,0 +1,132 @@
+/* Editable canvas objects (text / image / graphic) over the garment. co- prefix. */
+
+.co-box {
+  position: absolute;
+  /* the printable chest region of the garment */
+  left: 30%;
+  top: 26%;
+  width: 40%;
+  height: 44%;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.co-obj {
+  position: absolute;
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+}
+.co-obj:active {
+  cursor: grabbing;
+}
+.co-obj.is-locked {
+  cursor: default;
+}
+
+.co-text {
+  display: block;
+  width: 100%;
+  text-align: center;
+  line-height: 1.05;
+  font-size: 24cqw;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.co-text-input {
+  width: 100%;
+  text-align: center;
+  border: 0;
+  background: rgba(0, 0, 0, 0.4);
+  outline: 2px solid var(--s-accent);
+  border-radius: 4px;
+  font-size: 24cqw;
+  text-transform: uppercase;
+  padding: 2px 4px;
+}
+.co-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+}
+.co-gfx {
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+}
+
+/* selection frame + handles */
+.co-frame {
+  position: absolute;
+  inset: -6px;
+  border: 1.5px solid var(--s-accent);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.co-handle {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  padding: 0;
+  border: 1.5px solid var(--s-accent);
+  background: var(--s-bg);
+  border-radius: 3px;
+  cursor: nwse-resize;
+  z-index: 2;
+}
+.co-handle--nw {
+  left: -6px;
+  top: -6px;
+  transform: translate(-50%, -50%);
+}
+.co-handle--ne {
+  right: -6px;
+  top: -6px;
+  transform: translate(50%, -50%);
+  cursor: nesw-resize;
+}
+.co-handle--se {
+  right: -6px;
+  bottom: -6px;
+  transform: translate(50%, 50%);
+}
+.co-handle--sw {
+  left: -6px;
+  bottom: -6px;
+  transform: translate(-50%, 50%);
+  cursor: nesw-resize;
+}
+.co-rotate-stem {
+  position: absolute;
+  left: 50%;
+  top: -6px;
+  width: 1.5px;
+  height: 22px;
+  background: var(--s-accent);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+.co-handle--rotate {
+  left: 50%;
+  top: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--s-accent);
+  cursor: grab;
+  transform: translate(-50%, calc(-100% - 22px));
+}
+.co-handle--rotate:active {
+  cursor: grabbing;
+}

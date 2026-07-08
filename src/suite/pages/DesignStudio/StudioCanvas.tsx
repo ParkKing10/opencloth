@@ -5,7 +5,15 @@ import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify, svgElementToPngBlob } from '../../lib/download'
 import { downloadTechPackPdf } from '../../lib/exporters'
+import { CanvasObjects } from './CanvasObjects'
+import type { Layer } from './LayersPanel'
+import type { CanvasObject } from './objectModel'
+import hoodieImg from '../../../assets/cards/hoodie.png'
+import teeImg from '../../../assets/cards/tee.png'
 import './canvas.css'
+
+/** Photoreal garment backdrops where we have them; glyph fallback otherwise. */
+const GARMENT_PHOTO: Partial<Record<GarmentKind, string>> = { hoodie: hoodieImg, tee: teeImg }
 
 const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
 const VIEWS = ['Front', 'Angle', 'Side', 'Hood']
@@ -50,6 +58,16 @@ type Props = {
   designName?: string
   onRenameDesign?: (name: string) => void
   saveState?: 'saved' | 'saving' | 'unsaved'
+  // ---- editable canvas objects ----
+  objects?: Layer[]
+  hiddenMap?: Record<string, boolean>
+  selectedObjId?: string | null
+  onSelectObj?: (id: string | null) => void
+  onLiveObj?: (id: string, patch: Partial<CanvasObject>) => void
+  onCommitObj?: () => void
+  onEditText?: (id: string, text: string) => void
+  onAddText?: () => void
+  onAddImage?: (file: File) => void
 }
 
 export function StudioCanvas({
@@ -60,7 +78,17 @@ export function StudioCanvas({
   designName: designNameProp,
   onRenameDesign,
   saveState,
+  objects,
+  hiddenMap,
+  selectedObjId,
+  onSelectObj,
+  onLiveObj,
+  onCommitObj,
+  onEditText,
+  onAddText,
+  onAddImage,
 }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
   const [mode, setMode] = useState<'3D' | '2D'>('3D')
   const [view, setView] = useState('Front')
@@ -248,6 +276,8 @@ export function StudioCanvas({
 
   function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     const panIntent = e.button === 1 || (e.button === 0 && (tool === 'pan' || spaceHeld))
+    // A left-click on empty canvas (objects stopPropagation) deselects.
+    if (e.button === 0 && !panIntent && onSelectObj) onSelectObj(null)
     if (!panIntent) return
     e.preventDefault()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -328,6 +358,42 @@ export function StudioCanvas({
       {/* Stage */}
       <div className="ds-stage">
         <div className="ds-toolrail">
+          {onAddText && (
+            <button type="button" className="ds-toolrail__add" aria-label="Add text" title="Add text" onClick={onAddText}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <path d="M5 7V5h14v2M12 5v14M9 19h6" />
+              </svg>
+            </button>
+          )}
+          {onAddImage && (
+            <>
+              <button
+                type="button"
+                className="ds-toolrail__add"
+                aria-label="Add image"
+                title="Add image or file"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+                  <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+                  <circle cx="9" cy="10" r="1.8" />
+                  <path d="M4 17l5-4 4 3 3-2 4 3" />
+                </svg>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) onAddImage(f)
+                  e.target.value = ''
+                }}
+              />
+            </>
+          )}
+          {(onAddText || onAddImage) && <span className="ds-toolrail__sep" />}
           {TOOLS.map((t, i) => (
             <button
               key={t}
@@ -358,8 +424,11 @@ export function StudioCanvas({
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
           >
             <div className="ds-garment-3d" ref={stageRef}>
-              <Glyph width="340" height="340" />
-              <span className="ds-print">VISIONARY</span>
+              {GARMENT_PHOTO[garmentKind] ? (
+                <img className="ds-garment-photo" src={GARMENT_PHOTO[garmentKind]} alt={garmentName} draggable={false} />
+              ) : (
+                <Glyph width="340" height="340" />
+              )}
               {showSafeArea && (
                 <>
                   <div className="cv-centerline" aria-hidden="true" />
@@ -370,6 +439,17 @@ export function StudioCanvas({
                     </div>
                   </div>
                 </>
+              )}
+              {objects && onSelectObj && onLiveObj && onCommitObj && onEditText && (
+                <CanvasObjects
+                  objects={objects}
+                  hidden={hiddenMap ?? {}}
+                  selectedId={selectedObjId ?? null}
+                  onSelect={onSelectObj}
+                  onLive={onLiveObj}
+                  onCommit={onCommitObj}
+                  onEditText={onEditText}
+                />
               )}
             </div>
           </div>

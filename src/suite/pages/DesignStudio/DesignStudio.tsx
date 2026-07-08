@@ -27,6 +27,14 @@ import { StudioCanvas } from './StudioCanvas'
 import { CommandBar, type StudioMode } from './CommandBar'
 import { LayersPanel, type Layer } from './LayersPanel'
 import { ContextPanel, defaultFieldsFor, type ContextField } from './ContextPanel'
+import { ObjectInspector } from './ObjectInspector'
+import {
+  makeGraphicLayer,
+  makeImageLayer,
+  makeTextLayer,
+  patchObject,
+  type CanvasObject,
+} from './objectModel'
 import { GarmentInspector, type PropField } from './GarmentInspector'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { GraphicsPanel } from './GraphicsPanel'
@@ -86,7 +94,12 @@ type Snapshot = {
 }
 
 const INITIAL_LAYERS: Layer[] = [
-  { id: 'l-puff', name: 'Puff Print Front', type: 'Graphic' },
+  {
+    id: 'l-puff',
+    name: 'VISIONARY',
+    type: 'Text',
+    obj: { type: 'text', x: 0.5, y: 0.4, width: 0.82, rotation: 0, opacity: 1, text: 'VISIONARY', color: '#C9C9D2', font: 'Archivo', weight: 800, letterSpacing: 3 },
+  },
   { id: 'l-back', name: 'Back Print', type: 'Graphic' },
   { id: 'l-hood', name: 'Hood', type: 'Material' },
   { id: 'l-main', name: 'Main Fabric', type: 'Material' },
@@ -323,6 +336,90 @@ export function DesignStudio() {
     setFuture([])
   }, [present])
 
+  // Live mirror so object drags read the freshest state without stale closures.
+  const presentRef = useRef(present)
+  useEffect(() => {
+    presentRef.current = present
+  }, [present])
+
+  // ---- Editable canvas objects (text / image / graphic) ----
+  const objectLayers = useMemo(() => present.layers.filter((l) => l.obj), [present.layers])
+
+  const addTextObject = useCallback(() => {
+    const l = makeTextLayer()
+    commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+    setSelectedIds([l.id])
+    toast('Text added — double-click on the garment to edit it.', 'success')
+  }, [commit, toast])
+
+  const addGraphicObject = useCallback(
+    (glyph: string) => {
+      const l = makeGraphicLayer(glyph)
+      commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+      setSelectedIds([l.id])
+      toast(`${glyph} added.`, 'success')
+    },
+    [commit, toast],
+  )
+
+  const addImageObject = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith('image/')) {
+        toast('Please choose an image file.', 'info')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => {
+        const l = makeImageLayer(file.name, String(reader.result))
+        commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+        setSelectedIds([l.id])
+        toast('Image added to your design.', 'success')
+      }
+      reader.onerror = () => toast('Could not read that file.', 'info')
+      reader.readAsDataURL(file)
+    },
+    [commit, toast],
+  )
+
+  // Drag: push one history entry on the first move, then update live (no spam).
+  const dragStartedRef = useRef(false)
+  const liveObject = useCallback((id: string, patch: Partial<CanvasObject>) => {
+    const base = presentRef.current
+    const next: Snapshot = { ...base, layers: patchObject(base.layers, id, patch) }
+    if (!dragStartedRef.current) {
+      setPast((prev) => [...prev, base])
+      setFuture([])
+      dragStartedRef.current = true
+    }
+    presentRef.current = next
+    setPresent(next)
+  }, [])
+  const commitObject = useCallback(() => {
+    dragStartedRef.current = false
+  }, [])
+
+  const editObjectText = useCallback(
+    (id: string, text: string) => {
+      const base = presentRef.current
+      commit({
+        layers: base.layers.map((l) =>
+          l.id === id && l.obj ? { ...l, obj: { ...l.obj, text }, name: text.slice(0, 22) || 'Text' } : l,
+        ),
+        hidden: base.hidden,
+      })
+    },
+    [commit],
+  )
+
+  /** Patch a selected object's property from the inspector (committed). */
+  const setObjectProp = useCallback(
+    (id: string, patch: Partial<CanvasObject>) => {
+      const base = presentRef.current
+      commit({ layers: patchObject(base.layers, id, patch), hidden: base.hidden })
+    },
+    [commit],
+  )
+
   const activeGarment = useMemo(
     () => GARMENTS.find((g) => g.name === activeName) ?? GARMENTS[1],
     [activeName],
@@ -343,13 +440,16 @@ export function DesignStudio() {
 
   /** Drop a Drive asset onto the design: becomes a real, undoable layer. */
   const addAssetLayer = useCallback(
-    (asset: { name: string; folder: string }) => {
-      const type = asset.folder === 'My Logos' ? 'Logo' : asset.folder === 'Fonts' ? 'Text' : 'Graphic'
-      const layer: Layer = { id: `l-${Date.now().toString(36)}`, name: asset.name.replace(/\.[^.]+$/, ''), type }
-      commit({ layers: [layer, ...layers], hidden })
+    (asset: { name: string; folder: string; url?: string }) => {
+      // An asset with an image URL becomes a real, movable canvas object.
+      const layer: Layer = asset.url
+        ? makeImageLayer(asset.name, asset.url)
+        : { id: `l-${Date.now().toString(36)}`, name: asset.name.replace(/\.[^.]+$/, ''), type: asset.folder === 'My Logos' ? 'Logo' : 'Graphic' }
+      commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+      setSelectedIds([layer.id])
       toast(`“${layer.name}” added to the design.`, 'success')
     },
-    [commit, layers, hidden, toast],
+    [commit, toast],
   )
 
   function selectGarment(g: Garment) {
@@ -962,11 +1062,7 @@ export function DesignStudio() {
         <aside className="ds-left">
           {rail === 'Assets' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
           {rail === 'Brand' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
-          {rail === 'Graphics' && (
-            <GraphicsPanel
-              onAdd={(name) => addAssetLayer({ name, folder: 'Graphics' })}
-            />
-          )}
+          {rail === 'Graphics' && <GraphicsPanel onAdd={(name) => addGraphicObject(name)} />}
           {rail === 'Materials' && (
             <MaterialsPanel
               onApply={(m) => {
@@ -1112,8 +1208,8 @@ export function DesignStudio() {
             if (!asset && !graphic) return
             e.preventDefault()
             try {
-              if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string })
-              else addAssetLayer({ name: graphic, folder: 'Graphics' })
+              if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string; url?: string })
+              else addGraphicObject(graphic)
             } catch {
               /* malformed payload — ignore */
             }
@@ -1127,6 +1223,15 @@ export function DesignStudio() {
             designName={designName}
             onRenameDesign={setDesignName}
             saveState={saveState}
+            objects={objectLayers}
+            hiddenMap={hidden}
+            selectedObjId={activeLayer?.obj ? activeLayer.id : null}
+            onSelectObj={(id) => setSelectedIds(id ? [id] : [])}
+            onLiveObj={liveObject}
+            onCommitObj={commitObject}
+            onEditText={editObjectText}
+            onAddText={addTextObject}
+            onAddImage={addImageObject}
           />
         </div>
 
@@ -1147,7 +1252,21 @@ export function DesignStudio() {
         {/* Inspector — the selected object, or the garment itself */}
         {!rightHidden && (
         <aside className="ds-right">
-          {activeLayer ? (
+          {activeLayer?.obj ? (
+            <div className="ds-right__scroll">
+              <ObjectInspector
+                layer={activeLayer}
+                onChange={(patch) => setObjectProp(activeLayer.id, patch)}
+                onDelete={() => {
+                  const nextHidden = { ...hidden }
+                  delete nextHidden[activeLayer.id]
+                  commit({ layers: layers.filter((l) => l.id !== activeLayer.id), hidden: nextHidden })
+                  setSelectedIds([])
+                }}
+                onBack={() => setSelectedIds([])}
+              />
+            </div>
+          ) : activeLayer ? (
             <div className="ds-right__scroll">
               <ContextPanel
                 layer={activeLayer}

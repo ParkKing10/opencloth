@@ -1360,3 +1360,32 @@ select.ds-save__input {
     display: none;
   }
 }
+
+/* Command-palette trigger in the top bar. */
+.ds-cmdk {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--s-border, rgba(255, 255, 255, 0.12));
+  background: var(--s-inset, rgba(255, 255, 255, 0.04));
+  color: var(--s-text-3, #8a8b93);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+.ds-cmdk:hover {
+  color: var(--s-text, #f4f4f6);
+  border-color: var(--s-border-strong, rgba(255, 255, 255, 0.2));
+  background: var(--s-panel-2, rgba(255, 255, 255, 0.06));
+}
+.ds-cmdk kbd {
+  font-family: var(--s-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  color: var(--s-text-3, #8a8b93);
+  background: var(--s-panel, #14151b);
+  border: 1px solid var(--s-border, rgba(255, 255, 255, 0.1));
+  padding: 1px 5px;
+  border-radius: 5px;
+}

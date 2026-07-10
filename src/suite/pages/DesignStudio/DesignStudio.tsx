@@ -46,6 +46,7 @@ import { type PropField } from './GarmentInspector'
 import { GarmentInfoPanel } from './GarmentInfoPanel'
 import { RegionInspector } from '../GarmentLab/RegionInspector'
 import { ContextMenu, type MenuItem } from './ContextMenu'
+import { CommandPalette, type Command } from './CommandPalette'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
@@ -890,6 +891,12 @@ export function DesignStudio() {
     [commit, selectionRects, toast],
   )
 
+  // ---- Command palette (⌘K) — every action, searchable (commands built after selection state) ----
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const focusAiBar = useCallback(() => {
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.cb__input')?.focus())
+  }, [])
+
   // ---- Right-click context menu — surfaces the same wired ops at the point of intent ----
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const renameHandleRef = useRef<((id: string) => void) | null>(null)
@@ -1509,6 +1516,48 @@ export function DesignStudio() {
     toast('Redid change.')
   }, [future, present, toast, saveCurrentDoc])
 
+  // Every Studio action as a searchable command (⌘K). Each just calls the already-wired op, so
+  // they inherit undo + autosave + selection exactly like the toolbar, shortcuts and context menu.
+  const paletteCommands = useMemo<Command[]>(() => {
+    const hasSel = liveSelected.length > 0
+    const cmd = (id: string, label: string, run: () => void, opts?: Partial<Command>): Command => ({ id, label, run, ...opts })
+    return [
+      cmd('undo', 'Undo', undo, { hint: '⌘Z', group: 'Edit', disabled: !canUndo }),
+      cmd('redo', 'Redo', redo, { hint: '⌘⇧Z', group: 'Edit', disabled: !canRedo }),
+      cmd('add-text', 'Add text', addTextObject, { group: 'Insert', keywords: 'new type layer' }),
+      cmd('duplicate', 'Duplicate', duplicateSelection, { hint: '⌘D', group: 'Object', disabled: !hasSel }),
+      cmd('copy', 'Copy', copySelection, { hint: '⌘C', group: 'Object', disabled: !hasSel }),
+      cmd('cut', 'Cut', cutSelection, { hint: '⌘X', group: 'Object', disabled: !hasSel }),
+      cmd('paste', 'Paste', paste, { hint: '⌘V', group: 'Object', disabled: clipboardRef.current.length === 0 }),
+      cmd('delete', 'Delete', deleteSelection, { hint: '⌫', group: 'Object', disabled: !hasSel }),
+      cmd('select-all', 'Select all', selectAllObjects, { hint: '⌘A', group: 'Object' }),
+      cmd('group', 'Group', groupSelection, { hint: '⌘G', group: 'Arrange', disabled: selectedObjIds.length < 2 }),
+      cmd('ungroup', 'Ungroup', ungroupSelection, { hint: '⌘⇧G', group: 'Arrange', disabled: !hasSel }),
+      cmd('front', 'Bring to front', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'front'), { hint: '⌘⇧]', group: 'Arrange', disabled: !hasSel }),
+      cmd('forward', 'Bring forward', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'forward'), { hint: '⌘]', group: 'Arrange', disabled: !hasSel }),
+      cmd('backward', 'Send backward', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'backward'), { hint: '⌘[', group: 'Arrange', disabled: !hasSel }),
+      cmd('back', 'Send to back', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'back'), { hint: '⌘⇧[', group: 'Arrange', disabled: !hasSel }),
+      cmd('align-left', 'Align left', () => alignSelection('left'), { group: 'Align', keywords: 'distribute', disabled: !hasSel }),
+      cmd('align-center', 'Align centers', () => alignSelection('center'), { group: 'Align', disabled: !hasSel }),
+      cmd('align-right', 'Align right', () => alignSelection('right'), { group: 'Align', disabled: !hasSel }),
+      cmd('align-top', 'Align top', () => alignSelection('top'), { group: 'Align', disabled: !hasSel }),
+      cmd('align-middle', 'Align middles', () => alignSelection('middle'), { group: 'Align', disabled: !hasSel }),
+      cmd('align-bottom', 'Align bottom', () => alignSelection('bottom'), { group: 'Align', disabled: !hasSel }),
+      cmd('dist-h', 'Distribute horizontally', () => distributeSelection('h'), { group: 'Align', disabled: selectedObjIds.length < 3 }),
+      cmd('dist-v', 'Distribute vertically', () => distributeSelection('v'), { group: 'Align', disabled: selectedObjIds.length < 3 }),
+      cmd('flip-h', 'Flip horizontal', () => flipSelection('h'), { group: 'Object', disabled: !hasSel }),
+      cmd('flip-v', 'Flip vertical', () => flipSelection('v'), { group: 'Object', disabled: !hasSel }),
+      cmd('lock', 'Lock / unlock', toggleLockSelection, { group: 'Object', disabled: !hasSel }),
+      cmd('hide', 'Hide / show', toggleHideSelection, { group: 'Object', disabled: !hasSel }),
+      cmd('ask-ai', 'Ask THREADOS AI', focusAiBar, { group: 'AI', keywords: 'prompt command generate' }),
+      cmd('save', 'Save design…', () => setSaveOpen(true), { group: 'File', keywords: 'store collection' }),
+    ]
+  }, [
+    liveSelected, selectedObjIds.length, canUndo, canRedo, undo, redo, addTextObject, duplicateSelection, copySelection,
+    cutSelection, paste, deleteSelection, selectAllObjects, groupSelection, ungroupSelection, arrangeLayer, alignSelection,
+    distributeSelection, flipSelection, toggleLockSelection, toggleHideSelection, focusAiBar,
+  ])
+
   // ---- Keyboard shortcuts (skipped while typing) ----
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -1517,6 +1566,11 @@ export function DesignStudio() {
       const mod = e.metaKey || e.ctrlKey
       const k = e.key.toLowerCase()
 
+      if (mod && k === 'k') {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+        return
+      }
       if (mod && k === 'z') {
         e.preventDefault()
         if (e.shiftKey) redo()
@@ -1957,6 +2011,14 @@ export function DesignStudio() {
         </div>
 
         <div className="ds-top__right">
+          <button className="ds-cmdk" type="button" title="Command palette (⌘K)" onClick={() => setPaletteOpen(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+            <span>Actions</span>
+            <kbd>⌘K</kbd>
+          </button>
           <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
             New
           </button>
@@ -2479,6 +2541,9 @@ export function DesignStudio() {
 
       {/* Right-click context menu */}
       {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />}
+
+      {/* Command palette (⌘K) */}
+      <CommandPalette open={paletteOpen} commands={paletteCommands} onClose={() => setPaletteOpen(false)} />
     </div>
   )
 }

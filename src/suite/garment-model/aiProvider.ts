@@ -196,9 +196,14 @@ class OpenAiProvider implements AiGarmentProvider {
     }
   }
 
-  /** Any failure degrades to the deterministic placeholder — the caller always gets a real result. */
-  private fallback(garment: EditableGarment, prompt: string, _reason: string): AiEditResult {
-    return placeholderEdit(garment, prompt)
+  /**
+   * Any failure degrades to the deterministic placeholder — the caller always gets a real result,
+   * and the WHY is surfaced in the summary (an invalid key or timeout must never look like a
+   * normal AI edit).
+   */
+  private fallback(garment: EditableGarment, prompt: string, reason: string): AiEditResult {
+    const r = placeholderEdit(garment, prompt)
+    return { ...r, summary: [...r.summary, `OpenAI unavailable (${reason}) — used the built-in editor instead.`] }
   }
 
   /**

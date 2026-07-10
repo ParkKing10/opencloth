@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
 import { downloadCsv, downloadJson, downloadText, slugify } from '../../lib/download'
+import { useStorageEstimate, formatBytes as formatBytesLabel } from '../../lib/useStorageEstimate'
 import { AiSettings } from './AiSettings'
 import {
   IcoSettings,
@@ -486,6 +487,7 @@ export function Settings() {
   const coins = user?.coins ?? 0
   const coinCap = planName === 'Scale' ? 100000 : planName === 'Studio' ? 25000 : 2500
   const coinPct = Math.min(100, Math.round((coins / coinCap) * 100))
+  const storage = useStorageEstimate() // real browser storage — no fabricated GB figures
   const memberCount = members.length + 1 // + the owner (you)
 
   /* -- Download invoice: real text file for the latest billing cycle -- */
@@ -1020,12 +1022,27 @@ export function Settings() {
                       Storage
                     </span>
                     <span className="set-meter__val">
-                      <b>17.2 GB</b> / 20 GB
+                      {storage.ready ? (
+                        storage.pct !== null ? (
+                          <>
+                            <b>{storage.usedLabel}</b> / {formatBytesLabel(storage.quotaBytes)}
+                          </>
+                        ) : (
+                          <b>{storage.usedLabel}</b>
+                        )
+                      ) : (
+                        <b>Measuring…</b>
+                      )}
                     </span>
                   </div>
-                  <div className="set-bar">
-                    <span className="set-bar__fill set-bar__fill--warn" style={{ width: '86%' }} />
-                  </div>
+                  {storage.pct !== null && (
+                    <div className="set-bar">
+                      <span
+                        className={`set-bar__fill${storage.pct >= 85 ? ' set-bar__fill--warn' : ''}`}
+                        style={{ width: `${Math.max(2, storage.pct)}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

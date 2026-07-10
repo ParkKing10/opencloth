@@ -19,6 +19,7 @@ import {
   IcoLogout,
 } from './ui/Icons'
 import { useAuth } from '../auth/auth'
+import { useStorageEstimate } from '../lib/useStorageEstimate'
 import './sidebar.css'
 
 type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: string }
@@ -49,7 +50,8 @@ export function Sidebar() {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const storagePct = user?.plan === 'Free' ? 34 : 72
+  // Real browser-reported storage for this workspace — never a fabricated figure.
+  const storage = useStorageEstimate()
 
   return (
     <aside className="sb">
@@ -106,11 +108,15 @@ export function Sidebar() {
           <div className="sb__storage">
             <div className="sb__storage-top">
               <span>Storage</span>
-              <span className="sb__storage-pct">{storagePct}%</span>
+              <span className="sb__storage-pct" title={storage.ready ? storage.label : 'Measuring…'}>
+                {!storage.ready ? '…' : storage.pct && storage.pct > 0 ? `${storage.pct}%` : storage.usedLabel}
+              </span>
             </div>
-            <div className="sb__bar">
-              <span style={{ width: `${storagePct}%` }} />
-            </div>
+            {storage.pct !== null && (
+              <div className="sb__bar">
+                <span style={{ width: `${Math.max(2, storage.pct)}%` }} />
+              </div>
+            )}
           </div>
         </div>
 

@@ -356,15 +356,20 @@ export function Settings() {
     toast(`Upgraded to the ${target} plan`, 'success')
   }
 
-  /* -- Billing history: real CSV download of invoices -- */
+  /* -- Billing history: exports the REAL account state. No payment processor is wired yet,
+     so there are no charges to invent — the export reflects the current plan only. -- */
   const billingHistory = () => {
     const rows = [
-      { invoice: 'INV-2026-07', date: '2026-07-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
-      { invoice: 'INV-2026-06', date: '2026-06-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
-      { invoice: 'INV-2026-05', date: '2026-05-07', plan: `${planName} plan`, amount: planPriceLabel, status: 'Paid' },
+      {
+        plan: `${planName} plan`,
+        listPrice: planPriceLabel,
+        status: planName === 'Free' ? 'Free — no charges' : 'Active — billing not connected',
+        chargesProcessed: 'None',
+        exportedAt: new Date().toISOString().slice(0, 10),
+      },
     ]
-    downloadCsv(rows, 'threados-billing-history.csv')
-    toast('Billing history exported', 'success')
+    downloadCsv(rows, 'threados-plan-summary.csv')
+    toast('Plan summary exported — no charges have been processed yet.', 'info')
   }
 
   /* -- Documentation: real navigation to the docs site -- */
@@ -490,31 +495,31 @@ export function Settings() {
   const storage = useStorageEstimate() // real browser storage — no fabricated GB figures
   const memberCount = members.length + 1 // + the owner (you)
 
-  /* -- Download invoice: real text file for the latest billing cycle -- */
+  /* -- Download a plan summary. There is no payment processor wired yet, so this is an honest
+     account summary — not a paid tax invoice with an invented card. -- */
   const downloadInvoice = () => {
     if (!user) return
     const now = new Date()
-    const invoiceNo = `INV-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const body = [
-      'THREADOS — INVOICE',
-      '===================',
+      'THREADOS — PLAN SUMMARY',
+      '=======================',
       '',
-      `Invoice:      ${invoiceNo}`,
       `Date:         ${now.toISOString().slice(0, 10)}`,
-      `Billed to:    ${user.name} <${user.email}>`,
+      `Account:      ${user.name} <${user.email}>`,
       `Workspace:    ${workspaceName}`,
       '',
-      'Description                         Amount',
+      'Plan                                List price',
       '-------------------------------------------',
       `${planName} plan (monthly)`.padEnd(36) + planPriceLabel,
       '-------------------------------------------',
-      `Total`.padEnd(36) + planPriceLabel,
       '',
-      'Paid · Visa ending 4429',
+      'Billing is not connected yet — no payment has been processed and no',
+      'card is on file. This document is a plan summary, not a tax invoice.',
+      '',
       'Thank you for building with THREADOS.',
     ].join('\n')
-    downloadText(body, `${invoiceNo.toLowerCase()}-threados.txt`)
-    toast('Invoice downloaded', 'success')
+    downloadText(body, `threados-plan-summary-${now.toISOString().slice(0, 10)}.txt`)
+    toast('Plan summary downloaded — no payment has been processed.', 'info')
   }
 
   return (
@@ -972,7 +977,7 @@ export function Settings() {
                 <p>Your current subscription and monthly usage.</p>
               </div>
               <button className="s-btn s-btn--subtle" type="button" onClick={billingHistory}>
-                Billing history
+                Export plan summary
               </button>
             </div>
             <div className="set-card__body">
@@ -1047,10 +1052,14 @@ export function Settings() {
               </div>
 
               <div className="set-billing-foot">
-                <span className="set-billing-foot__note">Renews Aug 7, 2026 · Visa ending 4429</span>
+                <span className="set-billing-foot__note">
+                  {planName === 'Free'
+                    ? 'Free plan — no billing set up.'
+                    : 'Billing isn’t connected yet — no card on file, no charges processed.'}
+                </span>
                 <div className="set-billing-foot__actions">
                   <button className="s-btn s-btn--subtle" type="button" onClick={downloadInvoice}>
-                    <IcoUpload width="15" height="15" /> Download invoice
+                    <IcoUpload width="15" height="15" /> Download plan summary
                   </button>
                   {nextPlan(planName as Plan) ? (
                     <button className="s-btn s-btn--accent" type="button" onClick={upgrade}>

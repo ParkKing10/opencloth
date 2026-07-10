@@ -1,0 +1,183 @@
+.go-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in oklab, #05060a 62%, transparent);
+  backdrop-filter: blur(6px);
+  animation: go-fade var(--duration-fast, 150ms) ease;
+}
+.go-card {
+  width: min(480px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 28px 28px 20px;
+  border-radius: 18px;
+  background: var(--s-panel, #14151b);
+  border: 1px solid var(--s-border, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 32px 80px -24px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  animation: go-rise var(--duration-normal, 260ms) var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.go-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--s-accent, #d1f94f);
+  margin-bottom: 10px;
+}
+.go-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--s-text, #f4f4f6);
+}
+.go-lede {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--s-text-2, #b6b7be);
+}
+.go-steps {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.go-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--s-inset, var(--s-panel-2, rgba(255, 255, 255, 0.03)));
+  border: 1px solid var(--s-border, rgba(255, 255, 255, 0.06));
+}
+.go-step__tag {
+  flex: 0 0 auto;
+  min-width: 40px;
+  height: 24px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  background: var(--s-accent, #d1f94f);
+  color: var(--s-accent-ink, #14141a);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.go-step__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.go-step__text b {
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--s-text, #f4f4f6);
+}
+.go-step__text small {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--s-text-3, #8a8b93);
+}
+.go-note {
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--s-text-3, #8a8b93);
+}
+.go-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.go-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--s-text-2, #b6b7be);
+  cursor: pointer;
+  user-select: none;
+}
+.go-check input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--s-accent, #d1f94f);
+  cursor: pointer;
+}
+.go-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.go-btn {
+  padding: 9px 18px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background var(--duration-fast, 150ms) ease, transform var(--duration-fast, 150ms) ease, border-color var(--duration-fast, 150ms) ease;
+}
+.go-btn:active {
+  transform: translateY(1px);
+}
+.go-btn--ghost {
+  background: transparent;
+  border-color: var(--s-border, rgba(255, 255, 255, 0.12));
+  color: var(--s-text-2, #b6b7be);
+}
+.go-btn--ghost:hover {
+  background: var(--s-panel-2, rgba(255, 255, 255, 0.04));
+  color: var(--s-text, #f4f4f6);
+}
+.go-btn--accent {
+  background: var(--s-accent, #d1f94f);
+  color: var(--s-accent-ink, #14141a);
+}
+.go-btn--accent:hover {
+  filter: brightness(1.05);
+}
+.go-btn--accent:focus-visible {
+  outline: 2px solid var(--s-accent, #d1f94f);
+  outline-offset: 2px;
+}
+
+@keyframes go-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes go-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .go-overlay,
+  .go-card {
+    animation: none;
+  }
+}

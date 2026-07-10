@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../../components/ui/Toast'
+import { GuidedOverlay, type GuidedStep } from '../../components/ui/GuidedOverlay'
+import { useOnceFlag } from '../../lib/useOnceFlag'
 import { downloadBlob } from '../../lib/download'
 import type { ProductSpecs, ProjectInfo } from '../../pages/DesignStudio/designDoc'
 import { slug, type RealExportProject } from '../real/exportProject'
@@ -19,6 +21,13 @@ type Props = {
 
 type PngMode = 'current' | 'front' | 'back' | 'all' | 'design'
 
+/** The primer's three cards mirror the real menu below — for the factory, the spec, the mockup. */
+const EXPORT_STEPS: GuidedStep[] = [
+  { tag: '.ZIP', title: 'Manufacturing Package', desc: 'For the factory — a guided 3-step bundle with every production file.' },
+  { tag: 'PDF', title: 'Tech Pack', desc: 'For your spec — the full production document in one PDF.' },
+  { tag: 'PNG', title: 'Design Export', desc: 'For mockups and social — the garment or the artwork alone, up to 4×.' },
+]
+
 /**
  * The Export control. Three real exports: ⭐ Manufacturing Package (opens a 3-step wizard),
  * Tech Pack (PDF), Design Export (PNG with a single-choice mode picker). Every file is built
@@ -30,7 +39,26 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
   const [view, setView] = useState<'menu' | 'png'>('menu')
   const [wizardOpen, setWizardOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [primerOpen, setPrimerOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+
+  // One-time primer explaining the three real export destinations. Experienced users who
+  // dismiss it never see it again.
+  const primer = useOnceFlag('threados-export-primer-v1')
+
+  /** Export click: first-timers get the primer; everyone else opens the menu straight away. */
+  function handleExportClick() {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    if (!primer.seen) {
+      setPrimerOpen(true)
+      return
+    }
+    setOpen(true)
+    setView('menu')
+  }
 
   // PNG options
   const [pngMode, setPngMode] = useState<PngMode>('current')
@@ -122,10 +150,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => {
-          setOpen((o) => !o)
-          setView('menu')
-        }}
+        onClick={handleExportClick}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
@@ -219,6 +244,25 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
         onPatchSpec={onPatchSpec}
         onClose={() => setWizardOpen(false)}
         onGenerate={runPackage}
+      />
+
+      <GuidedOverlay
+        open={primerOpen}
+        eyebrow="Before you export"
+        title="Where is this design going?"
+        lede="Three real exports, each built from your current design. Pick by who receives it."
+        steps={EXPORT_STEPS}
+        continueLabel="Choose an export"
+        onContinue={(dontShowAgain) => {
+          if (dontShowAgain) primer.markSeen()
+          setPrimerOpen(false)
+          setOpen(true)
+          setView('menu')
+        }}
+        onSkip={(dontShowAgain) => {
+          if (dontShowAgain) primer.markSeen()
+          setPrimerOpen(false)
+        }}
       />
     </div>
   )

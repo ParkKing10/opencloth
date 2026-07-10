@@ -91,14 +91,21 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
       setWizardOpen(false)
     })
 
-  // Honest per-view availability: THREADOS shows a single combined garment view, so separate
-  // front/back/all-views renders aren't possible yet — shown but clearly disabled.
+  // Honest per-view availability: the export captures the live stage, so a specific view is
+  // exported by SWITCHING the canvas to it first (the view tabs render real per-view backdrops).
+  // Dedicated one-click per-view renders are a later enhancement — disabled with real guidance.
   const v = project.garment.views
+  const switchHint = (label: string) =>
+    v.front && v.back
+      ? `Switch the canvas to ${label} (Garment Views) and use Current View`
+      : v.combinedFrontBack
+        ? 'One combined flat — use Current View'
+        : `No ${label.toLowerCase()} view`
   const pngModes: { id: PngMode; label: string; desc: string; available: boolean; reason?: string }[] = [
     { id: 'current', label: 'Current View', desc: 'Exactly what you see now', available: true },
-    { id: 'front', label: 'Front', desc: 'Front view only', available: false, reason: v.front || v.combinedFrontBack ? 'One combined view — use Current View' : 'No front view' },
-    { id: 'back', label: 'Back', desc: 'Back view only', available: false, reason: v.back || v.combinedFrontBack ? 'One combined view — use Current View' : 'No back view' },
-    { id: 'all', label: 'All Views', desc: 'Every available garment view', available: false, reason: 'This garment has a single combined view' },
+    { id: 'front', label: 'Front', desc: 'Front view only', available: false, reason: switchHint('Front') },
+    { id: 'back', label: 'Back', desc: 'Back view only', available: false, reason: switchHint('Back') },
+    { id: 'all', label: 'All Views', desc: 'Every available garment view', available: false, reason: 'Export each view via Current View for now' },
     { id: 'design', label: 'Printable Design Only', desc: 'Transparent PNG, no garment', available: true },
   ]
 

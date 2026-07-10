@@ -7,7 +7,7 @@ import { pathBounds, isClosedPath, pointInPolygon } from './pathGeometry'
 import { applyMatrixToPath, parseTransform } from './svgTransform'
 import { flattenRegions } from '../regionTree'
 import { isEditableGarment } from '../editableGarment'
-import { TECH_FLAT_TEE_SVG } from './__fixtures__/techFlatTee'
+import { TECH_FLAT_TEE_SVG, HOODED_JACKET_SVG } from './__fixtures__/techFlatTee'
 
 // jsdom-free storage + crypto shims (node env) so the createGarment round-trip works.
 class MemoryStorage {
@@ -150,6 +150,25 @@ describe('smartGarmentMapping', () => {
   it('reports real numbers', () => {
     expect(report.regionCount).toBe(9)
     expect(report.types.button).toBe(4)
+  })
+})
+
+describe('fuller taxonomy (hooded zip jacket)', () => {
+  const cg = classifyGraph(readSvg(HOODED_JACKET_SVG))
+  const types = cg.report.types
+  it('detects hood, zipper, waistband, pockets and cuffs', () => {
+    expect(types.body).toBe(1)
+    expect(types.sleeve).toBe(2)
+    expect(types.hood).toBe(1)
+    expect(types.zipper).toBe(1)
+    expect(types.waistband).toBe(1)
+    expect(types.pocket).toBe(2)
+    expect(types.cuff).toBe(2)
+  })
+  it('maps cleanly to a valid editable garment', () => {
+    const { garment } = mapClassifiedToEditable(cg, 'Zip Hoodie', 'Outerwear')
+    expect(isEditableGarment(garment)).toBe(true)
+    expect(flattenRegions(garment).length).toBe(10)
   })
 })
 

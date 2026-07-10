@@ -44,6 +44,9 @@ type Feat = {
   axisDist: number
   aspect: number
   circ: number
+  /** Fraction of the garment's width / height this shape spans. */
+  wSpan: number
+  hSpan: number
   closed: boolean
   side: 'left' | 'right' | 'center'
 }
@@ -68,6 +71,8 @@ function features(graph: VectorGraph): Feat[] {
       axisDist: Math.abs(nx - 0.5),
       aspect: w / h,
       circ: Math.min(w, h) / Math.max(w, h),
+      wSpan: gb.w > 0 ? p.bounds.w / gb.w : 0,
+      hSpan: gb.h > 0 ? p.bounds.h / gb.h : 0,
       closed: p.closed,
       side: nx < 0.42 ? 'left' : nx > 0.58 ? 'right' : 'center',
     }
@@ -145,13 +150,58 @@ export function classifyGraph(graph: VectorGraph): ClassifiedGarment {
     }
   }
 
-  // ---- Collar: small central shape near the top, not already labelled. ----
-  const collarCand = rest
-    .filter((f) => !regions[f.i] && f.axisDist < 0.24 && f.ny < 0.3 && f.areaRatio < 0.22)
+  // ---- Hood or Collar: top-centre shape. Large ⇒ hood, small ⇒ collar. ----
+  const topCand = rest
+    .filter((f) => !regions[f.i] && f.axisDist < 0.26 && f.ny < 0.32 && f.areaRatio < 0.35)
     .sort((a, b) => a.ny - b.ny)
-  if (collarCand[0]) {
-    const f = collarCand[0]
-    regions[f.i] = { pathIndex: f.i, type: 'collar', role: 'detail', confidence: clampConf(0.82 + (f.ny < 0.15 ? 0.13 : 0.05)), parentIndex: null, side: 'center', name: 'Collar' }
+  if (topCand[0]) {
+    const f = topCand[0]
+    if (f.areaRatio > 0.06 && f.ny < 0.22) {
+      regions[f.i] = { pathIndex: f.i, type: 'hood', role: 'fill', confidence: clampConf(0.8 + f.wSpan * 0.15), parentIndex: null, side: 'center', name: 'Hood' }
+    } else {
+      regions[f.i] = { pathIndex: f.i, type: 'collar', role: 'detail', confidence: clampConf(0.82 + (f.ny < 0.15 ? 0.13 : 0.05)), parentIndex: null, side: 'center', name: 'Collar' }
+    }
+  }
+
+  // ---- Zipper: a tall, thin, closed shape straddling the centre line. ----
+  for (const f of rest) {
+    if (regions[f.i]) continue
+    if (f.aspect < 0.28 && f.axisDist < 0.16 && f.hSpan > 0.35) {
+      regions[f.i] = { pathIndex: f.i, type: 'zipper', role: 'detail', confidence: clampConf(0.8 + (0.28 - f.aspect)), parentIndex: null, side: 'center', name: 'Zipper' }
+    }
+  }
+
+  // ---- Waistband / hem: a wide, thin band across the bottom. ----
+  for (const f of rest) {
+    if (regions[f.i]) continue
+    if (f.aspect > 3.2 && f.wSpan > 0.5 && f.ny > 0.76) {
+      regions[f.i] = { pathIndex: f.i, type: 'waistband', role: 'fill', confidence: clampConf(0.8 + f.wSpan * 0.15), parentIndex: null, side: 'center', name: 'Waistband' }
+    }
+  }
+
+  // ---- Pockets: medium shapes sitting inside the body, in its lower half. ----
+  for (const f of rest) {
+    if (regions[f.i]) continue
+    if (parents[f.i] === bodyIdx && f.areaRatio >= 0.004 && f.areaRatio <= 0.08 && f.ny > 0.42 && f.aspect > 0.5 && f.aspect < 2.2) {
+      regions[f.i] = { pathIndex: f.i, type: 'pocket', role: 'detail', confidence: clampConf(0.78 + (f.ny > 0.55 ? 0.12 : 0.04)), parentIndex: null, side: f.side, name: 'Pocket' }
+    }
+  }
+
+  // ---- Cuffs: small shapes at the wrist end of a sleeve. ----
+  const sleeveFeats = closed.filter((f) => regions[f.i]?.type === 'sleeve')
+  for (const f of rest) {
+    if (regions[f.i]) continue
+    if (f.areaRatio > 0.05) continue
+    const nearSleeveEnd = sleeveFeats.some((s) => {
+      const sb = graph.paths[s.i].bounds
+      const fb = graph.paths[f.i].bounds
+      const overlapX = fb.minX < sb.minX + sb.w && fb.minX + fb.w > sb.minX
+      const nearBottom = Math.abs(fb.minY + fb.h - (sb.minY + sb.h)) < sb.h * 0.35
+      return overlapX && nearBottom
+    })
+    if (nearSleeveEnd) {
+      regions[f.i] = { pathIndex: f.i, type: 'cuff', role: 'detail', confidence: 0.75, parentIndex: null, side: f.side, name: f.side === 'right' ? 'Right Cuff' : 'Left Cuff' }
+    }
   }
 
   // ---- Remaining closed shapes: honest editable panels (never mislabelled). ----

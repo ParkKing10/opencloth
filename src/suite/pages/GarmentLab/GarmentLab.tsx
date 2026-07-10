@@ -264,7 +264,11 @@ export function GarmentLab() {
           onHighlight={setHighlightId}
           onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), `${getRegion(garment, id)?.visible ? 'Hid' : 'Showed'} ${nameOf(id)}`)}
           onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), `${getRegion(garment, id)?.locked ? 'Unlocked' : 'Locked'} ${nameOf(id)}`)}
-          onMove={(id, dir) => hist.commitManual(moveRegion(garment, id, dir), `Reordered ${nameOf(id)}`)}
+          onMove={(id, dir) => {
+            // moveRegion returns the SAME garment at the ends — never commit a no-op revision.
+            const next = moveRegion(garment, id, dir)
+            if (next !== garment) hist.commitManual(next, `Reordered ${nameOf(id)}`)
+          }}
           onRename={(id, name) => hist.replaceCurrent(rename(garment, id, name))}
         />
 

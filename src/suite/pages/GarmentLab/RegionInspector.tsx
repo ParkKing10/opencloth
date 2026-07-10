@@ -3,6 +3,7 @@
  * view presence) and a REAL per-region colour picker. Material/texture/embroidery/print remain
  * honest future-capability slots (disabled), so nothing is faked.
  */
+import { useEffect, useState } from 'react'
 import type { EditableGarment, RegionCapabilities } from '../../garment-model/editableGarment'
 import { getRegion } from '../../garment-model/regionTree'
 import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
@@ -27,6 +28,17 @@ type Props = {
 export function RegionInspector({ garment, selectedId, onRename, onToggleVisible, onToggleLocked, onSetColor }: Props) {
   const region = selectedId ? getRegion(garment, selectedId) : undefined
 
+  // Rename uses a local draft committed on blur/Enter — committing per keystroke would trim
+  // spaces as you type ("Left Sleeve" became "LeftSleeve") and made the field impossible to clear.
+  const [nameDraft, setNameDraft] = useState<string | null>(null)
+  useEffect(() => setNameDraft(null), [selectedId])
+  const commitName = () => {
+    if (nameDraft !== null && region && nameDraft.trim() && nameDraft.trim() !== region.name) {
+      onRename(region.id, nameDraft)
+    }
+    setNameDraft(null)
+  }
+
   if (!region) {
     return (
       <aside className="eg-inspector">
@@ -42,8 +54,13 @@ export function RegionInspector({ garment, selectedId, onRename, onToggleVisible
       <span className="eg-inspector__eyebrow">Region</span>
       <input
         className="eg-inspector__name"
-        value={region.name}
-        onChange={(e) => onRename(region.id, e.target.value)}
+        value={nameDraft ?? region.name}
+        onChange={(e) => setNameDraft(e.target.value)}
+        onBlur={commitName}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commitName()
+          if (e.key === 'Escape') setNameDraft(null)
+        }}
         aria-label="Region name"
       />
       <div className="eg-inspector__rows">

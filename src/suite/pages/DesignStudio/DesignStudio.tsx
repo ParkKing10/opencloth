@@ -1025,11 +1025,11 @@ export function DesignStudio() {
     toast(`Loaded ${g.name} blank onto the canvas.`, 'success')
   }
 
+  /** '+' in the Layers panel adds REAL content — an editable text object on the canvas. An
+   *  obj-less layer could never render or receive content (a permanent dead-end), so we never
+   *  create one from a user action. */
   function addLayer() {
-    const n = layers.filter((l) => l.type === 'Graphic').length + 1
-    const layer: Layer = { id: `l-${Date.now().toString(36)}`, name: `New Graphic ${n}`, type: 'Graphic' }
-    commit({ layers: [layer, ...layers], hidden })
-    toast('Layer added — drop a graphic or type onto it.', 'success')
+    addTextObject()
   }
 
   // ---- Selection + smart context panel ----
@@ -1295,7 +1295,9 @@ export function DesignStudio() {
   async function shareDesign() {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      toast('Link copied — anyone with it can view this design.', 'success')
+      // Honest: designs are stored on this device today — the link opens the studio, it does not
+      // carry the design to other people. Server-backed sharing is a later milestone.
+      toast('Link copied — it opens the studio on this device. Cross-device sharing is coming.', 'info')
     } catch {
       toast('Could not copy the link. Copy it from the address bar.', 'info')
     }

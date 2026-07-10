@@ -16,6 +16,7 @@ import { getRegion, moveRegion, rename, setRegionColor, toggleLocked, toggleVisi
 import { addRootRegion, mapRegionShapes } from '../../garment-model/regionEdit'
 import { translateD } from '../../garment-model/pathTransform'
 import { loadReferenceGarment, FUTURE_PIPELINE_STAGES } from '../../garment-model/garmentGenerator'
+import { saveHistory } from '../../garment-model/garmentDocumentStore'
 import { isEmptyGarment, generateGarment, isLiveAi, GENERATION_PHASES } from '../../garment-model/garmentGeneration'
 import { buildFromTemplate } from '../../garment-model/garmentFactory'
 import { getGarment, toggleFavorite, updateGarmentOrigin, type GarmentOrigin, type GarmentSummary } from '../../garment-model/garmentLibrary'
@@ -230,12 +231,24 @@ export function GarmentLab() {
         onBack={() => navigate('/suite/garments')}
         onRename={handleRename}
         onToggleFavorite={handleFavorite}
-        onSave={() => toast('All changes are saved automatically.', 'success')}
+        onSave={() => {
+          // Save reports the REAL storage outcome, including quota pruning.
+          const r = saveHistory(hist.history)
+          if (!r.ok) toast('Could not save — browser storage is full. Export a .threados backup.', 'info')
+          else if (r.pruned) toast('Saved — storage was tight, so the oldest revisions were pruned.', 'info')
+          else toast('All changes saved.', 'success')
+        }}
         onUndo={hist.undo}
         onRedo={hist.redo}
         onSetView={(id) => setView(id as GarmentViewId)}
         onOpenDesignStudio={openDesignStudio}
-        onExportPng={() => void exportGarmentFlatPng(garment).then(() => toast('Garment flat exported (PNG).', 'success')).catch(() => toast('Could not export the flat.', 'info'))}
+        onExportPng={() => {
+          // Export what the user is looking at — the Back tab exports the back view.
+          const toExport = view === 'back' ? { ...garment, views: [...garment.views].reverse() } : garment
+          void exportGarmentFlatPng(toExport)
+            .then(() => toast(`Garment flat exported (PNG, ${view === 'back' ? 'back' : 'front'} view).`, 'success'))
+            .catch(() => toast('Could not export the flat.', 'info'))
+        }}
         onExportThreados={() => {
           try {
             exportGarmentThreados(garment)

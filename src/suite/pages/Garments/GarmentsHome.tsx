@@ -73,6 +73,18 @@ export function GarmentsHome() {
     if (userId) setGarments(listGarments(userId))
   }, [userId])
 
+  // An open kebab menu closes on ANY outside click (search box, sort bar, page background) —
+  // not only clicks inside the card grid.
+  useEffect(() => {
+    if (!menuId) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null
+      if (!t?.closest('.gm-menu') && !t?.closest('.gm-kebab')) setMenuId(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [menuId])
+
   // Create a garment = start an empty editable garment and open the editor directly (no wizard).
   // Inside the editor the user picks a creation method: Create with AI, Draw, or Import (Part 5).
   const createNew = useCallback(() => {
@@ -209,8 +221,22 @@ export function GarmentsHome() {
                     <div className="gm-menu" role="menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" role="menuitem" onClick={() => { setMenuId(null); open(g.id) }}>Open</button>
                       <button type="button" role="menuitem" onClick={() => { setMenuId(null); setRenamingId(g.id); setRenameText(g.name) }}>Rename</button>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); duplicateGarment(userId, g.id); refresh(); toast('Garment duplicated.', 'success') }}>Duplicate</button>
-                      <button type="button" role="menuitem" className="gm-menu__danger" onClick={() => { setMenuId(null); deleteGarment(userId, g.id); refresh(); toast('Garment deleted.') }}>Delete</button>
+                      <button type="button" role="menuitem" onClick={() => {
+                        setMenuId(null)
+                        const dup = duplicateGarment(userId, g.id)
+                        refresh()
+                        // Honest feedback: only claim success when the duplicate actually exists.
+                        if (dup) toast(`Duplicated as “${dup.name}”.`, 'success')
+                        else toast('Could not duplicate this garment.', 'info')
+                      }}>Duplicate</button>
+                      <button type="button" role="menuitem" className="gm-menu__danger" onClick={() => {
+                        setMenuId(null)
+                        // Deleting destroys the garment AND its whole revision history — confirm first.
+                        if (!window.confirm(`Delete “${g.name}”? This removes the garment and its entire edit history. This cannot be undone.`)) return
+                        deleteGarment(userId, g.id)
+                        refresh()
+                        toast(`Deleted “${g.name}”.`)
+                      }}>Delete</button>
                     </div>
                   )}
                 </div>

@@ -1,7 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { IcoChevron, IcoPlus, IcoSearch } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
+import { GRAPHIC_MARKS, type CanvasObject } from './objectModel'
 import './layers.css'
+
+/** A small preview of a layer's content — text glyph, image, or graphic mark. */
+function LayerThumb({ obj }: { obj: CanvasObject }) {
+  if (obj.type === 'image' && obj.src) {
+    return <span className="lp-row__thumb"><img src={obj.src} alt="" /></span>
+  }
+  if (obj.type === 'graphic' && obj.glyph && GRAPHIC_MARKS[obj.glyph]) {
+    return (
+      <span className="lp-row__thumb" style={{ color: obj.color || 'currentColor' }}>
+        <svg viewBox="0 0 100 100" dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph] }} />
+      </span>
+    )
+  }
+  // text (or a graphic with no mark): show the first glyph on a chip
+  const ch = (obj.text?.trim()?.[0] ?? 'T').toUpperCase()
+  return (
+    <span className="lp-row__thumb lp-row__thumb--text" style={{ color: obj.color || undefined }}>
+      {ch}
+    </span>
+  )
+}
 
 /** One entry in the layer stack. A group is a layer of type 'Group'; members point at it. */
 export type Layer = {
@@ -449,6 +471,8 @@ export function LayersPanel({
                   }}
                 />
               )}
+
+              {!isGroup && layer.obj && <LayerThumb obj={layer.obj} />}
 
               <span className="lp-row__text">
                 {renaming === layer.id ? (

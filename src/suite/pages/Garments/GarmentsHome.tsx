@@ -105,11 +105,11 @@ export function GarmentsHome() {
       setImporting(true)
       try {
         const read = await readGarmentFile(file)
-        if (read.kind !== 'svg' || !read.text) {
-          toast('Direct .ai / .pdf analysis is coming — export an SVG from Illustrator for now.', 'info')
+        if (read.kind === 'unknown') {
+          toast('Unsupported file — upload an SVG, AI or PDF garment flat.', 'info')
           return
         }
-        const { garment, report } = await analyzeGarment({ text: read.text, filename: file.name })
+        const { garment, report } = await analyzeGarment({ text: read.text, bytes: read.bytes, filename: file.name })
         const summary = createGarment(userId, garment, { name: garment.name, category: garment.category, origin: 'upload' })
         refresh()
         if (report.regionCount > 0) {

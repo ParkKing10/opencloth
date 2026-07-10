@@ -132,7 +132,8 @@ function fromSvg(blob: Blob): Promise<Blob> {
 }
 
 let pdfReady: Promise<typeof import('pdfjs-dist')> | null = null
-function loadPdfjs(): Promise<typeof import('pdfjs-dist')> {
+/** Lazily load pdf.js + its worker once. Shared by the preview rasterizer and the vector reader. */
+export function loadPdfjs(): Promise<typeof import('pdfjs-dist')> {
   if (!pdfReady) {
     pdfReady = (async () => {
       const pdfjs = await import('pdfjs-dist')

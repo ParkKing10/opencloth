@@ -22,17 +22,19 @@ export async function analyzeGarment(input: AnalyzeInput, opts?: { name?: string
   const name = opts?.name ?? prettyName(input.filename)
   const category = opts?.category ?? 'Imported'
   try {
-    if (input.text) {
-      const graph = readSvg(input.text)
-      // Need at least a couple of real primitives to attempt an analysis.
-      if (graph.paths.length >= 2 && graph.bounds.w > 0) {
-        const classified = classifyGraph(graph)
-        const mapped = mapClassifiedToEditable(classified, name, category)
-        const normalized = normalizeGarment(mapped.garment)
-        if (normalized) return { garment: normalized, report: mapped.report }
-      }
+    let graph = input.text ? readSvg(input.text) : null
+    // .ai / .pdf → pdf.js vector extraction (lazy import so the SVG path + node tests never load it).
+    if (!graph && input.bytes) {
+      const { readPdfVector } = await import('./pdfVectorReader')
+      graph = await readPdfVector(input.bytes)
     }
-    // Phase 2 will branch on input.bytes → pdf.js vector extraction here.
+    // Need at least a couple of real primitives to attempt an analysis.
+    if (graph && graph.paths.length >= 2 && graph.bounds.w > 0) {
+      const classified = classifyGraph(graph)
+      const mapped = mapClassifiedToEditable(classified, name, category)
+      const normalized = normalizeGarment(mapped.garment)
+      if (normalized) return { garment: normalized, report: mapped.report }
+    }
   } catch {
     /* fall through to the honest fallback below */
   }

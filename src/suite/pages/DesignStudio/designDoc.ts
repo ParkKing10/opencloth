@@ -44,6 +44,9 @@ export type ProjectInfo = {
 export type DesignDoc = {
   layers: Layer[]
   hidden: Record<string, boolean>
+  /** Garment-region overrides (hidden parts / recoloured parts) — the design remembers them. */
+  regionHidden?: Record<string, boolean>
+  regionFills?: Record<string, string>
   designName: string
   collectionId?: string
   specs?: ProductSpecs

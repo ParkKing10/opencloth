@@ -51,7 +51,7 @@ import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, 
 import { loadHistory } from '../../garment-model/garmentDocumentStore'
 import { currentGarment } from '../../garment-model/garmentRevision'
 import { garmentThumbnailSvg } from '../../garment-model/garmentThumbnail'
-import { flattenRegions, toggleVisible, setRegionColor } from '../../garment-model/regionTree'
+import { flattenRegions } from '../../garment-model/regionTree'
 import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
@@ -132,6 +132,9 @@ function libToStudio(g: LibGarment): Garment {
 type Snapshot = {
   layers: Layer[]
   hidden: Record<string, boolean>
+  /** Garment-region overrides (hide a sleeve, recolour the body) — undoable + saved with the design. */
+  regionHidden?: Record<string, boolean>
+  regionFills?: Record<string, string>
 }
 
 // A freshly selected imported garment starts with ZERO design layers — no demo VISIONARY
@@ -441,6 +444,8 @@ export function DesignStudio() {
     saveDoc(gid, {
       layers: snap.layers,
       hidden: snap.hidden,
+      regionHidden: snap.regionHidden,
+      regionFills: snap.regionFills,
       designName: name ?? designNameRef.current,
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
@@ -476,13 +481,18 @@ export function DesignStudio() {
     [saveCurrentDoc],
   )
 
-  /** Commit a new snapshot, pushing the current one onto the undo stack + persisting it. */
+  /**
+   * Commit a new snapshot, pushing the current one onto the undo stack + persisting it.
+   * Region overrides are carried over unless the caller changes them, so a layer edit
+   * never silently drops a garment recolour (and vice versa).
+   */
   const commit = useCallback(
     (next: Snapshot) => {
+      const merged: Snapshot = { regionHidden: present.regionHidden, regionFills: present.regionFills, ...next }
       setPast((prev) => [...prev, present])
-      setPresent(next)
+      setPresent(merged)
       setFuture([])
-      saveCurrentDoc(next)
+      saveCurrentDoc(merged)
     },
     [present, saveCurrentDoc],
   )
@@ -748,14 +758,32 @@ export function DesignStudio() {
     setRegionSel(null)
   }, [activeGarment.id, editableTemplateId])
 
-  // The garment backdrop is rendered FROM the editable garment, so hiding/recolouring a region
+  // Region overrides live in the UNDOABLE snapshot and persist with the design document —
+  // studioGarment stays the pristine base; the displayed garment = base + overrides. An
+  // override that lands back on the base value is dropped, so docs stay minimal.
+  const displayGarment = useMemo(() => {
+    if (!studioGarment) return null
+    const rh = present.regionHidden ?? {}
+    const rf = present.regionFills ?? {}
+    if (Object.keys(rh).length === 0 && Object.keys(rf).length === 0) return studioGarment
+    const regions = Object.fromEntries(
+      Object.entries(studioGarment.regions).map(([id, r]) => {
+        const visible = rh[id] !== undefined ? !rh[id] : r.visible
+        const fill = rf[id]
+        return [id, { ...r, visible, appearance: fill ? { ...r.appearance, fill } : r.appearance }]
+      }),
+    )
+    return { ...studioGarment, regions }
+  }, [studioGarment, present.regionHidden, present.regionFills])
+
+  // The garment backdrop is rendered FROM the displayed garment, so hiding/recolouring a region
   // updates the canvas live. Falls back to the bridge/library preview when there's no region tree.
-  const studioBackdropSvg = useMemo(() => (studioGarment ? garmentThumbnailSvg(studioGarment) : null), [studioGarment])
+  const studioBackdropSvg = useMemo(() => (displayGarment ? garmentThumbnailSvg(displayGarment) : null), [displayGarment])
 
   const garmentRegionLayers = useMemo<GarmentRegionLayer[]>(
     () =>
-      studioGarment
-        ? flattenRegions(studioGarment).map(({ region, depth }) => ({
+      displayGarment
+        ? flattenRegions(displayGarment).map(({ region, depth }) => ({
             id: region.id,
             name: region.name,
             type: region.type,
@@ -764,23 +792,41 @@ export function DesignStudio() {
             color: region.appearance?.fill,
           }))
         : [],
-    [studioGarment],
+    [displayGarment],
   )
 
-  const toggleRegion = useCallback((id: string) => setStudioGarment((g) => (g ? toggleVisible(g, id) : g)), [])
+  const toggleRegion = useCallback(
+    (id: string) => {
+      const base = presentRef.current
+      const baseVisible = studioGarment?.regions[id]?.visible ?? true
+      const rh = { ...(base.regionHidden ?? {}) }
+      const displayed = rh[id] !== undefined ? !rh[id] : baseVisible
+      const nextDisplayed = !displayed
+      // An override that matches the base state is redundant — drop it instead of storing it.
+      if (nextDisplayed === baseVisible) delete rh[id]
+      else rh[id] = !nextDisplayed
+      commit({ ...base, regionHidden: rh })
+    },
+    [studioGarment, commit],
+  )
   const selectRegion = useCallback((id: string) => {
     setRegionSel(id)
     setSelectedIds([])
   }, [])
-  const cycleRegionColor = useCallback((id: string) => {
-    setStudioGarment((g) => {
-      if (!g) return g
-      const cur = (g.regions[id]?.appearance?.fill ?? '').toLowerCase()
+  const cycleRegionColor = useCallback(
+    (id: string) => {
+      const base = presentRef.current
+      const baseFill = studioGarment?.regions[id]?.appearance?.fill
+      const rf = { ...(base.regionFills ?? {}) }
+      const cur = (rf[id] ?? baseFill ?? '').toLowerCase()
       const idx = COLOR_SWATCHES.findIndex((s) => s.hex.toLowerCase() === cur)
       const next = idx < 0 ? COLOR_SWATCHES[0].hex : idx + 1 >= COLOR_SWATCHES.length ? undefined : COLOR_SWATCHES[idx + 1].hex
-      return setRegionColor(g, id, next)
-    })
-  }, [])
+      if (next === undefined || next === baseFill) delete rf[id]
+      else rf[id] = next
+      commit({ ...base, regionFills: rf })
+    },
+    [studioGarment, commit],
+  )
 
   // Restore the last-opened garment once the catalog is available (reload reopens the design).
   const restoredRef = useRef(false)
@@ -832,7 +878,9 @@ export function DesignStudio() {
     if (!gid || loadedGarmentRef.current === gid) return
     loadedGarmentRef.current = gid
     const doc = loadDoc(gid)
-    const snapshot: Snapshot = doc ? { layers: doc.layers, hidden: doc.hidden } : { layers: [], hidden: {} }
+    const snapshot: Snapshot = doc
+      ? { layers: doc.layers, hidden: doc.hidden, regionHidden: doc.regionHidden, regionFills: doc.regionFills }
+      : { layers: [], hidden: {} }
     const name = doc?.designName || activeGarment.name
     setPast([])
     setFuture([])

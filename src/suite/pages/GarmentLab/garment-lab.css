@@ -1652,6 +1652,290 @@
   text-align: center;
 }
 
+/* ---------- gallery v2: tabs, favourites, recent, detail ---------- */
+.tgal__card {
+  position: relative;
+}
+.tgal__card:hover .tgal__thumb img {
+  transform: scale(1.05);
+}
+.tgal__thumb img {
+  transition: transform var(--s-dur, 150ms) var(--s-ease, ease);
+}
+.tgal__card.is-open {
+  border-color: var(--s-accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--s-accent) 45%, transparent), var(--s-shadow-lg, 0 10px 30px rgba(0, 0, 0, 0.4));
+}
+.tgal__card--sm {
+  width: 108px;
+  flex: 0 0 auto;
+}
+.tgal__star {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 20, 26, 0.55);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--s-dur, 150ms), transform var(--s-dur, 150ms), color var(--s-dur, 150ms);
+}
+.tgal__card:hover .tgal__star,
+.tgal__card:focus-within .tgal__star,
+.tgal__star.is-on {
+  opacity: 1;
+}
+.tgal__star:hover {
+  transform: scale(1.15);
+}
+.tgal__star.is-on {
+  color: #f6b73c;
+  background: rgba(20, 20, 26, 0.75);
+}
+.tgal__favtoggle {
+  padding: 10px 14px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  color: var(--s-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--s-dur, 150ms), border-color var(--s-dur, 150ms);
+}
+.tgal__favtoggle:hover {
+  color: var(--s-text);
+}
+.tgal__favtoggle.is-on {
+  color: #f6b73c;
+  border-color: #f6b73c;
+  background: color-mix(in oklab, #f6b73c 12%, transparent);
+}
+.tgal__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 14px 0 4px;
+}
+.tgal__tab {
+  padding: 7px 12px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  background: none;
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--s-dur, 150ms), background var(--s-dur, 150ms), border-color var(--s-dur, 150ms);
+}
+.tgal__tab:hover {
+  color: var(--s-text);
+  border-color: var(--s-text-3, var(--s-line));
+}
+.tgal__tab.is-active {
+  color: var(--s-accent-ink, #14141a);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+.tgal__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 2px;
+}
+.tgal__clear {
+  border: none;
+  background: none;
+  color: var(--s-info, #78a0ff);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--s-r-sm, 8px);
+}
+.tgal__clear:hover {
+  background: var(--s-panel-2);
+}
+.tgal__recent {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.tgal__cat-n {
+  font-weight: 500;
+  color: var(--s-text-4, var(--s-text-3));
+  margin-left: 4px;
+}
+.tgal__skel {
+  display: block;
+  width: 100%;
+  aspect-ratio: 140 / 196;
+  border-radius: var(--s-r-sm, 8px);
+  background: linear-gradient(100deg, var(--s-panel-2) 40%, var(--s-panel-3, #26262b) 50%, var(--s-panel-2) 60%);
+  background-size: 200% 100%;
+  animation: tgal-shimmer 1.2s linear infinite;
+}
+@keyframes tgal-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+.tgal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 28px 4px;
+  color: var(--s-text-2);
+  font-size: 13px;
+}
+
+/* Template detail overlay — a light guided step before committing to a template. */
+.tgd {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 8, 12, 0.66);
+  backdrop-filter: blur(4px);
+  animation: eg-fade-up var(--s-dur, 150ms) var(--s-ease, ease);
+}
+.tgd__panel {
+  position: relative;
+  display: flex;
+  gap: 26px;
+  max-width: 720px;
+  width: min(92vw, 720px);
+  max-height: 86vh;
+  overflow: auto;
+  padding: 26px;
+  border-radius: var(--s-r-xl, 18px);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel, #141419);
+  box-shadow: var(--s-shadow-lg, 0 24px 60px rgba(0, 0, 0, 0.5));
+}
+.tgd__close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  color: var(--s-text-2);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.tgd__close:hover {
+  color: var(--s-text);
+}
+.tgd__views {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.tgd__views figure {
+  margin: 0;
+  text-align: center;
+}
+.tgd__views figcaption {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--s-text-3);
+}
+.tgd__img {
+  display: block;
+  width: 132px;
+  background: #fff;
+  border-radius: var(--s-r-sm, 10px);
+  overflow: hidden;
+}
+.tgd__img img {
+  display: block;
+  width: 100%;
+}
+.tgd__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.tgd__eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+}
+.tgd__meta h3 {
+  margin: 0;
+  font-size: 20px;
+}
+.tgd__facts {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--s-text-2);
+}
+.tgd__regions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tgd__region {
+  padding: 4px 9px;
+  border-radius: var(--s-r-pill, 999px);
+  background: var(--s-panel-2);
+  border: 1px solid var(--s-line);
+  font-size: 11px;
+  color: var(--s-text-2);
+}
+.tgd__region--more {
+  color: var(--s-text-3);
+}
+.tgd__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.tgd__use {
+  padding: 12px 18px;
+  border-radius: var(--s-r-sm, 10px);
+  border: none;
+  background: var(--s-accent);
+  color: var(--s-accent-ink, #14141a);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--s-dur, 150ms), transform var(--s-dur, 150ms);
+}
+.tgd__use:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.tgd__hint {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: var(--s-text-4, var(--s-text-3));
+}
+@media (max-width: 640px) {
+  .tgd__panel {
+    flex-direction: column;
+  }
+}
 .gen__conf {
   list-style: none;
   margin: 18px 0 0;

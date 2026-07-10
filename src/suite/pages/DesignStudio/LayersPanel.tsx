@@ -276,7 +276,9 @@ export function LayersPanel({
           <button className="lp__collapsed-head lp__collapsed-head--open" type="button" onClick={onToggleCollapse} aria-expanded title="Minimize layers">
             <IcoChevron width="13" height="13" />
             <h2>Layers</h2>
-            <span className="lp__count">{layers.length}</span>
+            {/* Count BOTH the garment's region layers and the design layers — a garment with 10
+                editable regions and no artwork yet is "10 layers", not "0". */}
+            <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
           </button>
         ) : (
           <h2>Layers</h2>

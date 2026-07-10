@@ -80,6 +80,8 @@ type Props = {
   selectedRegionId?: string | null
   onSelectRegion?: (id: string | null) => void
   onMoveRegion?: (id: string, dx: number, dy: number) => void
+  /** Right-click on the canvas — objectId is the object under the cursor, or null for empty. */
+  onContextMenu?: (x: number, y: number, objectId: string | null) => void
 }
 
 export function StudioCanvas({
@@ -106,6 +108,7 @@ export function StudioCanvas({
   selectedRegionId,
   onSelectRegion,
   onMoveRegion,
+  onContextMenu,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
@@ -482,6 +485,12 @@ export function StudioCanvas({
           onPointerUp={endPan}
           onPointerCancel={endPan}
           onDoubleClick={handleDoubleClick}
+          onContextMenu={(e) => {
+            if (!onContextMenu) return
+            const objEl = (e.target as HTMLElement).closest<HTMLElement>('.co-obj[data-id]')
+            e.preventDefault()
+            onContextMenu(e.clientX, e.clientY, objEl?.getAttribute('data-id') ?? null)
+          }}
         >
           {showGrid && <div className="ds-viewport__grid" aria-hidden="true" />}
           {marquee && (

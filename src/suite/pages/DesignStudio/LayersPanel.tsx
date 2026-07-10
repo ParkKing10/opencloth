@@ -46,6 +46,10 @@ type Props = {
   onToggleRegion?: (id: string) => void
   onSelectRegion?: (id: string) => void
   onCycleRegionColor?: (id: string) => void
+  /** Right-click on a design-layer row. */
+  onRowContextMenu?: (id: string, x: number, y: number) => void
+  /** Filled with a function that starts inline rename for a layer id (used by the context menu). */
+  renameHandle?: React.MutableRefObject<((id: string) => void) | null>
 }
 
 const uid = () => `l-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -68,10 +72,16 @@ export function LayersPanel({
   onToggleRegion,
   onSelectRegion,
   onCycleRegionColor,
+  onRowContextMenu,
+  renameHandle,
 }: Props) {
   const toast = useToast()
   const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
+  // Expose "start rename" so the right-click context menu can trigger inline rename.
+  useEffect(() => {
+    if (renameHandle) renameHandle.current = (id: string) => setRenaming(id)
+  }, [renameHandle])
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropAt, setDropAt] = useState<{ id: string; after: boolean } | null>(null)
   const lastClicked = useRef<string | null>(null)
@@ -408,6 +418,11 @@ export function LayersPanel({
               }}
               onClick={(e) => clickRow(e, layer)}
               onDoubleClick={() => !lockOn && setRenaming(layer.id)}
+              onContextMenu={(e) => {
+                if (!onRowContextMenu) return
+                e.preventDefault()
+                onRowContextMenu(layer.id, e.clientX, e.clientY)
+              }}
             >
               {isGroup ? (
                 <button

@@ -45,6 +45,7 @@ import {
 import { type PropField } from './GarmentInspector'
 import { GarmentInfoPanel } from './GarmentInfoPanel'
 import { RegionInspector } from '../GarmentLab/RegionInspector'
+import { ContextMenu, type MenuItem } from './ContextMenu'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
@@ -736,6 +737,147 @@ export function DesignStudio() {
     commit({ layers: next, hidden: base.hidden })
   }, [commit])
 
+  /** Delete the current selection (skips locked layers; a group takes its unlocked members). */
+  const deleteSelection = useCallback(() => {
+    const base = presentRef.current
+    const removable = new Set(
+      liveSelectedRef.current.filter((id) => {
+        const l = base.layers.find((x) => x.id === id)
+        return l && !l.locked && !(l.groupId && base.layers.find((g) => g.id === l.groupId)?.locked)
+      }),
+    )
+    base.layers.forEach((l) => {
+      if (l.groupId && removable.has(l.groupId) && !l.locked) removable.add(l.id)
+    })
+    if (removable.size === 0) return
+    const nextHidden = { ...base.hidden }
+    removable.forEach((id) => delete nextHidden[id])
+    commit({ layers: base.layers.filter((l) => !removable.has(l.id)), hidden: nextHidden })
+    setSelectedIds([])
+    toast(`Removed ${removable.size} ${removable.size === 1 ? 'layer' : 'layers'}.`)
+  }, [commit, toast])
+
+  /** Cut = copy then delete. */
+  const cutSelection = useCallback(() => {
+    copySelection()
+    deleteSelection()
+  }, [copySelection, deleteSelection])
+
+  /** Lock/unlock the whole selection (locks if any member is unlocked). */
+  const toggleLockSelection = useCallback(() => {
+    const base = presentRef.current
+    const sel = new Set(liveSelectedRef.current)
+    if (sel.size === 0) return
+    const lockAll = base.layers.some((l) => sel.has(l.id) && !l.locked)
+    commit({ layers: base.layers.map((l) => (sel.has(l.id) ? { ...l, locked: lockAll } : l)), hidden: base.hidden })
+  }, [commit])
+
+  /** Show/hide the whole selection (hides if any member is visible). */
+  const toggleHideSelection = useCallback(() => {
+    const base = presentRef.current
+    const sel = liveSelectedRef.current
+    if (sel.length === 0) return
+    const hideAll = sel.some((id) => !base.hidden[id])
+    const nextHidden = { ...base.hidden }
+    sel.forEach((id) => (hideAll ? (nextHidden[id] = true) : delete nextHidden[id]))
+    commit({ layers: base.layers, hidden: nextHidden })
+  }, [commit])
+
+  /** Flip the selected objects horizontally / vertically. */
+  const flipSelection = useCallback(
+    (axis: 'h' | 'v') => {
+      const base = presentRef.current
+      const sel = expandSelection(liveSelectedRef.current, base.layers)
+      const key = axis === 'h' ? 'flipH' : 'flipV'
+      commit({
+        layers: base.layers.map((l) => (sel.has(l.id) && l.obj ? { ...l, obj: { ...l.obj, [key]: !l.obj[key] } } : l)),
+        hidden: base.hidden,
+      })
+    },
+    [commit],
+  )
+
+  // ---- Right-click context menu — surfaces the same wired ops at the point of intent ----
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
+  const renameHandleRef = useRef<((id: string) => void) | null>(null)
+
+  /** Menu for a selected object / layer. `effSel` is the selection the actions will operate on. */
+  const objectMenuItems = useCallback(
+    (effSel: string[], opts?: { includeRename?: string }): MenuItem[] => {
+      const someGroup = effSel.some((id) => present.layers.find((l) => l.id === id)?.type === 'Group')
+      const target = effSel[0]
+      const items: MenuItem[] = []
+      if (opts?.includeRename) {
+        items.push({ label: 'Rename', shortcut: '↵', onSelect: () => renameHandleRef.current?.(opts.includeRename as string) })
+        items.push({ kind: 'separator' })
+      }
+      items.push(
+        { label: 'Cut', shortcut: '⌘X', onSelect: cutSelection },
+        { label: 'Copy', shortcut: '⌘C', onSelect: copySelection },
+        { label: 'Paste', shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
+        { label: 'Duplicate', shortcut: '⌘D', onSelect: duplicateSelection },
+        { kind: 'separator' },
+        { label: 'Bring to Front', shortcut: '⌘⇧]', onSelect: () => target && arrangeLayer(target, 'front') },
+        { label: 'Bring Forward', shortcut: '⌘]', onSelect: () => target && arrangeLayer(target, 'forward') },
+        { label: 'Send Backward', shortcut: '⌘[', onSelect: () => target && arrangeLayer(target, 'backward') },
+        { label: 'Send to Back', shortcut: '⌘⇧[', onSelect: () => target && arrangeLayer(target, 'back') },
+        { kind: 'separator' },
+        someGroup
+          ? { label: 'Ungroup', shortcut: '⌘⇧G', onSelect: ungroupSelection }
+          : { label: 'Group', shortcut: '⌘G', onSelect: groupSelection, disabled: effSel.length < 2 },
+        { label: 'Flip Horizontal', onSelect: () => flipSelection('h') },
+        { label: 'Flip Vertical', onSelect: () => flipSelection('v') },
+        { label: 'Lock / Unlock', onSelect: toggleLockSelection },
+        { label: 'Hide / Show', onSelect: toggleHideSelection },
+        { kind: 'separator' },
+        { label: 'Delete', shortcut: '⌫', onSelect: deleteSelection, danger: true },
+      )
+      return items
+    },
+    [present.layers, cutSelection, copySelection, paste, duplicateSelection, arrangeLayer, ungroupSelection, groupSelection, flipSelection, toggleLockSelection, toggleHideSelection, deleteSelection],
+  )
+
+  /** Menu for the empty canvas. */
+  const emptyMenuItems = useCallback(
+    (): MenuItem[] => [
+      { label: 'Add text', onSelect: addTextObject },
+      { label: 'Paste', shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
+      { label: 'Select all', shortcut: '⌘A', onSelect: selectAllObjects },
+    ],
+    [addTextObject, paste, selectAllObjects],
+  )
+
+  /** Point the actions at `ids` immediately (ref is synchronous; state catches up). */
+  const focusSelection = useCallback((ids: string[]) => {
+    liveSelectedRef.current = ids
+    setRegionSel(null)
+    setSelectedIds(ids)
+  }, [])
+
+  /** Right-click on the canvas: an object (select it if needed → object menu) or empty (empty menu). */
+  const onCanvasContextMenu = useCallback(
+    (x: number, y: number, objectId: string | null) => {
+      if (objectId) {
+        const effSel = liveSelectedRef.current.includes(objectId) ? liveSelectedRef.current : [objectId]
+        if (!liveSelectedRef.current.includes(objectId)) focusSelection(effSel)
+        setCtxMenu({ x, y, items: objectMenuItems(effSel) })
+      } else {
+        setCtxMenu({ x, y, items: emptyMenuItems() })
+      }
+    },
+    [objectMenuItems, emptyMenuItems, focusSelection],
+  )
+
+  /** Right-click on a layer row: select it (keep a multi-select if the row is in it), then the menu. */
+  const onLayerContextMenu = useCallback(
+    (id: string, x: number, y: number) => {
+      const effSel = liveSelectedRef.current.includes(id) ? liveSelectedRef.current : [id]
+      if (!liveSelectedRef.current.includes(id)) focusSelection(effSel)
+      setCtxMenu({ x, y, items: objectMenuItems(effSel, { includeRename: id }) })
+    },
+    [objectMenuItems, focusSelection],
+  )
+
   // The Garment Library is the single source of truth — the catalog loads real garments.
   const { garments: library, loading: libraryLoading } = useGarments()
   // The Studio rail is editable-only: every card must resolve to a real region tree so clicking it
@@ -1328,24 +1470,14 @@ export function DesignStudio() {
         else arrangeLayer(id, e.shiftKey ? 'back' : 'backward')
         return
       }
+      if (mod && k === 'x') {
+        e.preventDefault()
+        cutSelection()
+        return
+      }
       if ((e.key === 'Delete' || e.key === 'Backspace') && liveSelected.length > 0) {
         e.preventDefault()
-        const removable = new Set(
-          liveSelected.filter((id) => {
-            const l = layers.find((x) => x.id === id)
-            return l && !l.locked && !(l.groupId && layers.find((g) => g.id === l.groupId)?.locked)
-          }),
-        )
-        // deleting a group takes its unlocked members with it
-        layers.forEach((l) => {
-          if (l.groupId && removable.has(l.groupId) && !l.locked) removable.add(l.id)
-        })
-        if (removable.size === 0) return
-        const nextHidden = { ...hidden }
-        removable.forEach((id) => delete nextHidden[id])
-        commit({ layers: layers.filter((l) => !removable.has(l.id)), hidden: nextHidden })
-        setSelectedIds([])
-        toast(`Removed ${removable.size} ${removable.size === 1 ? 'layer' : 'layers'}.`)
+        deleteSelection()
         return
       }
       if (e.key === 'Escape' && liveSelected.length > 0) {
@@ -1379,6 +1511,8 @@ export function DesignStudio() {
     ungroupSelection,
     arrangeLayer,
     nudgeSelection,
+    cutSelection,
+    deleteSelection,
   ])
 
   // The design's identity, handed to the Manufacturing Export System.
@@ -2093,6 +2227,8 @@ export function DesignStudio() {
               onToggleRegion={toggleRegion}
               onSelectRegion={selectRegion}
               onCycleRegionColor={cycleRegionColor}
+              onRowContextMenu={onLayerContextMenu}
+              renameHandle={renameHandleRef}
             />
           </div>
             </>
@@ -2152,6 +2288,7 @@ export function DesignStudio() {
             selectedRegionId={regionSel}
             onSelectRegion={(id) => (id ? selectRegion(id) : setRegionSel(null))}
             onMoveRegion={moveRegion}
+            onContextMenu={onCanvasContextMenu}
           />
         </div>
 
@@ -2243,6 +2380,9 @@ export function DesignStudio() {
         onClose={() => setSaveOpen(false)}
         onSave={confirmSave}
       />
+
+      {/* Right-click context menu */}
+      {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />}
     </div>
   )
 }

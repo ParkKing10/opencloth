@@ -201,6 +201,22 @@
   pointer-events: none;
   user-select: none;
 }
+/* Inline vector garment — resolution-independent, stays crisp at any zoom. */
+.ds-garment-vector {
+  display: grid;
+  place-items: center;
+  height: 440px;
+  max-height: 62vh;
+  filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+  user-select: none;
+}
+.ds-garment-vector svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  display: block;
+}
 
 /* Add-text / add-image tools in the left rail */
 .ds-toolrail__add {

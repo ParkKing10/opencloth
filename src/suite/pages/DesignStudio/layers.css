@@ -1,5 +1,60 @@
 /* Figma-grade layers panel. Scoped to .suite tokens; lp- prefix. */
 
+/* Base garment — pinned, selectable design surface beneath the design layers. */
+.lp-base {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel);
+  color: var(--s-text-2);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.lp-base:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-2, var(--s-line));
+}
+.lp-base.is-selected {
+  border-color: var(--s-accent-line);
+  background: var(--s-accent-soft);
+  color: var(--s-text);
+}
+.lp-base__icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  background: var(--s-panel-2);
+  color: var(--s-text-2);
+}
+.lp-base.is-selected .lp-base__icon {
+  color: var(--s-accent-2, var(--s-text));
+}
+.lp-base__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.lp-base__text b {
+  font-size: 12.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lp-base__text small {
+  font-size: 10.5px;
+  color: var(--s-text-3);
+}
+
 .lp {
   display: flex;
   flex-direction: column;
@@ -75,6 +130,27 @@
   font-size: 12px;
   color: var(--s-text-4);
   padding: 10px 4px;
+}
+
+/* Section headers separating the garment's own regions from the design layers. */
+.lp-section {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-text-4, var(--s-text-3));
+  padding: 10px 6px 4px;
+}
+.lp-section:first-child {
+  padding-top: 2px;
+}
+/* Garment-region rows: same affordances as design layers, tinted so they read as "the garment". */
+.lp-row--garment.is-selected {
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  box-shadow: inset 2px 0 0 var(--s-accent);
+}
+.lp-row--garment.is-hidden {
+  opacity: 0.5;
 }
 
 /* ---------- rows ---------- */

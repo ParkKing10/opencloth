@@ -140,14 +140,20 @@ create policy profiles_admin_update on public.profiles
 
 -- Privilege guard: the self-update policy lets a user edit their own row, but they
 -- must not be able to escalate role or lift their own suspension. This trigger pins
--- role/status to their previous values for non-admins (admins bypass it).
+-- role/status to their previous values for a regular authenticated non-admin user.
+--
+-- IMPORTANT: it must NOT fire for the service role / SQL editor (which have no
+-- auth.uid()). Otherwise `is_admin()` is false there and the guard reverts every
+-- role change — making it impossible to promote the FIRST admin. The
+-- `auth.uid() is not null` clause scopes the guard to end-user API updates only;
+-- the SQL editor / service role (and real admins) may set role/status freely.
 create or replace function public.profiles_guard()
 returns trigger
 language plpgsql security definer
 set search_path = public
 as $$
 begin
-  if not public.is_admin() then
+  if auth.uid() is not null and not public.is_admin() then
     new.role   := old.role;
     new.status := old.status;
   end if;
@@ -267,6 +273,127 @@ create policy drive_objects_update on storage.objects
 drop policy if exists drive_objects_delete on storage.objects;
 create policy drive_objects_delete on storage.objects
   for delete using (bucket_id = 'drive' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ============================================================================
+-- MILESTONE 1 — GARMENT LIBRARY (admin-managed shared catalog)
+-- Consistent with PRD-001 (garment identity/payload) + PRD-002 (representations).
+-- Everyone signed-in READS published garments; only admins WRITE.
+-- ============================================================================
+
+-- Taxonomy of garment kinds.
+create table if not exists public.garment_categories (
+  id    text primary key,
+  label text not null,
+  sort  integer not null default 0
+);
+
+insert into public.garment_categories (id, label, sort) values
+  ('hoodie','Hoodie',1),('tee','T-Shirt',2),('sweatshirt','Sweatshirt',3),
+  ('pants','Pants',4),('shorts','Shorts',5),('jacket','Jacket',6),
+  ('bomber','Bomber',7),('blazer','Blazer',8),('cap','Cap / Hat',9),
+  ('dress','Dress',10),('skirt','Skirt',11),('knitwear','Knitwear',12),
+  ('accessory','Accessory',13),('other','Other',99)
+on conflict (id) do nothing;
+
+-- One row per uploaded archive (provenance of an import).
+create table if not exists public.garment_packs (
+  id            uuid primary key default gen_random_uuid(),
+  uploaded_by   uuid references auth.users(id) on delete set null,
+  name          text not null,
+  source_name   text not null default '',
+  file_count    integer not null default 0,
+  garment_count integer not null default 0,
+  status        text not null default 'imported' check (status in ('processing','imported','failed')),
+  created_at    timestamptz not null default now()
+);
+
+-- The garment identity + catalog record (PRD-1 template payload, catalog-facing).
+create table if not exists public.garment_templates (
+  id          uuid primary key default gen_random_uuid(),
+  pack_id     uuid references public.garment_packs(id) on delete set null,
+  created_by  uuid references auth.users(id) on delete set null,
+  name        text not null,
+  slug        text not null unique,
+  category    text not null default 'other' references public.garment_categories(id),
+  status      text not null default 'published' check (status in ('draft','published','archived')),
+  vendor      text not null default '',
+  tags        text[] not null default '{}',
+  search_text text not null default '',
+  thumb_path  text,
+  views       jsonb not null default '{}',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+
+-- Milestone 1.1: view metadata (added idempotently for existing installs).
+alter table public.garment_templates add column if not exists views jsonb not null default '{}';
+
+-- Physical files of a garment (PRD-2 Principle B: representations).
+create table if not exists public.garment_representations (
+  id           uuid primary key default gen_random_uuid(),
+  garment_id   uuid not null references public.garment_templates(id) on delete cascade,
+  kind         text not null,   -- master | preview | thumbnail | source | export
+  format       text not null,   -- ai | svg | png | pdf | dxf | jpg | ttf | ...
+  storage_path text not null,
+  bytes        bigint not null default 0,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists garment_templates_category on public.garment_templates(category) where status = 'published';
+create index if not exists garment_templates_search on public.garment_templates using gin (to_tsvector('simple', search_text));
+create index if not exists garment_reps_garment on public.garment_representations(garment_id);
+
+alter table public.garment_categories      enable row level security;
+alter table public.garment_packs           enable row level security;
+alter table public.garment_templates       enable row level security;
+alter table public.garment_representations enable row level security;
+
+grant select, insert, update, delete on
+  public.garment_packs, public.garment_templates, public.garment_representations to authenticated;
+grant select, insert, update, delete on public.garment_categories to authenticated;
+grant select on public.garment_categories to anon;
+
+-- Categories: read by anyone; admin writes.
+drop policy if exists garment_categories_read on public.garment_categories;
+create policy garment_categories_read on public.garment_categories for select using (true);
+drop policy if exists garment_categories_admin on public.garment_categories;
+create policy garment_categories_admin on public.garment_categories
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Packs: admin only.
+drop policy if exists garment_packs_admin on public.garment_packs;
+create policy garment_packs_admin on public.garment_packs
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Templates: authenticated read published (admins read all); admin writes.
+drop policy if exists garment_templates_read on public.garment_templates;
+create policy garment_templates_read on public.garment_templates
+  for select using (status = 'published' or public.is_admin());
+drop policy if exists garment_templates_admin on public.garment_templates;
+create policy garment_templates_admin on public.garment_templates
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Representations: readable when the parent garment is; admin writes.
+drop policy if exists garment_reps_read on public.garment_representations;
+create policy garment_reps_read on public.garment_representations
+  for select using (
+    exists (select 1 from public.garment_templates g
+            where g.id = garment_id and (g.status = 'published' or public.is_admin())));
+drop policy if exists garment_reps_admin on public.garment_representations;
+create policy garment_reps_admin on public.garment_representations
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- Storage bucket for garment files (private; RLS on storage.objects gates access).
+insert into storage.buckets (id, name, public) values ('garments','garments',false)
+on conflict (id) do nothing;
+
+drop policy if exists garment_objects_read on storage.objects;
+create policy garment_objects_read on storage.objects
+  for select using (bucket_id = 'garments' and auth.role() = 'authenticated');
+drop policy if exists garment_objects_admin on storage.objects;
+create policy garment_objects_admin on storage.objects
+  for all using (bucket_id = 'garments' and public.is_admin())
+  with check (bucket_id = 'garments' and public.is_admin());
 
 -- ============================================================================
 -- Make yourself an admin AFTER you have signed up once:

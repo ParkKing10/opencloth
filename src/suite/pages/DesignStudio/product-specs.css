@@ -1,0 +1,165 @@
+/* Product Specs editor (user-provided garment specs). ps- prefix. */
+.ps {
+  padding: 4px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid var(--s-line);
+  margin-top: 4px;
+}
+.ps__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 14px;
+}
+.ps__eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.ps__hint {
+  font-size: 11px;
+  color: var(--s-text-4, var(--s-text-3));
+}
+.ps__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ps__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.ps__empty {
+  font-size: 12.5px;
+  color: var(--s-text-3);
+  font-style: italic;
+}
+.ps__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ps__chip {
+  padding: 5px 10px;
+  border-radius: var(--s-r-pill);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--s-dur) var(--s-ease), color var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.ps__chip:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-2, var(--s-line));
+}
+.ps__chip.is-active {
+  color: var(--s-accent-ink, #14141a);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+.ps__chip--other {
+  font-style: italic;
+}
+.ps__input {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text);
+  font-size: 13px;
+  outline: none;
+}
+.ps__input:focus {
+  border-color: var(--s-accent-line);
+}
+.ps__notes {
+  padding: 8px 10px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text);
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+  outline: none;
+}
+.ps__notes:focus {
+  border-color: var(--s-accent-line);
+}
+.ps__colors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ps__color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ps__swatch {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  overflow: hidden;
+}
+.ps__swatch input {
+  position: absolute;
+  inset: -4px;
+  opacity: 0;
+  cursor: pointer;
+}
+.ps__color-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text);
+  font-size: 12.5px;
+  outline: none;
+}
+.ps__color-x {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--s-text-3);
+  font-size: 17px;
+  line-height: 1;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ps__color-x:hover {
+  background: var(--s-panel-2);
+  color: var(--s-danger, #ff5a5a);
+}
+.ps__add {
+  align-self: flex-start;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: var(--s-accent-2, var(--s-text));
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ps__add:hover {
+  text-decoration: underline;
+}

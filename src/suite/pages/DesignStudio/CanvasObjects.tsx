@@ -1,33 +1,69 @@
-import { useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import type { Layer } from './LayersPanel'
 import { GRAPHIC_MARKS, type CanvasObject } from './objectModel'
 import './canvas-objects.css'
+
+export type Overlays = { safe: boolean; bleed: boolean; print: boolean }
 
 type Props = {
   /** Layers that carry a canvas object, panel order (top-first). */
   objects: Layer[]
   hidden: Record<string, boolean>
-  selectedId: string | null
-  onSelect: (id: string | null) => void
+  /** All currently-selected object ids (multi-select). */
+  selectedIds: string[]
+  /** Select an object. additive=true toggles it in/out of the current selection (Shift+Click). */
+  onSelect: (id: string | null, additive?: boolean) => void
   /** Live transform update during a drag (no undo entry). */
   onLive: (id: string, patch: Partial<CanvasObject>) => void
   /** Commit the current state to the undo history (drag end / text edit). */
   onCommit: () => void
   onEditText: (id: string, text: string) => void
+  /** Which print-zone overlays to show (all hidden by default). */
+  overlays?: Overlays
 }
 
 type Drag =
-  | { mode: 'move'; id: string; sx: number; sy: number; ox: number; oy: number; w: number; h: number }
+  | { mode: 'move'; id: string; sx: number; sy: number; ox: number; oy: number; w: number; h: number; halfW: number; halfH: number; group: { id: string; ox: number; oy: number }[] }
   | { mode: 'resize'; id: string; cx: number; cy: number; startDist: number; startW: number }
   | { mode: 'rotate'; id: string; cx: number; cy: number; startAngle: number; startRot: number }
 
 /** The editable object surface that sits over the garment's print area. */
-export function CanvasObjects({ objects, hidden, selectedId, onSelect, onLive, onCommit, onEditText }: Props) {
+export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, onCommit, onEditText, overlays }: Props) {
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<Drag | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  // Snap-guide positions (0..1 within the print area) shown while dragging; null = no guide.
+  const [snap, setSnap] = useState<{ x: number | null; y: number | null }>({ x: null, y: null })
+  // Ids of objects whose bounds spill outside the print area — a soft warning, never a block.
+  const [outside, setOutside] = useState<string[]>([])
 
   const rect = () => boxRef.current?.getBoundingClientRect() ?? new DOMRect(0, 0, 1, 1)
+
+  // Measure objects against the print area — ONLY while the Print guide is on (the only time
+  // the warning shows). Skipping it otherwise avoids a full DOM sweep on every edit, which
+  // matters at hundreds of objects. The set-equality bail-out prevents render churn.
+  useLayoutEffect(() => {
+    if (!overlays?.print) {
+      setOutside((prev) => (prev.length ? [] : prev))
+      return
+    }
+    const box = boxRef.current?.getBoundingClientRect()
+    if (!box) return
+    const eps = 0.5
+    const next: string[] = []
+    for (const l of objects) {
+      if (!l.obj || hidden[l.id]) continue
+      const el = boxRef.current?.querySelector<HTMLElement>(`.co-obj[data-id="${l.id}"]`)
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (r.left < box.left - eps || r.right > box.right + eps || r.top < box.top - eps || r.bottom > box.bottom + eps) {
+        next.push(l.id)
+      }
+    }
+    setOutside((prev) => (prev.length === next.length && prev.every((id, i) => id === next[i]) ? prev : next))
+  }, [objects, hidden, overlays?.print])
+
+  const anyOutside = outside.length > 0
 
   function capture(el: HTMLElement, pointerId: number) {
     try {
@@ -40,9 +76,25 @@ export function CanvasObjects({ objects, hidden, selectedId, onSelect, onLive, o
   function onPointerDownBody(e: RPointerEvent<HTMLDivElement>, l: Layer) {
     if (editing || l.locked || !l.obj) return
     e.stopPropagation()
-    onSelect(l.id)
+    // Shift+Click toggles this object in/out of the selection (no drag).
+    if (e.shiftKey) {
+      onSelect(l.id, true)
+      return
+    }
+    // Dragging an already-selected object in a multi-selection moves the whole group;
+    // otherwise this click replaces the selection with just this object.
+    const inMulti = selectedIds.length > 1 && selectedIds.includes(l.id)
+    if (!inMulti) onSelect(l.id)
     const r = rect()
-    dragRef.current = { mode: 'move', id: l.id, sx: e.clientX, sy: e.clientY, ox: l.obj.x, oy: l.obj.y, w: r.width, h: r.height }
+    const objR = e.currentTarget.getBoundingClientRect()
+    const halfW = r.width ? objR.width / 2 / r.width : 0.1
+    const halfH = r.height ? objR.height / 2 / r.height : 0.1
+    const movingIds = inMulti ? selectedIds : [l.id]
+    const group = movingIds
+      .map((id) => objects.find((o) => o.id === id))
+      .filter((o): o is Layer => !!o && !!o.obj && !o.locked)
+      .map((o) => ({ id: o.id, ox: o.obj!.x, oy: o.obj!.y }))
+    dragRef.current = { mode: 'move', id: l.id, sx: e.clientX, sy: e.clientY, ox: l.obj.x, oy: l.obj.y, w: r.width, h: r.height, halfW, halfH, group }
     capture(e.currentTarget, e.pointerId)
   }
 
@@ -69,7 +121,39 @@ export function CanvasObjects({ objects, hidden, selectedId, onSelect, onLive, o
     if (d.mode === 'move') {
       const dx = (e.clientX - d.sx) / d.w
       const dy = (e.clientY - d.sy) / d.h
-      onLive(d.id, { x: clamp(d.ox + dx), y: clamp(d.oy + dy) })
+      let nx = clamp(d.ox + dx)
+      let ny = clamp(d.oy + dy)
+      // Snap the object's center OR either edge to the print-area center / bounds. Each
+      // candidate maps to a guide line: { at = center value to snap to, guide = the line shown }.
+      // Hold Alt for free placement.
+      let gx: number | null = null
+      let gy: number | null = null
+      if (!e.altKey) {
+        const xCands = [
+          { at: d.halfW, guide: 0 },
+          { at: 0.5, guide: 0.5 },
+          { at: 1 - d.halfW, guide: 1 },
+        ]
+        const yCands = [
+          { at: d.halfH, guide: 0 },
+          { at: 0.5, guide: 0.5 },
+          { at: 1 - d.halfH, guide: 1 },
+        ]
+        for (const c of xCands) if (Math.abs(nx - c.at) < SNAP_THRESHOLD) { nx = c.at; gx = c.guide; break }
+        for (const c of yCands) if (Math.abs(ny - c.at) < SNAP_THRESHOLD) { ny = c.at; gy = c.guide; break }
+      }
+      setSnap({ x: gx, y: gy })
+      // Move the whole selected group by the pressed object's (snapped) delta.
+      const ddx = nx - d.ox
+      const ddy = ny - d.oy
+      if (d.group.length > 1) {
+        for (const g of d.group) {
+          if (g.id === d.id) onLive(g.id, { x: nx, y: ny })
+          else onLive(g.id, { x: clamp(g.ox + ddx), y: clamp(g.oy + ddy) })
+        }
+      } else {
+        onLive(d.id, { x: nx, y: ny })
+      }
     } else if (d.mode === 'resize') {
       const dist = Math.hypot(e.clientX - d.cx, e.clientY - d.cy)
       onLive(d.id, { width: Math.max(0.06, Math.min(1.4, d.startW * (dist / d.startDist))) })
@@ -84,20 +168,37 @@ export function CanvasObjects({ objects, hidden, selectedId, onSelect, onLive, o
   function endDrag() {
     if (dragRef.current) {
       dragRef.current = null
+      setSnap({ x: null, y: null })
       onCommit()
     }
   }
 
   return (
     <div className="co-box" ref={boxRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+      {/* Print-zone overlays (optional, hidden by default). Bleed sits outside, safe inside. */}
+      {overlays?.bleed && <span className="co-zone co-zone--bleed" aria-hidden><span className="co-zone__tag">Bleed</span></span>}
+      {overlays?.print && <span className="co-zone co-zone--print" aria-hidden><span className="co-zone__tag">Print area</span></span>}
+      {overlays?.safe && <span className="co-zone co-zone--safe" aria-hidden><span className="co-zone__tag">Safe area</span></span>}
+      {/* Only warn about the print area when the user has actually turned that guide on —
+          otherwise it's just noise (we have no real per-garment print zone to warn against). */}
+      {overlays?.print && anyOutside && (
+        <span className="co-warn" role="status">
+          {outside.length} object{outside.length === 1 ? '' : 's'} outside the print area
+        </span>
+      )}
+      {snap.x != null && <span className="co-guide co-guide--v" style={{ left: `${snap.x * 100}%` }} aria-hidden />}
+      {snap.y != null && <span className="co-guide co-guide--h" style={{ top: `${snap.y * 100}%` }} aria-hidden />}
       {[...objects].reverse().map((l) => {
         if (!l.obj || hidden[l.id]) return null
         const o = l.obj
-        const selected = l.id === selectedId
+        const selected = selectedIds.includes(l.id)
+        // Resize/rotate handles only for a single selection; multi-select supports move together.
+        const showHandles = selected && selectedIds.length === 1
         return (
           <div
             key={l.id}
-            className={`co-obj${selected ? ' is-selected' : ''}${l.locked ? ' is-locked' : ''}`}
+            data-id={l.id}
+            className={`co-obj${selected ? ' is-selected' : ''}${l.locked ? ' is-locked' : ''}${overlays?.print && outside.includes(l.id) ? ' is-outside' : ''}`}
             style={{
               left: `${o.x * 100}%`,
               top: `${o.y * 100}%`,
@@ -110,9 +211,9 @@ export function CanvasObjects({ objects, hidden, selectedId, onSelect, onLive, o
           >
             <ObjectContent obj={o} editing={editing === l.id} onText={(t) => { onEditText(l.id, t); onCommit() }} onDone={() => setEditing(null)} />
 
-            {selected && !l.locked && editing !== l.id && (
+            {selected && editing !== l.id && <span className="co-frame" aria-hidden />}
+            {showHandles && !l.locked && editing !== l.id && (
               <>
-                <span className="co-frame" aria-hidden />
                 <button
                   className="co-handle co-handle--rotate"
                   type="button"
@@ -160,7 +261,7 @@ function ObjectContent({
           className="co-text-input"
           autoFocus
           defaultValue={obj.text}
-          style={{ color: obj.color, fontFamily: obj.font, fontWeight: obj.weight }}
+          style={{ color: obj.color, fontFamily: obj.font, fontWeight: obj.weight, letterSpacing: obj.letterSpacing, textAlign: obj.align ?? 'center' }}
           onFocus={(e) => e.currentTarget.select()}
           onBlur={(e) => {
             onText(e.currentTarget.value)
@@ -179,19 +280,31 @@ function ObjectContent({
     return (
       <span
         className="co-text"
-        style={{ color: obj.color, fontFamily: obj.font, fontWeight: obj.weight, letterSpacing: obj.letterSpacing }}
+        style={{
+          color: obj.color,
+          fontFamily: obj.font,
+          fontWeight: obj.weight,
+          fontStyle: obj.italic ? 'italic' : undefined,
+          textDecoration: obj.underline ? 'underline' : undefined,
+          letterSpacing: obj.letterSpacing,
+          lineHeight: obj.lineHeight ?? 1.1,
+          textAlign: obj.align ?? 'center',
+        }}
       >
         {obj.text || 'Text'}
       </span>
     )
   }
+  const flip = `scale(${obj.flipH ? -1 : 1}, ${obj.flipV ? -1 : 1})`
   if (obj.type === 'image' && obj.src) {
-    return <img className="co-img" src={obj.src} alt="" draggable={false} />
+    return <img className="co-img" src={obj.src} alt="" draggable={false} style={{ transform: flip }} />
   }
   // graphic
   return (
-    <svg className="co-gfx" viewBox="0 0 100 100" style={{ color: obj.color }} dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph ?? ''] ?? GRAPHIC_MARKS['Box Logo'] }} />
+    <svg className="co-gfx" viewBox="0 0 100 100" style={{ color: obj.color, transform: flip }} dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph ?? ''] ?? GRAPHIC_MARKS['Box Logo'] }} />
   )
 }
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v))
+/** How close (in print-area fraction) an object must be to a center axis to snap. */
+const SNAP_THRESHOLD = 0.022

@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
 import { downloadCsv, downloadJson, downloadText, slugify } from '../../lib/download'
+import { AiSettings } from './AiSettings'
 import {
   IcoSettings,
   IcoGrid,
@@ -43,6 +44,7 @@ type NavKey =
   | 'billing'
   | 'team'
   | 'integrations'
+  | 'ai'
 
 type NavItem = {
   key: NavKey
@@ -138,6 +140,7 @@ const NAV: NavItem[] = [
   { key: 'billing', label: 'Billing', icon: IcoCoins },
   { key: 'team', label: 'Team', icon: IcoCommunity },
   { key: 'integrations', label: 'Integrations', icon: IcoMarketplace },
+  { key: 'ai', label: 'AI', icon: IcoBolt },
 ]
 
 export function Settings() {
@@ -991,6 +994,9 @@ export function Settings() {
             </div>
           </section>
           )}
+
+          {/* ===== AI ===== */}
+          {active === 'ai' && <AiSettings />}
 
           {/* ===== Sticky save bar ===== */}
           {isDirty && (

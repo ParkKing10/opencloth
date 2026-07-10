@@ -2,11 +2,13 @@
 
 .co-box {
   position: absolute;
-  /* the printable chest region of the garment */
-  left: 30%;
-  top: 26%;
-  width: 40%;
-  height: 44%;
+  /* The design surface spans (almost) the whole garment image, so objects can be placed
+     anywhere on it — not confined to a guessed chest box. We have no real per-garment print
+     zone, so the surface = the garment; a smaller "print area" is only an optional guide. */
+  left: 6%;
+  top: 5%;
+  width: 88%;
+  height: 90%;
   z-index: 6;
   pointer-events: none;
 }
@@ -32,22 +34,18 @@
 .co-text {
   display: block;
   width: 100%;
-  text-align: center;
-  line-height: 1.05;
+  /* text-align + line-height come from the object so the Text inspector controls them */
   font-size: 24cqw;
-  text-transform: uppercase;
-  white-space: nowrap;
+  overflow-wrap: break-word;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 .co-text-input {
   width: 100%;
-  text-align: center;
   border: 0;
   background: rgba(0, 0, 0, 0.4);
   outline: 2px solid var(--s-accent);
   border-radius: 4px;
   font-size: 24cqw;
-  text-transform: uppercase;
   padding: 2px 4px;
 }
 .co-img {
@@ -62,6 +60,101 @@
   height: auto;
   display: block;
   pointer-events: none;
+}
+
+/* print-zone overlays (optional) */
+.co-zone {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 4px;
+  z-index: 2;
+}
+.co-zone__tag {
+  position: absolute;
+  left: 0;
+  top: -16px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.co-zone--print {
+  inset: 0;
+  border: 1px dashed rgba(120, 170, 255, 0.9);
+}
+.co-zone--print .co-zone__tag {
+  color: #cfe0ff;
+  background: rgba(60, 90, 160, 0.55);
+}
+.co-zone--safe {
+  inset: 9%;
+  border: 1px dashed rgba(120, 230, 160, 0.85);
+}
+.co-zone--safe .co-zone__tag {
+  color: #cffbe0;
+  background: rgba(40, 130, 90, 0.5);
+}
+.co-zone--bleed {
+  inset: -9%;
+  border: 1px dashed rgba(255, 170, 120, 0.85);
+}
+.co-zone--bleed .co-zone__tag {
+  top: -16px;
+  color: #ffe4cf;
+  background: rgba(160, 100, 50, 0.5);
+}
+
+/* soft warning when objects leave the print area (never blocks) */
+.co-warn {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: var(--s-r-pill);
+  background: rgba(160, 90, 30, 0.9);
+  color: #ffe9d6;
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.co-obj.is-outside .co-frame {
+  border-color: #f4a04f;
+}
+.co-obj.is-outside::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 1.5px dashed #f4a04f;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+/* center-snap guides (shown while dragging near an axis) */
+.co-guide {
+  position: absolute;
+  background: var(--s-accent);
+  pointer-events: none;
+  z-index: 3;
+}
+.co-guide--v {
+  /* left set inline to the snapped position */
+  top: -40%;
+  bottom: -40%;
+  width: 1px;
+  transform: translateX(-50%);
+}
+.co-guide--h {
+  /* top set inline to the snapped position */
+  left: -40%;
+  right: -40%;
+  height: 1px;
+  transform: translateY(-50%);
 }
 
 /* selection frame + handles */

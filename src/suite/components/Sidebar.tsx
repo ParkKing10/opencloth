@@ -26,6 +26,7 @@ type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boo
 
 const PRIMARY: NavItem[] = [
   { to: '/suite', label: 'Dashboard', icon: IcoDashboard, end: true },
+  { to: '/suite/garments', label: 'Garments', icon: IcoAI },
   { to: '/suite/design', label: 'Design Studio', icon: IcoDesign },
   { to: '/suite/pattern', label: 'Pattern Studio', icon: IcoPattern },
   { to: '/suite/ai', label: 'AI Designer', icon: IcoAI, badge: 'NEW' },

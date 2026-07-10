@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   IcoDesign,
   IcoSearch,
@@ -12,20 +12,27 @@ import {
   IcoMoon,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { useGarments } from '../../garments/useGarments'
+import { loadGarmentDisplay, getGarment } from '../../garments/garmentClient'
+import { isBuiltinGarmentId, builtinTemplateId } from '../../garments/builtinGarments'
+import { buildFromTemplate } from '../../garment-model/garmentFactory'
+import { createGarment } from '../../garment-model/garmentLibrary'
+import { categoryLabel, EMPTY_VIEWS, type Garment as LibGarment, type GarmentCategoryId, type GarmentRepresentation, type GarmentViews } from '../../garments/types'
 import { useToast } from '../../components/ui/Toast'
 import { useSuiteTheme } from '../../theme'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { uid } from '../../data/utils'
-import type { ProjectInput } from '../../export/project'
+import type { RealExportProject } from '../../export/real/exportProject'
 import { computeReadiness } from '../../export/readiness'
-import { DrivePanel } from '../../drive/ui/DrivePanel'
 import { BrandKitPanel } from '../../drive/ui/BrandKitPanel'
-import type { DriveAsset } from '../../drive/driveClient'
+import { AssetLibrary, ASSET_DRAG_TYPE } from '../../assets/ui/AssetLibrary'
+import { getAsset, touchAsset } from '../../assets/assetStore'
+import { blobToDataUrl } from '../../assets/assetThumb'
 import { loadBrandKit, recordChoice, saveBrandKit, type BrandKit } from '../../drive/brandKit'
 import { StudioCanvas } from './StudioCanvas'
 import { CommandBar, type StudioMode } from './CommandBar'
-import { LayersPanel, type Layer } from './LayersPanel'
+import { LayersPanel, type Layer, type GarmentRegionLayer } from './LayersPanel'
 import { ContextPanel, defaultFieldsFor, type ContextField } from './ContextPanel'
 import { ObjectInspector } from './ObjectInspector'
 import {
@@ -35,8 +42,19 @@ import {
   patchObject,
   type CanvasObject,
 } from './objectModel'
-import { GarmentInspector, type PropField } from './GarmentInspector'
+import { type PropField } from './GarmentInspector'
+import { GarmentInfoPanel } from './GarmentInfoPanel'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
+import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
+import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
+// M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
+import { loadHistory } from '../../garment-model/garmentDocumentStore'
+import { currentGarment } from '../../garment-model/garmentRevision'
+import { garmentThumbnailSvg } from '../../garment-model/garmentThumbnail'
+import { flattenRegions, toggleVisible, setRegionColor } from '../../garment-model/regionTree'
+import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
+import type { EditableGarment } from '../../garment-model/editableGarment'
+import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
 import { MaterialsPanel } from './MaterialsPanel'
 import { InspirationPanel } from './InspirationPanel'
@@ -63,28 +81,50 @@ const RAIL = ['Garments', 'Graphics', 'Materials', 'Brand Kit', 'Assets', 'Inspi
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
 
-/** A studio garment blank — the base the creator designs on. */
+/** A studio garment blank — the base the creator designs on. Sourced from the Garment Library. */
 type Garment = {
+  id?: string
   name: string
   kind: GarmentKind
   cat: Cat
   fit: string
+  category?: GarmentCategoryId
+  thumbUrl?: string
+  /** Brand/vendor from the imported garment (real field). */
+  brand?: string
+  /** The real views this blank has — drives the canvas view tabs + 3D toggle. No fakes. */
+  views: GarmentViews
 }
 
-const GARMENTS: Garment[] = [
-  { name: 'T-Shirt', kind: 'tee', cat: 'Tops', fit: 'Regular Fit' },
-  { name: 'Hoodie', kind: 'hoodie', cat: 'Tops', fit: 'Oversized Fit' },
-  { name: 'Zip Hoodie', kind: 'hoodie', cat: 'Tops', fit: 'Relaxed Fit' },
-  { name: 'Sweatshirt', kind: 'hoodie', cat: 'Tops', fit: 'Boxy Fit' },
-  { name: 'Tank Top', kind: 'tee', cat: 'Tops', fit: 'Slim Fit' },
-  { name: 'Longsleeve', kind: 'tee', cat: 'Tops', fit: 'Regular Fit' },
-  { name: 'Oversized Tee', kind: 'tee', cat: 'Tops', fit: 'Oversized Fit' },
-  { name: 'Bomber Jacket', kind: 'jacket', cat: 'Outerwear', fit: 'Regular Fit' },
-  { name: 'Cargo Jacket', kind: 'jacket', cat: 'Outerwear', fit: 'Relaxed Fit' },
-  { name: 'Cargo Pants', kind: 'pants', cat: 'Bottoms', fit: 'Baggy Fit' },
-  { name: 'Wide Trousers', kind: 'pants', cat: 'Bottoms', fit: 'Wide Fit' },
-  { name: 'Dad Cap', kind: 'cap', cat: 'Accessories', fit: 'Adjustable' },
-]
+// Project a library category onto the canvas kind (photo/glyph fallback) + the meta filter chip.
+const CATEGORY_KIND: Record<GarmentCategoryId, GarmentKind> = {
+  hoodie: 'hoodie', sweatshirt: 'hoodie', knitwear: 'hoodie',
+  tee: 'tee', dress: 'tee', other: 'tee',
+  jacket: 'jacket', bomber: 'jacket', blazer: 'jacket',
+  pants: 'pants', shorts: 'pants', skirt: 'pants',
+  cap: 'cap', accessory: 'cap',
+}
+const CATEGORY_CAT: Record<GarmentCategoryId, Cat> = {
+  hoodie: 'Tops', tee: 'Tops', sweatshirt: 'Tops', knitwear: 'Tops', dress: 'Tops', other: 'Tops',
+  pants: 'Bottoms', shorts: 'Bottoms', skirt: 'Bottoms',
+  jacket: 'Outerwear', bomber: 'Outerwear', blazer: 'Outerwear',
+  cap: 'Accessories', accessory: 'Accessories',
+}
+
+/** Project a Garment Library garment onto the studio's blank model. */
+function libToStudio(g: LibGarment): Garment {
+  return {
+    id: g.id,
+    name: g.name,
+    kind: CATEGORY_KIND[g.category] ?? 'tee',
+    cat: CATEGORY_CAT[g.category] ?? 'Tops',
+    fit: '',
+    category: g.category,
+    thumbUrl: g.thumbUrl,
+    brand: g.vendor || undefined,
+    views: g.views ?? EMPTY_VIEWS,
+  }
+}
 
 // Layer model lives with the panel (Figma-grade: lock, color labels, groups).
 
@@ -94,20 +134,34 @@ type Snapshot = {
   hidden: Record<string, boolean>
 }
 
-const INITIAL_LAYERS: Layer[] = [
-  {
-    id: 'l-puff',
-    name: 'VISIONARY',
-    type: 'Text',
-    obj: { type: 'text', x: 0.5, y: 0.4, width: 0.82, rotation: 0, opacity: 1, text: 'VISIONARY', color: '#C9C9D2', font: 'Archivo', weight: 800, letterSpacing: 3 },
-  },
-  { id: 'l-back', name: 'Back Print', type: 'Graphic' },
-  { id: 'l-hood', name: 'Hood', type: 'Material' },
-  { id: 'l-main', name: 'Main Fabric', type: 'Material' },
-  { id: 'l-rib', name: 'Ribbing', type: 'Material' },
-]
+// A freshly selected imported garment starts with ZERO design layers — no demo VISIONARY
+// text, no fake prints or materials. Real layers appear only when the user adds them.
+const INITIAL_SNAPSHOT: Snapshot = { layers: [], hidden: {} }
 
-const INITIAL_SNAPSHOT: Snapshot = { layers: INITIAL_LAYERS, hidden: {} }
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
+const freshId = () => `l-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+
+/** Expand a set of selected ids to include the members of any selected group. */
+function expandSelection(ids: string[], all: Layer[]): Set<string> {
+  const set = new Set(ids)
+  all.forEach((l) => {
+    if (l.groupId && set.has(l.groupId)) set.add(l.id)
+  })
+  return set
+}
+
+/** Clone layers with new ids, remapped group membership, and an optional positional offset. */
+function cloneLayers(src: Layer[], offset: number): Layer[] {
+  const idMap = new Map<string, string>()
+  src.forEach((l) => idMap.set(l.id, freshId()))
+  return src.map((l) => ({
+    ...l,
+    id: idMap.get(l.id) as string,
+    locked: false,
+    groupId: l.groupId && idMap.has(l.groupId) ? idMap.get(l.groupId) : undefined,
+    obj: l.obj ? { ...l.obj, x: clamp01(l.obj.x + offset), y: clamp01(l.obj.y + offset) } : undefined,
+  }))
+}
 
 /** Editable property fields, keyed by a stable id so edits target the right row. */
 const INITIAL_FIELDS: Record<string, PropField[]> = {
@@ -156,16 +210,17 @@ export function DesignStudio() {
   const { data, mutate } = useStore()
   const [rail, setRail] = useState('Garments')
 
-  // The design being edited — one stable id per piece so auto-save upserts it.
-  const [designId, setDesignId] = useState<string>(() => {
-    try {
-      return sessionStorage.getItem('threados-current-design') || uid('d')
-    } catch {
-      return uid('d')
-    }
-  })
+  // A Design belongs to a garment blank: its id is derived from the active garment
+  // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
+  // Save dialog: name + which collection the design belongs to (created inline if needed).
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [collectionId, setCollectionId] = useState<string | undefined>(undefined)
+  // User-provided product specs (material/fit/weight/…). Empty by default; never inferred.
+  const [specs, setSpecs] = useState<ProductSpecs>({})
+  // Manufacturing project info (brand/designer/collection/…) entered in the Export wizard.
+  const [projectInfo, setProjectInfo] = useState<ProjectInfo>({})
 
   // Topbar utilities (mirrors the suite topbar)
   const [notifOpen, setNotifOpen] = useState(false)
@@ -192,9 +247,12 @@ export function DesignStudio() {
   })
   const [rightHidden, setRightHidden] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('threados-right-hidden') === '1'
+      // right inspector is closed by default (canvas-first); an explicit choice persists.
+      // Fresh key so older sessions' stored preference doesn't override the new default.
+      const raw = localStorage.getItem('threados-inspector-hidden')
+      return raw === null ? true : raw === '1'
     } catch {
-      return false
+      return true
     }
   })
   const [leftHidden, setLeftHidden] = useState<boolean>(() => {
@@ -202,6 +260,15 @@ export function DesignStudio() {
       return localStorage.getItem('threados-left-hidden') === '1'
     } catch {
       return false
+    }
+  })
+  // Library rail is horizontally resizable — persisted width overrides the --library-w default.
+  const [libraryW, setLibraryW] = useState<number | null>(() => {
+    try {
+      const raw = localStorage.getItem('threados-library-w')
+      return raw ? Math.max(200, parseInt(raw, 10) || 0) : null
+    } catch {
+      return null
     }
   })
   // Layers start minimized — the canvas is the star; one click opens the stack.
@@ -216,7 +283,7 @@ export function DesignStudio() {
   const toggleRight = useCallback(() => {
     setRightHidden((v) => {
       try {
-        localStorage.setItem('threados-right-hidden', v ? '0' : '1')
+        localStorage.setItem('threados-inspector-hidden', v ? '0' : '1')
       } catch {
         /* ignore */
       }
@@ -277,6 +344,31 @@ export function DesignStudio() {
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
   }, [])
+
+  /** Drag the library's right edge to resize its width (tracks the cursor exactly). */
+  const startLibraryResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    const lib = (e.currentTarget.closest('.ds-body') as HTMLElement | null)?.querySelector('.ds-left')
+    if (!lib) return
+    const leftX = lib.getBoundingClientRect().left
+    const compute = (clientX: number) => Math.min(560, Math.max(200, Math.round(clientX - leftX)))
+    let last = compute(e.clientX)
+    const onMove = (ev: PointerEvent) => {
+      last = compute(ev.clientX)
+      setLibraryW(last)
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      try {
+        localStorage.setItem('threados-library-w', String(last))
+      } catch {
+        /* ignore */
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [])
   const [cat, setCat] = useState<Cat>('All')
   const [query, setQuery] = useState('')
   const [activeName, setActiveName] = useState('Hoodie')
@@ -330,18 +422,88 @@ export function DesignStudio() {
   const canUndo = past.length > 0
   const canRedo = future.length > 0
 
-  /** Commit a new snapshot, pushing the current one onto the undo stack. */
-  const commit = useCallback((next: Snapshot) => {
-    setPast((prev) => [...prev, present])
-    setPresent(next)
-    setFuture([])
-  }, [present])
+  // Which garment the live canvas belongs to, and always-fresh name/collection mirrors —
+  // so document saves are keyed correctly and never read stale closure values.
+  const loadedGarmentRef = useRef<string | null>(null)
+  const designNameRef = useRef('Hoodie')
+  const collectionIdRef = useRef<string | undefined>(undefined)
+  const specsRef = useRef<ProductSpecs>({})
+  const projectInfoRef = useRef<ProjectInfo>({})
+
+  /**
+   * Persist the given canvas snapshot to the current garment's document. Called ONLY from
+   * real edit sinks (commit / undo / redo / drag-end / rename / save / spec edit) — never from
+   * a load — so loading a garment can never echo an empty canvas back over a saved design.
+   */
+  const saveCurrentDoc = useCallback((snap: Snapshot, name?: string, col?: string) => {
+    const gid = loadedGarmentRef.current
+    if (!gid) return
+    saveDoc(gid, {
+      layers: snap.layers,
+      hidden: snap.hidden,
+      designName: name ?? designNameRef.current,
+      collectionId: col ?? collectionIdRef.current,
+      specs: specsRef.current,
+      projectInfo: projectInfoRef.current,
+      updatedAt: Date.now(),
+    })
+  }, [])
+
+  /**
+   * Patch the user product specs and persist immediately (design is never blocked by specs).
+   * Builds the next specs from specsRef (kept in lockstep with the loaded garment) rather than
+   * React state, so a spec edit right after a garment switch can never merge the previous
+   * garment's stale specs into the new garment's document.
+   */
+  const patchSpec = useCallback(
+    (patch: Partial<ProductSpecs>) => {
+      const next = { ...specsRef.current, ...patch }
+      specsRef.current = next
+      setSpecs(next)
+      saveCurrentDoc(presentRef.current)
+    },
+    [saveCurrentDoc],
+  )
+
+  /** Patch manufacturing project info and persist immediately (Export wizard, auto-save). */
+  const patchProjectInfo = useCallback(
+    (patch: Partial<ProjectInfo>) => {
+      const next = { ...projectInfoRef.current, ...patch }
+      projectInfoRef.current = next
+      setProjectInfo(next)
+      saveCurrentDoc(presentRef.current)
+    },
+    [saveCurrentDoc],
+  )
+
+  /** Commit a new snapshot, pushing the current one onto the undo stack + persisting it. */
+  const commit = useCallback(
+    (next: Snapshot) => {
+      setPast((prev) => [...prev, present])
+      setPresent(next)
+      setFuture([])
+      saveCurrentDoc(next)
+    },
+    [present, saveCurrentDoc],
+  )
 
   // Live mirror so object drags read the freshest state without stale closures.
   const presentRef = useRef(present)
   useEffect(() => {
     presentRef.current = present
   }, [present])
+  useEffect(() => {
+    designNameRef.current = designName
+  }, [designName])
+  useEffect(() => {
+    collectionIdRef.current = collectionId
+  }, [collectionId])
+  useEffect(() => {
+    specsRef.current = specs
+  }, [specs])
+  useEffect(() => {
+    projectInfoRef.current = projectInfo
+  }, [projectInfo])
 
   // ---- Editable canvas objects (text / image / graphic) ----
   const objectLayers = useMemo(() => present.layers.filter((l) => l.obj), [present.layers])
@@ -396,8 +558,10 @@ export function DesignStudio() {
     setPresent(next)
   }, [])
   const commitObject = useCallback(() => {
+    // A drag/resize/rotate ended — presentRef holds the final state; persist it.
+    if (dragStartedRef.current) saveCurrentDoc(presentRef.current)
     dragStartedRef.current = false
-  }, [])
+  }, [saveCurrentDoc])
 
   const editObjectText = useCallback(
     (id: string, text: string) => {
@@ -421,19 +585,327 @@ export function DesignStudio() {
     [commit],
   )
 
-  const activeGarment = useMemo(
-    () => GARMENTS.find((g) => g.name === activeName) ?? GARMENTS[1],
-    [activeName],
+  /** Replace an image object's source, keeping its position/size/rotation intact. */
+  const replaceImage = useCallback(
+    (id: string) => {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = 'image/png,image/svg+xml,image/webp,image/jpeg'
+      input.onchange = () => {
+        const f = input.files?.[0]
+        if (!f || !f.type.startsWith('image/')) return
+        const reader = new FileReader()
+        reader.onload = () => {
+          setObjectProp(id, { src: String(reader.result) })
+          toast('Image replaced.', 'success')
+        }
+        reader.readAsDataURL(f)
+      }
+      input.click()
+    },
+    [setObjectProp, toast],
   )
+
+  // ---- Object operations (all go through commit → undoable + autosaved) ----
+  const clipboardRef = useRef<Layer[]>([])
+  const liveSelectedRef = useRef<string[]>([])
+
+  /** Change a layer's stacking order (front = index 0 = drawn on top). */
+  const arrangeLayer = useCallback(
+    (id: string, op: 'front' | 'back' | 'forward' | 'backward') => {
+      const base = presentRef.current
+      const arr = [...base.layers]
+      const i = arr.findIndex((l) => l.id === id)
+      if (i < 0) return
+      const [item] = arr.splice(i, 1)
+      const j = op === 'front' ? 0 : op === 'back' ? arr.length : op === 'forward' ? Math.max(0, i - 1) : Math.min(arr.length, i + 1)
+      arr.splice(j, 0, item)
+      commit({ layers: arr, hidden: base.hidden })
+    },
+    [commit],
+  )
+
+  const duplicateSelection = useCallback(() => {
+    const base = presentRef.current
+    const sel = expandSelection(liveSelectedRef.current, base.layers)
+    if (sel.size === 0) return
+    const clones = cloneLayers(base.layers.filter((l) => sel.has(l.id)), 0.03)
+    commit({ layers: [...clones, ...base.layers], hidden: base.hidden })
+    setSelectedIds(clones.filter((c) => !c.groupId).map((c) => c.id))
+    toast(`Duplicated ${clones.filter((c) => !c.groupId).length} layer${clones.filter((c) => !c.groupId).length === 1 ? '' : 's'}.`, 'success')
+  }, [commit, toast])
+
+  const copySelection = useCallback(() => {
+    const base = presentRef.current
+    const sel = expandSelection(liveSelectedRef.current, base.layers)
+    clipboardRef.current = base.layers.filter((l) => sel.has(l.id))
+  }, [])
+
+  const paste = useCallback(() => {
+    if (clipboardRef.current.length === 0) return
+    const base = presentRef.current
+    const clones = cloneLayers(clipboardRef.current, 0.04)
+    commit({ layers: [...clones, ...base.layers], hidden: base.hidden })
+    setSelectedIds(clones.filter((c) => !c.groupId).map((c) => c.id))
+    toast('Pasted.', 'success')
+  }, [commit, toast])
+
+  const selectAllObjects = useCallback(() => {
+    setSelectedIds(presentRef.current.layers.filter((l) => l.obj && !l.locked).map((l) => l.id))
+  }, [])
+
+  /** Move every selected (unlocked) object by a normalized delta. */
+  const nudgeSelection = useCallback(
+    (dx: number, dy: number) => {
+      const base = presentRef.current
+      const sel = expandSelection(liveSelectedRef.current, base.layers)
+      if (sel.size === 0) return
+      const next = base.layers.map((l) =>
+        sel.has(l.id) && l.obj && !l.locked ? { ...l, obj: { ...l.obj, x: clamp01(l.obj.x + dx), y: clamp01(l.obj.y + dy) } } : l,
+      )
+      commit({ layers: next, hidden: base.hidden })
+    },
+    [commit],
+  )
+
+  const groupSelection = useCallback(() => {
+    const base = presentRef.current
+    const members = liveSelectedRef.current
+      .map((id) => base.layers.find((l) => l.id === id))
+      .filter((l): l is Layer => !!l && l.type !== 'Group' && !l.groupId)
+    if (members.length < 2) {
+      toast('Select at least two layers to group.', 'info')
+      return
+    }
+    const gid = `${freshId()}g`
+    const group: Layer = { id: gid, name: `Group ${base.layers.filter((l) => l.type === 'Group').length + 1}`, type: 'Group' }
+    const memberIds = new Set(members.map((m) => m.id))
+    const firstIdx = base.layers.findIndex((l) => memberIds.has(l.id))
+    const rest = base.layers.filter((l) => !memberIds.has(l.id))
+    const updated = members.map((m) => ({ ...m, groupId: gid }))
+    commit({ layers: [...rest.slice(0, firstIdx), group, ...updated, ...rest.slice(firstIdx)], hidden: base.hidden })
+    setSelectedIds([gid])
+    toast(`Grouped ${members.length} layers.`, 'success')
+  }, [commit, toast])
+
+  const ungroupSelection = useCallback(() => {
+    const base = presentRef.current
+    const gids = new Set(liveSelectedRef.current.filter((id) => base.layers.find((l) => l.id === id)?.type === 'Group'))
+    if (gids.size === 0) return
+    const next = base.layers
+      .filter((l) => !gids.has(l.id))
+      .map((l) => (l.groupId && gids.has(l.groupId) ? { ...l, groupId: undefined } : l))
+    commit({ layers: next, hidden: base.hidden })
+  }, [commit])
+
+  // The Garment Library is the single source of truth — the catalog loads real garments.
+  const { garments: library, loading: libraryLoading } = useGarments()
+  const catalog = useMemo(() => library.map(libToStudio), [library])
+
+  // M9/8.2 bridge: an editable garment injected via ?garment=<id> (from the Garments editor). When
+  // present it IS the active garment, so the studio shows YOUR garment (not a catalog item) and keys
+  // the design to its id.
+  const [searchParams] = useSearchParams()
+  const [bridgeGarment, setBridgeGarment] = useState<Garment | null>(null)
+  const [bridgeSvg, setBridgeSvg] = useState<string | null>(null)
+  // The editable garment behind the current design surface (from the bridge, or a built-in template).
+  // Its region tree is shown as controllable layers so you can hide/recolour any part in the Studio.
+  const [studioGarment, setStudioGarment] = useState<EditableGarment | null>(null)
+  const [regionSel, setRegionSel] = useState<string | null>(null)
+
+  const activeGarment = useMemo<Garment>(
+    () =>
+      bridgeGarment ??
+      catalog.find((g) => g.name === activeName) ??
+      catalog[0] ?? { name: activeName || 'Garment', kind: 'hoodie', cat: 'Tops', fit: '', views: EMPTY_VIEWS },
+    [catalog, activeName, bridgeGarment],
+  )
+
+  // One stable design per garment blank. The garment's own UUID is the design's id, so the
+  // Recent-Designs row (Supabase designs.id is a uuid column) upserts cleanly per garment.
+  const designId = activeGarment.id ?? ''
+
+  // Built-in catalog garments have a real editable region tree behind them. "Open in Garment
+  // Editor" builds a fresh editable copy and opens the region editor (front+back, every part a
+  // layer) — the Studio itself is a print/graphics tool with a single-preview backdrop.
+  const editableTemplateId = activeGarment.id && isBuiltinGarmentId(activeGarment.id) ? builtinTemplateId(activeGarment.id) : null
+  const openInGarmentEditor = useCallback(() => {
+    if (!user?.id || !editableTemplateId) return
+    const built = buildFromTemplate(editableTemplateId)
+    const summary = createGarment(user.id, { ...built.garment, name: built.name }, { name: built.name, category: built.category, origin: 'blank' })
+    navigate(`/suite/garment-lab/${summary.id}`)
+  }, [user?.id, editableTemplateId, navigate])
+
+  // Resolve the editable garment behind the active design surface so EVERY part shows as a layer:
+  // 1) a real saved garment (a bridged / created editable garment has a region-tree history), else
+  // 2) a built-in catalog template. Kind-only blanks (no id / no history) have no region tree.
+  useEffect(() => {
+    const id = activeGarment.id
+    const h = id ? loadHistory(id) : null
+    if (h) setStudioGarment(currentGarment(h))
+    else if (editableTemplateId) setStudioGarment(buildFromTemplate(editableTemplateId).garment)
+    else setStudioGarment(null)
+    setRegionSel(null)
+  }, [activeGarment.id, editableTemplateId])
+
+  // The garment backdrop is rendered FROM the editable garment, so hiding/recolouring a region
+  // updates the canvas live. Falls back to the bridge/library preview when there's no region tree.
+  const studioBackdropSvg = useMemo(() => (studioGarment ? garmentThumbnailSvg(studioGarment) : null), [studioGarment])
+
+  const garmentRegionLayers = useMemo<GarmentRegionLayer[]>(
+    () =>
+      studioGarment
+        ? flattenRegions(studioGarment).map(({ region, depth }) => ({
+            id: region.id,
+            name: region.name,
+            type: region.type,
+            depth,
+            visible: region.visible,
+            color: region.appearance?.fill,
+          }))
+        : [],
+    [studioGarment],
+  )
+
+  const toggleRegion = useCallback((id: string) => setStudioGarment((g) => (g ? toggleVisible(g, id) : g)), [])
+  const selectRegion = useCallback((id: string) => {
+    setRegionSel(id)
+    setSelectedIds([])
+  }, [])
+  const cycleRegionColor = useCallback((id: string) => {
+    setStudioGarment((g) => {
+      if (!g) return g
+      const cur = (g.regions[id]?.appearance?.fill ?? '').toLowerCase()
+      const idx = COLOR_SWATCHES.findIndex((s) => s.hex.toLowerCase() === cur)
+      const next = idx < 0 ? COLOR_SWATCHES[0].hex : idx + 1 >= COLOR_SWATCHES.length ? undefined : COLOR_SWATCHES[idx + 1].hex
+      return setRegionColor(g, id, next)
+    })
+  }, [])
+
+  // Restore the last-opened garment once the catalog is available (reload reopens the design).
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current || catalog.length === 0) return
+    restoredRef.current = true
+    const lastId = loadLastGarment()
+    const last = lastId ? catalog.find((g) => g.id === lastId) : null
+    if (last) setActiveName(last.name)
+  }, [catalog])
+
+  // M9/8.2 unified workflow: opened from a garment (?garment=<id>&name=<name>) → make THAT editable
+  // garment the active garment (its flat as the backdrop, design keyed to its id), skip the picker.
+  const bridgedRef = useRef(false)
+  useEffect(() => {
+    if (bridgedRef.current) return
+    const gid = searchParams.get('garment')
+    const gname = searchParams.get('name')
+    if (!gid) return
+    bridgedRef.current = true
+    restoredRef.current = true // the injected garment wins over last-opened restore
+    try {
+      sessionStorage.setItem('threados-studio-configured', '1')
+    } catch {
+      /* ignore */
+    }
+    setWizardOpen(false)
+    const h = loadHistory(gid)
+    if (!h) return
+    const eg = currentGarment(h)
+    setBridgeSvg(garmentThumbnailSvg(eg))
+    setStudioGarment(eg)
+    setBridgeGarment({
+      id: gid,
+      name: gname || eg.name,
+      kind: 'hoodie',
+      cat: 'Tops',
+      fit: '',
+      category: undefined,
+      views: { front: true, back: true, combinedFrontBack: false, side: false, details: false, has3D: false },
+    })
+  }, [searchParams])
+
+  // Open a garment → load its saved document (or start empty). Resets undo history so each
+  // garment is its own editing session; never carries one garment's layers onto another.
+  // Saving is done explicitly at edit sinks (see saveCurrentDoc), so a load never persists.
+  useEffect(() => {
+    const gid = activeGarment.id
+    if (!gid || loadedGarmentRef.current === gid) return
+    loadedGarmentRef.current = gid
+    const doc = loadDoc(gid)
+    const snapshot: Snapshot = doc ? { layers: doc.layers, hidden: doc.hidden } : { layers: [], hidden: {} }
+    const name = doc?.designName || activeGarment.name
+    setPast([])
+    setFuture([])
+    setPresent(snapshot)
+    presentRef.current = snapshot
+    setDesignName(name)
+    designNameRef.current = name
+    setCollectionId(doc?.collectionId)
+    collectionIdRef.current = doc?.collectionId
+    const loadedSpecs = doc?.specs ?? {}
+    setSpecs(loadedSpecs)
+    specsRef.current = loadedSpecs
+    const loadedInfo = doc?.projectInfo ?? {}
+    setProjectInfo(loadedInfo)
+    projectInfoRef.current = loadedInfo
+    setSelectedIds([])
+    saveLastGarment(gid)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGarment.id, activeGarment.name])
 
   const visibleGarments = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return GARMENTS.filter((g) => {
+    return catalog.filter((g) => {
       if (cat !== 'All' && g.cat !== cat) return false
       if (!q) return true
-      return g.name.toLowerCase().includes(q)
+      return `${g.name} ${g.category ?? ''}`.toLowerCase().includes(q)
     })
-  }, [cat, query])
+  }, [catalog, cat, query])
+
+  // Canvas backdrop: prefer the garment's crisp inline VECTOR (perfect at any zoom),
+  // else its full-resolution raster. Resolved whenever the active garment changes.
+  const [garmentSvg, setGarmentSvg] = useState<string | null>(null)
+  const [garmentDisplayUrl, setGarmentDisplayUrl] = useState<string>('')
+  useEffect(() => {
+    const id = activeGarment.id
+    // A bridged editable garment isn't in the Supabase catalog — its flat comes from bridgeSvg, so
+    // never call loadGarmentDisplay for it (it would resolve to nothing).
+    if (bridgeGarment) {
+      setGarmentDisplayUrl('')
+      return
+    }
+    if (!id) {
+      setGarmentSvg(null)
+      setGarmentDisplayUrl(activeGarment.thumbUrl ?? '')
+      return
+    }
+    let alive = true
+    void loadGarmentDisplay(id).then((res) => {
+      if (!alive) return
+      setGarmentSvg(res.svg ?? null)
+      setGarmentDisplayUrl(res.imageUrl ?? activeGarment.thumbUrl ?? '')
+    })
+    return () => {
+      alive = false
+    }
+  }, [activeGarment.id, activeGarment.thumbUrl, bridgeGarment])
+
+  // The inspector shows the garment's real representations — loaded only while it's open.
+  const [garmentReps, setGarmentReps] = useState<GarmentRepresentation[]>([])
+  useEffect(() => {
+    const id = activeGarment.id
+    if (rightHidden || !id) {
+      setGarmentReps([])
+      return
+    }
+    let alive = true
+    void getGarment(id).then((g) => {
+      if (alive) setGarmentReps(g?.representations ?? [])
+    })
+    return () => {
+      alive = false
+    }
+  }, [activeGarment.id, rightHidden])
 
   function selectRail(name: string) {
     setRail(name)
@@ -449,6 +921,33 @@ export function DesignStudio() {
       commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([layer.id])
       toast(`“${layer.name}” added to the design.`, 'success')
+    },
+    [commit, toast],
+  )
+
+  // Place a library graphic: embed the asset's own copy so the project stays self-contained
+  // (deleting the library asset never affects it) and each placement is an independent instance.
+  const placeAsset = useCallback(
+    async (assetId: string) => {
+      try {
+        const asset = await getAsset(assetId)
+        if (!asset) {
+          toast('That graphic is no longer in your library.', 'info')
+          return
+        }
+        const dataUrl = await blobToDataUrl(asset.blob)
+        const base = makeImageLayer(asset.filename, dataUrl)
+        // Intelligent default: centered in the print area; portrait art gets a narrower width so it fits.
+        const aspect = asset.width && asset.height ? asset.width / asset.height : 1
+        const width = Math.max(0.2, Math.min(0.6, aspect < 1 ? 0.5 * aspect : 0.5))
+        const layer: Layer = { ...base, obj: { ...base.obj!, x: 0.5, y: 0.5, width } }
+        commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+        setSelectedIds([layer.id])
+        void touchAsset(assetId)
+        toast(`“${layer.name}” placed on the garment.`, 'success')
+      } catch {
+        toast('Could not place that graphic.', 'info')
+      }
     },
     [commit, toast],
   )
@@ -474,6 +973,26 @@ export function DesignStudio() {
     const alive = new Set(layers.map((l) => l.id))
     return selectedIds.filter((id) => alive.has(id))
   }, [layers, selectedIds])
+  useEffect(() => {
+    liveSelectedRef.current = liveSelected
+  }, [liveSelected])
+
+  // Object ids shown selected on the canvas — selecting a group selects its member objects,
+  // so they highlight + move together. (Canvas selection is by object; panel may hold a group.)
+  const selectedObjIds = useMemo(() => {
+    const sel = new Set(liveSelected)
+    return layers.filter((l) => l.obj && (sel.has(l.id) || (l.groupId && sel.has(l.groupId)))).map((l) => l.id)
+  }, [layers, liveSelected])
+
+  /** Canvas selection: replace, or toggle (Shift+Click / additive). */
+  const selectObj = useCallback((id: string | null, additive?: boolean) => {
+    if (id === null) {
+      setSelectedIds([])
+      return
+    }
+    if (additive) setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+    else setSelectedIds([id])
+  }, [])
 
   // Prune context fields of deleted layers so the map never accumulates orphans.
   useEffect(() => {
@@ -553,8 +1072,9 @@ export function DesignStudio() {
     setPast((prev) => prev.slice(0, -1))
     setFuture((prev) => [present, ...prev])
     setPresent(previous)
+    saveCurrentDoc(previous)
     toast('Undid last change.')
-  }, [past, present, toast])
+  }, [past, present, toast, saveCurrentDoc])
 
   const redo = useCallback(() => {
     if (future.length === 0) return
@@ -562,8 +1082,9 @@ export function DesignStudio() {
     setFuture((prev) => prev.slice(1))
     setPast((prev) => [...prev, present])
     setPresent(next)
+    saveCurrentDoc(next)
     toast('Redid change.')
-  }, [future, present, toast])
+  }, [future, present, toast, saveCurrentDoc])
 
   // ---- Keyboard shortcuts (skipped while typing) ----
   useEffect(() => {
@@ -571,27 +1092,52 @@ export function DesignStudio() {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       const mod = e.metaKey || e.ctrlKey
+      const k = e.key.toLowerCase()
 
-      if (mod && e.key.toLowerCase() === 'z') {
+      if (mod && k === 'z') {
         e.preventDefault()
         if (e.shiftKey) redo()
         else undo()
         return
       }
-      if (mod && e.key.toLowerCase() === 'y') {
+      if (mod && k === 'y') {
         e.preventDefault()
         redo()
         return
       }
-      if (mod && e.key.toLowerCase() === 'd' && liveSelected.length > 0) {
+      if (mod && k === 'a') {
         e.preventDefault()
-        const src = layers.find((l) => l.id === liveSelected[0])
-        if (!src || src.type === 'Group') return
-        const copy: Layer = { ...src, id: `l-${Date.now().toString(36)}`, name: `${src.name} copy`, locked: false }
-        const at = layers.findIndex((l) => l.id === src.id)
-        commit({ layers: [...layers.slice(0, at), copy, ...layers.slice(at)], hidden })
-        setSelectedIds([copy.id])
-        toast(`Duplicated “${src.name}”.`, 'success')
+        selectAllObjects()
+        return
+      }
+      if (mod && k === 'c') {
+        e.preventDefault()
+        copySelection()
+        return
+      }
+      if (mod && k === 'v') {
+        e.preventDefault()
+        paste()
+        return
+      }
+      if (mod && k === 'd') {
+        e.preventDefault()
+        duplicateSelection()
+        return
+      }
+      if (mod && k === 'g') {
+        e.preventDefault()
+        if (e.shiftKey) ungroupSelection()
+        else groupSelection()
+        return
+      }
+      // Stacking order: ⌘] / ⌘[  (⇧ → all the way to front/back)
+      if (mod && (e.key === ']' || e.key === '[')) {
+        e.preventDefault()
+        const id = liveSelected[0]
+        if (!id) return
+        if (e.key === ']') arrangeLayer(id, e.shiftKey ? 'front' : 'forward')
+        else arrangeLayer(id, e.shiftKey ? 'back' : 'backward')
         return
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && liveSelected.length > 0) {
@@ -616,16 +1162,59 @@ export function DesignStudio() {
       }
       if (e.key === 'Escape' && liveSelected.length > 0) {
         setSelectedIds([])
+        return
+      }
+      // Arrow-key nudge (Shift = a larger step)
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key) && liveSelected.length > 0) {
+        e.preventDefault()
+        const step = e.shiftKey ? 0.05 : 0.005
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        nudgeSelection(dx, dy)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [layers, hidden, liveSelected, commit, undo, redo, toast])
+  }, [
+    layers,
+    hidden,
+    liveSelected,
+    commit,
+    undo,
+    redo,
+    toast,
+    selectAllObjects,
+    copySelection,
+    paste,
+    duplicateSelection,
+    groupSelection,
+    ungroupSelection,
+    arrangeLayer,
+    nudgeSelection,
+  ])
 
   // The design's identity, handed to the Manufacturing Export System.
-  const exportInput: ProjectInput = useMemo(
-    () => ({ styleName: activeGarment.name, kind: activeGarment.kind }),
-    [activeGarment.name, activeGarment.kind],
+  // Real export project — assembled from the live design (layers + specs + project info) + the
+  // real garment. Project-info fields the user entered in the wizard win over derived defaults.
+  const exportProject: RealExportProject = useMemo(
+    () => ({
+      brand: projectInfo.brand?.trim() || activeGarment.brand || 'THREADOS',
+      projectName: designName,
+      designer: projectInfo.designer?.trim() || user?.name || user?.email?.split('@')[0] || 'Designer',
+      collection: projectInfo.collection?.trim() || '',
+      styleNumber: projectInfo.styleNumber?.trim() || '',
+      sku: projectInfo.sku?.trim() || '',
+      season: projectInfo.season?.trim() || '',
+      garment: {
+        name: activeGarment.name,
+        category: activeGarment.category ? categoryLabel(activeGarment.category) : 'Other',
+        views: activeGarment.views,
+      },
+      specs,
+      layers: present.layers,
+      hidden: present.hidden,
+    }),
+    [activeGarment, designName, user, specs, projectInfo, present],
   )
 
   async function shareDesign() {
@@ -655,11 +1244,17 @@ export function DesignStudio() {
   const readinessInput = useMemo(() => deriveReadiness(studioCtx), [studioCtx])
   const readiness = useMemo(() => computeReadiness(readinessInput), [readinessInput])
 
+  // Collections the current user can save into (for the Save dialog).
+  const myCollections = useMemo(
+    () => data.collections.filter((c) => c.ownerId === user?.id),
+    [data.collections, user?.id],
+  )
+
   // ---- Save + auto-save: the design lands in Recent Designs, always current ----
-  const saveDesign = useCallback(
-    (manual: boolean) => {
-      if (!user) {
-        if (manual) toast('Sign in to save designs.', 'info')
+  const persistDesign = useCallback(
+    (name: string, colId: string | undefined, notify: boolean) => {
+      if (!user || !designId) {
+        if (notify && !user) toast('Sign in to save designs.', 'info')
         return
       }
       setSaveState('saving')
@@ -669,10 +1264,11 @@ export function DesignStudio() {
         const next = {
           id: designId,
           ownerId: user.id,
-          name: designName,
+          name,
           kind: activeGarment.kind,
           status: 'draft' as const,
           progress: readiness.score,
+          collectionId: colId,
           updatedAt: now,
         }
         return {
@@ -682,34 +1278,83 @@ export function DesignStudio() {
             : [next, ...d.designs],
         }
       })
-      try {
-        sessionStorage.setItem('threados-current-design', designId)
-      } catch {
-        /* ignore */
-      }
       window.setTimeout(() => setSaveState('saved'), 350)
-      if (manual) toast(`“${designName}” saved — you'll find it under Recent Designs.`, 'success')
+      if (notify) {
+        const col = colId ? data.collections.find((c) => c.id === colId)?.name : undefined
+        toast(col ? `“${name}” saved to ${col}.` : `“${name}” saved.`, 'success')
+      }
     },
-    [user, designId, designName, activeGarment.kind, readiness.score, mutate, toast],
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections],
   )
 
-  // Auto-save: any real change persists after 2s of quiet.
+  /**
+   * Confirm from the Save dialog. Creates the collection (if new) AND saves the design in a
+   * SINGLE mutate, so reconcile inserts the collection before the design references it —
+   * otherwise the design's collection_id would hit a foreign-key that doesn't exist yet.
+   */
+  const confirmSave = useCallback(
+    (choice: SaveChoice) => {
+      if (!user || !designId) {
+        toast(!user ? 'Sign in to save designs.' : 'Pick a garment first.', 'info')
+        setSaveOpen(false)
+        return
+      }
+      const now = Date.now()
+      const newColId = choice.newCollection ? uid('col') : undefined
+      const colId = newColId ?? choice.collectionId
+      setSaveState('saving')
+      mutate((d) => {
+        const collections = newColId
+          ? [
+              { id: newColId, ownerId: user.id, name: choice.newCollection!, season: '', status: 'draft' as const, updatedAt: now },
+              ...d.collections,
+            ]
+          : d.collections
+        const exists = d.designs.some((x) => x.id === designId)
+        const nextDesign = {
+          id: designId,
+          ownerId: user.id,
+          name: choice.name,
+          kind: activeGarment.kind,
+          status: 'draft' as const,
+          progress: readiness.score,
+          collectionId: colId,
+          updatedAt: now,
+        }
+        return {
+          ...d,
+          collections,
+          designs: exists
+            ? d.designs.map((x) => (x.id === designId ? { ...x, ...nextDesign } : x))
+            : [nextDesign, ...d.designs],
+        }
+      })
+      setDesignName(choice.name)
+      setCollectionId(colId)
+      // Persist the local document with the chosen name + collection right away.
+      saveCurrentDoc(presentRef.current, choice.name, colId)
+      window.setTimeout(() => setSaveState('saved'), 350)
+      const colName = choice.newCollection ?? (choice.collectionId ? myCollections.find((c) => c.id === choice.collectionId)?.name : undefined)
+      toast(colName ? `“${choice.name}” saved to ${colName}.` : `“${choice.name}” saved.`, 'success')
+      setSaveOpen(false)
+    },
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc],
+  )
+
+  // Auto-save (metadata → Recent Designs): any real change persists after 2s of quiet.
+  // Skips pristine empty designs so merely browsing garments never creates empty draft rows.
   const firstChange = useRef(true)
   useEffect(() => {
     if (firstChange.current) {
       firstChange.current = false
       return
     }
+    if (present.layers.length === 0) return
     setSaveState('unsaved')
-    const t = window.setTimeout(() => saveDesign(false), 2000)
+    const t = window.setTimeout(() => persistDesign(designName, collectionId, false), 2000)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, config, present, activeName, designName])
-
-  // A new blank gets the blank's name until the designer renames it.
-  useEffect(() => {
-    setDesignName(activeGarment.name)
-  }, [activeGarment.name])
+  }, [fields, config, present, activeName, designName, collectionId])
 
   const applyAction = useCallback(
     (action: StudioAction) => {
@@ -777,29 +1422,11 @@ export function DesignStudio() {
     [MEMORY_DIMS, rememberChoice],
   )
 
-  /** Switch the garment blank by name (from the object-first "Garment" picker). */
-  const selectGarmentByName = useCallback(
-    (name: string) => {
-      const g = GARMENTS.find((x) => x.name === name)
-      if (!g) return
-      setActiveName(g.name)
-      toast(`Switched to ${g.name}.`, 'success')
-    },
-    [toast],
-  )
-
   /** The wizard hands over a configured design — no empty editor, ever. */
   const completeWizard = useCallback(
     (r: WizardResult) => {
-      // a fresh piece gets its own identity for save/auto-save
-      const freshId = uid('d')
-      setDesignId(freshId)
-      try {
-        sessionStorage.setItem('threados-current-design', freshId)
-      } catch {
-        /* ignore */
-      }
-      setActiveName(GARMENTS.some((g) => g.name === r.garmentName) ? r.garmentName : 'Hoodie')
+      // Selecting the garment opens (or creates) that garment's design — see the load effect.
+      setActiveName(r.garmentName || 'Hoodie')
       setFields((prev) => ({
         ...prev,
         details: prev.details.map((f) => {
@@ -866,15 +1493,17 @@ export function DesignStudio() {
             THREADOS
             <span className="ds-logo__beta">Beta</span>
           </button>
-          <span className="ds-sep" />
+        </div>
+
+        <div className="ds-top__right">
           <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
             New
           </button>
           <button
             className="s-btn s-btn--ghost"
             type="button"
-            title="Save to your designs (auto-saves too)"
-            onClick={() => saveDesign(true)}
+            title="Save this design to a collection"
+            onClick={() => setSaveOpen(true)}
           >
             Save
           </button>
@@ -888,7 +1517,13 @@ export function DesignStudio() {
               </button>
             }
           >
-            <ExportMenu input={exportInput} readiness={readinessInput} />
+            <ExportMenu
+              project={exportProject}
+              projectInfo={projectInfo}
+              specs={specs}
+              onPatchProjectInfo={patchProjectInfo}
+              onPatchSpec={patchSpec}
+            />
           </Suspense>
           <span className="ds-sep" />
           <button
@@ -911,28 +1546,7 @@ export function DesignStudio() {
           >
             <IcoArrowRight width="16" height="16" />
           </button>
-        </div>
-
-        {/* Production journey — Design → Tech Pack → Manufacturer → Launch */}
-        <nav className="ds-nav" aria-label="Production stages">
-          {[
-            { id: 'Design', to: '/suite/design' },
-            { id: 'Tech Pack', to: '/suite/tech-packs' },
-            { id: 'Manufacturer', to: '/suite/manufacturers' },
-            { id: 'Launch', to: '/suite/production' },
-          ].map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className={`ds-nav__tab${s.id === 'Design' ? ' is-active' : ''}`}
-              onClick={() => s.id !== 'Design' && navigate(s.to)}
-            >
-              {s.id}
-            </button>
-          ))}
-        </nav>
-
-        <div className="ds-top__right">
+          <span className="ds-sep" />
           <button
             className="ds-icon"
             type="button"
@@ -1023,7 +1637,10 @@ export function DesignStudio() {
       />
 
       {/* ---- Body ---- */}
-      <div className={`ds-body${rightHidden ? ' ds-body--no-right' : ''}${leftHidden ? ' ds-body--no-left' : ''}`}>
+      <div
+        className={`ds-body${rightHidden ? ' ds-body--no-right' : ''}${leftHidden ? ' ds-body--no-left' : ''}`}
+        style={libraryW ? ({ '--library-w': `${libraryW}px` } as React.CSSProperties) : undefined}
+      >
         {/* Library rail — five human categories, all real */}
         <nav className="ds-rail" aria-label="Library">
           <span className="ds-rail__eyebrow">Library</span>
@@ -1054,15 +1671,27 @@ export function DesignStudio() {
           </svg>
         </button>
 
+        {/* Drag the library's right edge to resize it */}
+        {!leftHidden && (
+          <div
+            className="ds-lib-resize"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize library"
+            title="Drag to resize the library"
+            onPointerDown={startLibraryResize}
+          />
+        )}
+
         {/* Left panel — the Library category currently open */}
         {!leftHidden && (
         <aside className="ds-left">
-          {rail === 'Assets' && <DrivePanel onAddToDesign={(a: DriveAsset) => addAssetLayer(a)} />}
+          {rail === 'Assets' && <AssetLibrary userId={user?.id} onPlace={(id) => void placeAsset(id)} />}
           {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
           {rail === 'Inspiration' && (
             <InspirationPanel
               onApply={(p) => {
-                setActiveName(GARMENTS.some((g) => g.name === p.garment) ? p.garment : 'Hoodie')
+                setActiveName(p.garment || 'Hoodie')
                 setField('details', 'd-fit', p.fit)
                 setField('details', 'd-fabric', p.fabric)
                 setField('details', 'd-color', p.colorHex)
@@ -1129,29 +1758,47 @@ export function DesignStudio() {
               ))}
             </div>
 
-            {visibleGarments.length > 0 ? (
+            {libraryLoading ? (
+              <div className="ds-garments" aria-busy="true">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="ds-garment ds-garment--sk">
+                    <span className="ds-garment__thumb" />
+                  </div>
+                ))}
+              </div>
+            ) : catalog.length === 0 ? (
+              <p className="ds-empty">
+                No garments imported yet.
+                <span className="ds-empty__sub">An admin adds garments in the Garment Library.</span>
+              </p>
+            ) : visibleGarments.length > 0 ? (
               <div className="ds-garments">
                 {visibleGarments.map((g) => {
                   const Glyph = GARMENT_GLYPHS[g.kind]
                   return (
                     <button
-                      key={g.name}
+                      key={g.id ?? g.name}
                       type="button"
                       className={`ds-garment${activeName === g.name ? ' is-active' : ''}`}
                       onClick={() => selectGarment(g)}
-                      title={`${g.name} · ${g.fit}`}
+                      title={g.category ? `${g.name} · ${categoryLabel(g.category)}` : g.name}
                     >
                       <span className="ds-garment__thumb">
-                        <Glyph width="40" height="40" />
+                        {g.thumbUrl ? (
+                          <img className="ds-garment__img" src={g.thumbUrl} alt={g.name} loading="lazy" />
+                        ) : (
+                          <Glyph width="40" height="40" />
+                        )}
                       </span>
                       <span className="ds-garment__name">{g.name}</span>
+                      {g.category && <span className="ds-garment__cat">{categoryLabel(g.category)}</span>}
                     </button>
                   )
                 })}
               </div>
             ) : (
               <p className="ds-empty">
-                No blanks match “{query.trim()}”.
+                No garments match “{query.trim()}”.
                 <button type="button" className="ds-empty__reset" onClick={() => setQuery('')}>
                   Clear search
                 </button>
@@ -1197,6 +1844,18 @@ export function DesignStudio() {
               }}
               collapsed={layersCollapsed}
               onToggleCollapse={toggleLayersCollapsed}
+              baseGarmentName={activeGarment.name}
+              baseSelected={liveSelected.length === 0 && !regionSel}
+              onSelectBase={() => {
+                setSelectedIds([])
+                setRegionSel(null)
+              }}
+              garmentRegions={garmentRegionLayers}
+              garmentTitle={studioGarment?.name}
+              garmentSelectedId={regionSel}
+              onToggleRegion={toggleRegion}
+              onSelectRegion={selectRegion}
+              onCycleRegionColor={cycleRegionColor}
             />
           </div>
             </>
@@ -1209,15 +1868,17 @@ export function DesignStudio() {
           style={{ display: 'contents' }}
           onDragOver={(e) => {
             const t = e.dataTransfer.types
-            if (t.includes('application/x-threados-asset') || t.includes('application/x-threados-graphic')) e.preventDefault()
+            if (t.includes('application/x-threados-asset') || t.includes('application/x-threados-graphic') || t.includes(ASSET_DRAG_TYPE)) e.preventDefault()
           }}
           onDrop={(e) => {
+            const assetId = e.dataTransfer.getData(ASSET_DRAG_TYPE)
             const asset = e.dataTransfer.getData('application/x-threados-asset')
             const graphic = e.dataTransfer.getData('application/x-threados-graphic')
-            if (!asset && !graphic) return
+            if (!assetId && !asset && !graphic) return
             e.preventDefault()
             try {
-              if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string; url?: string })
+              if (assetId) void placeAsset(assetId)
+              else if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string; url?: string })
               else addGraphicObject(graphic)
             } catch {
               /* malformed payload — ignore */
@@ -1227,14 +1888,19 @@ export function DesignStudio() {
           <StudioCanvas
             garmentName={activeGarment.name}
             garmentKind={activeGarment.kind}
-            garmentFit={activeGarment.fit}
+            garmentViews={activeGarment.views}
+            garmentImage={garmentDisplayUrl || activeGarment.thumbUrl}
+            garmentSvg={studioBackdropSvg ?? (bridgeGarment ? bridgeSvg : garmentSvg)}
             designName={designName}
-            onRenameDesign={setDesignName}
+            onRenameDesign={(n) => {
+              setDesignName(n)
+              saveCurrentDoc(presentRef.current, n)
+            }}
             saveState={saveState}
             objects={objectLayers}
             hiddenMap={hidden}
-            selectedObjId={activeLayer?.obj ? activeLayer.id : null}
-            onSelectObj={(id) => setSelectedIds(id ? [id] : [])}
+            selectedObjIds={selectedObjIds}
+            onSelectObj={selectObj}
             onLiveObj={liveObject}
             onCommitObj={commitObject}
             onEditText={editObjectText}
@@ -1265,6 +1931,8 @@ export function DesignStudio() {
               <ObjectInspector
                 layer={activeLayer}
                 onChange={(patch) => setObjectProp(activeLayer.id, patch)}
+                onReplace={() => replaceImage(activeLayer.id)}
+                onArrange={(op) => arrangeLayer(activeLayer.id, op)}
                 onDelete={() => {
                   const nextHidden = { ...hidden }
                   delete nextHidden[activeLayer.id]
@@ -1289,15 +1957,17 @@ export function DesignStudio() {
               />
             </div>
           ) : (
-            <GarmentInspector
-              mode={mode}
-              garment={{ name: activeGarment.name, kind: activeGarment.kind, fit: activeGarment.fit }}
-              fields={fields}
-              config={config}
-              onField={setField}
-              onGarment={selectGarmentByName}
-              onConfig={(key, value) => setConfig((c) => ({ ...c, [key]: value }))}
-            />
+            <div className="ds-right__scroll">
+              <GarmentInfoPanel
+                name={activeGarment.name}
+                brand={activeGarment.brand}
+                category={activeGarment.category}
+                views={activeGarment.views}
+                representations={garmentReps}
+                onEditRegions={editableTemplateId && user?.id ? openInGarmentEditor : undefined}
+              />
+              <ProductSpecsEditor specs={specs} onSpec={patchSpec} />
+            </div>
           )}
         </aside>
         )}
@@ -1305,6 +1975,16 @@ export function DesignStudio() {
 
       {/* New-design wizard — nobody ever starts on an empty editor */}
       <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
+
+      {/* Save — name the design + choose (or create) the collection it belongs to */}
+      <SaveDesignDialog
+        open={saveOpen}
+        initialName={designName}
+        collections={myCollections}
+        currentCollectionId={collectionId}
+        onClose={() => setSaveOpen(false)}
+        onSave={confirmSave}
+      />
     </div>
   )
 }

@@ -207,13 +207,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isAuthed: !!user,
-      isAdmin: user?.role === 'admin',
+      // Anchor admin status to the authoritative auth profile (loaded before
+      // `initializing` clears) so a transient store-hydration row — which can
+      // briefly hold a synth 'user' role for the current user — cannot bounce a
+      // real admin out of /admin on a hard load or refresh.
+      isAdmin: supaProfile?.role === 'admin' || user?.role === 'admin',
       initializing,
       login,
       signup,
       logout,
     }),
-    [user, initializing, login, signup, logout],
+    [user, supaProfile, initializing, login, signup, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

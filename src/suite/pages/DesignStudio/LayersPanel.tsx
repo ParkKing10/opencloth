@@ -21,6 +21,9 @@ export type Layer = {
 
 export const LAYER_COLORS = ['', '#d1f94f', '#5aa2ff', '#ff6ba6', '#f5b544', '#3ecf8e'] as const
 
+/** One row of the garment's own region tree, shown as a layer (Body, Sleeve, Collar…). */
+export type GarmentRegionLayer = { id: string; name: string; type: string; depth: number; visible: boolean; color?: string }
+
 type Props = {
   layers: Layer[]
   hidden: Record<string, boolean>
@@ -32,6 +35,17 @@ type Props = {
   /** Minimized to just the header row (default state — the canvas is the star). */
   collapsed?: boolean
   onToggleCollapse?: () => void
+  /** The base garment (design surface) — a pinned, selectable layer beneath the design. */
+  baseGarmentName?: string
+  baseSelected?: boolean
+  onSelectBase?: () => void
+  /** The garment's OWN region tree, shown as controllable layers above the design layers. */
+  garmentRegions?: GarmentRegionLayer[]
+  garmentTitle?: string
+  garmentSelectedId?: string | null
+  onToggleRegion?: (id: string) => void
+  onSelectRegion?: (id: string) => void
+  onCycleRegionColor?: (id: string) => void
 }
 
 const uid = () => `l-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -45,6 +59,15 @@ export function LayersPanel({
   onAddLayer,
   collapsed,
   onToggleCollapse,
+  baseGarmentName,
+  baseSelected,
+  onSelectBase,
+  garmentRegions,
+  garmentTitle,
+  garmentSelectedId,
+  onToggleRegion,
+  onSelectRegion,
+  onCycleRegionColor,
 }: Props) {
   const toast = useToast()
   const [query, setQuery] = useState('')
@@ -240,7 +263,7 @@ export function LayersPanel({
         >
           <IcoChevron width="13" height="13" style={{ transform: 'rotate(-90deg)' }} />
           <h2>Layers</h2>
-          <span className="lp__count">{layers.length}</span>
+          <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
         </button>
       </div>
     )
@@ -281,7 +304,63 @@ export function LayersPanel({
       </label>
 
       <div className="lp__list" role="listbox" aria-multiselectable aria-label="Layers">
-        {rows.length === 0 && <p className="lp__empty">No layers match “{query.trim()}”.</p>}
+        {garmentRegions && garmentRegions.length > 0 && (
+          <>
+            <div className="lp-section">Garment{garmentTitle ? ` · ${garmentTitle}` : ''}</div>
+            {garmentRegions
+              .filter((r) => !query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase()) || r.type.toLowerCase().includes(query.trim().toLowerCase()))
+              .map((r) => (
+                <div
+                  key={`g-${r.id}`}
+                  className={`lp-row lp-row--garment${garmentSelectedId === r.id ? ' is-selected' : ''}${!r.visible ? ' is-hidden' : ''}`}
+                  role="option"
+                  aria-selected={garmentSelectedId === r.id}
+                  style={{ paddingLeft: 8 + r.depth * 16 }}
+                  onClick={() => onSelectRegion?.(r.id)}
+                >
+                  <button
+                    className={`lp-row__dot${r.color ? '' : ' is-empty'}`}
+                    type="button"
+                    aria-label="Region colour"
+                    title="Cycle region colour"
+                    style={r.color ? { background: r.color } : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onCycleRegionColor?.(r.id)
+                    }}
+                  />
+                  <span className="lp-row__text">
+                    <b>{r.name}</b>
+                    <small>{r.type}</small>
+                  </span>
+                  <span className="lp-row__actions">
+                    <button
+                      type="button"
+                      className={`lp-act${!r.visible ? ' is-on' : ''}`}
+                      title={r.visible ? 'Hide region' : 'Show region'}
+                      aria-label={r.visible ? `Hide ${r.name}` : `Show ${r.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onToggleRegion?.(r.id)
+                      }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                        <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+                        {r.visible ? <circle cx="12" cy="12" r="2.6" /> : <path d="M4 20 20 4" />}
+                      </svg>
+                    </button>
+                  </span>
+                </div>
+              ))}
+            <div className="lp-section">Design</div>
+          </>
+        )}
+        {rows.length === 0 &&
+          (query.trim() ? (
+            <p className="lp__empty">No layers match “{query.trim()}”.</p>
+          ) : (
+            <p className="lp__empty">No design layers yet — add text or graphics to design on the garment.</p>
+          ))}
         {rows.map(({ layer, depth }) => {
           const isGroup = layer.type === 'Group'
           const isSel = selected.has(layer.id)
@@ -457,6 +536,25 @@ export function LayersPanel({
           )
         })}
       </div>
+
+      {baseGarmentName && (
+        <button
+          type="button"
+          className={`lp-base${baseSelected ? ' is-selected' : ''}`}
+          onClick={onSelectBase}
+          title="Select the base garment"
+        >
+          <span className="lp-base__icon" aria-hidden>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
+              <path d="M9 4.5 5 7l1.6 3.2 1.6-.9v9.2h7.6v-9.2l1.6.9L19 7l-4-2.5a3 3 0 0 1-6 0Z" />
+            </svg>
+          </span>
+          <span className="lp-base__text">
+            <b>{baseGarmentName}</b>
+            <small>Base garment</small>
+          </span>
+        </button>
+      )}
 
       {hasSelection && (
         <div className="lp__footer">

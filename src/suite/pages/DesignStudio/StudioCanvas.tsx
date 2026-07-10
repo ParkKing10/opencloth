@@ -3,8 +3,9 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent }
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
-import { downloadTechPackPdf } from '../../lib/exporters'
-import { CanvasObjects } from './CanvasObjects'
+import { viewList } from '../../garments/import/detect'
+import { EMPTY_VIEWS, type GarmentViews } from '../../garments/types'
+import { CanvasObjects, type Overlays } from './CanvasObjects'
 import type { Layer } from './LayersPanel'
 import type { CanvasObject } from './objectModel'
 import hoodieImg from '../../../assets/cards/hoodie.png'
@@ -14,8 +15,12 @@ import './canvas.css'
 /** Photoreal garment backdrops where we have them; glyph fallback otherwise. */
 const GARMENT_PHOTO: Partial<Record<GarmentKind, string>> = { hoodie: hoodieImg, tee: teeImg }
 
-const TOOLS = ['move', 'rotate', 'pan', 'node', 'frame', 'measure', 'crop']
-const FLATS = ['Front', 'Back', 'Side', 'Details']
+// Only the tools that actually do something. Selection/move is the default; pan (also Space)
+// grabs the canvas. Rotation/resize happen via a selected object's own handles — no separate tool.
+const TOOLS: { id: string; label: string }[] = [
+  { id: 'move', label: 'Select & move' },
+  { id: 'pan', label: 'Pan canvas (or hold Space)' },
+]
 
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 3
@@ -36,17 +41,15 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
 }
 
-const SIZE_ROWS: [string, string[]][] = [
-  ['Chest', ['58', '60', '62', '64', '66']],
-  ['Length', ['70', '72', '74', '76', '78']],
-  ['Shoulder', ['56', '58', '60', '62', '64']],
-  ['Sleeve', ['60', '61', '62', '63', '64']],
-]
-
 type Props = {
   garmentName: string
   garmentKind: GarmentKind
-  garmentFit: string
+  /** The garment's REAL views — drives the dynamic view tabs and the 3D toggle. No fakes. */
+  garmentViews?: GarmentViews
+  /** The imported garment's real preview (from the Garment Library) — wins over the kind photo. */
+  garmentImage?: string
+  /** Inline vector markup for the garment — resolution-independent, crisp at any zoom. */
+  garmentSvg?: string | null
   /** Show the gentle "what next" hints (when nothing is selected). */
   showHints?: boolean
   /** The design's name + save status live with the studio (auto-save owns them). */
@@ -56,8 +59,8 @@ type Props = {
   // ---- editable canvas objects ----
   objects?: Layer[]
   hiddenMap?: Record<string, boolean>
-  selectedObjId?: string | null
-  onSelectObj?: (id: string | null) => void
+  selectedObjIds?: string[]
+  onSelectObj?: (id: string | null, additive?: boolean) => void
   onLiveObj?: (id: string, patch: Partial<CanvasObject>) => void
   onCommitObj?: () => void
   onEditText?: (id: string, text: string) => void
@@ -68,13 +71,15 @@ type Props = {
 export function StudioCanvas({
   garmentName,
   garmentKind,
-  garmentFit,
+  garmentViews = EMPTY_VIEWS,
+  garmentImage,
+  garmentSvg,
   designName: designNameProp,
   onRenameDesign,
   saveState,
   objects,
   hiddenMap,
-  selectedObjId,
+  selectedObjIds,
   onSelectObj,
   onLiveObj,
   onCommitObj,
@@ -84,10 +89,16 @@ export function StudioCanvas({
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
-  const [mode, setMode] = useState<'3D' | '2D'>('3D')
+  // 3D is a REAL capability, not a default. Without a real 3D file the toggle never shows.
+  const [mode, setMode] = useState<'3D' | '2D'>('2D')
   const [tool, setTool] = useState('move')
-  const [bottomTab, setBottomTab] = useState<'Tech Pack' | 'Size Chart'>('Tech Pack')
-  // The bottom strip collapses so the stage can be the whole studio.
+  // Print-zone overlays — optional, all hidden by default.
+  const [overlays, setOverlays] = useState<Overlays>({ safe: false, bleed: false, print: false })
+  const [overlaysOpen, setOverlaysOpen] = useState(false)
+  const toggleOverlay = (k: keyof Overlays) => setOverlays((o) => ({ ...o, [k]: !o[k] }))
+  // Which real view card is highlighted in the Garment Views strip (cosmetic — all share one preview).
+  const [activeView, setActiveView] = useState('')
+  // The Garment Views strip collapses so the stage can be the whole studio.
   const [stripHidden, setStripHidden] = useState<boolean>(() => {
     try {
       return localStorage.getItem('threados-strip-hidden') === '1'
@@ -107,8 +118,9 @@ export function StudioCanvas({
   }
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState<Pan>({ x: 0, y: 0 })
+  // The grid is a neutral editor backdrop. No fake print-area / embroidery overlays — those
+  // implied garment data we don't have. An imported garment loads as just its preview.
   const showGrid = true
-  const showSafeArea = true
   const [spaceHeld, setSpaceHeld] = useState(false)
   const [isPanning, setIsPanning] = useState(false)
   // True while actively wheeling — suppresses the world transform transition.
@@ -199,6 +211,18 @@ export function StudioCanvas({
 
   const Glyph = GARMENT_GLYPHS[garmentKind]
 
+  // Only the views this garment REALLY has — never Front/Back/Side/Details by default.
+  const detectedViews = viewList(garmentViews)
+  const viewTabs = detectedViews.length > 0 ? detectedViews : ['Preview']
+  const hasMultipleViews = viewTabs.length > 1
+  // Every view card shows the garment's REAL preview — generic icons are empty-state only.
+  const viewPreview = garmentImage
+
+  // Highlight the first real view whenever the garment changes.
+  useEffect(() => {
+    setActiveView(viewList(garmentViews)[0] ?? 'Preview')
+  }, [garmentName, garmentViews])
+
   function renameDesign() {
     const next = window.prompt('Rename this design', designName)
     if (next == null) return
@@ -259,20 +283,6 @@ export function StudioCanvas({
     toast('Fit to view.')
   }
 
-  function openFlat(flat: string) {
-    try {
-      const filename = downloadTechPackPdf({
-        name: `${designName} — ${flat}`,
-        kind: garmentKind,
-        fit: garmentFit,
-        placement: flat,
-      })
-      toast(`Exported ${filename}`, 'accent')
-    } catch {
-      toast('Could not generate the flat. Please try again.', 'info')
-    }
-  }
-
   return (
     <main className="ds-canvas">
       {/* Title bar */}
@@ -290,12 +300,46 @@ export function StudioCanvas({
           />{' '}
           {saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Edited' : 'Saved'}
         </span>
-        <div className="ds-mode">
-          {(['3D', '2D'] as const).map((m) => (
-            <button key={m} className={mode === m ? 'is-active' : ''} type="button" onClick={() => setMode(m)}>
-              {m}
+        <div className="ds-bar-right">
+          {/* Single-view garments show the view as a small label instead of a whole bottom strip. */}
+          {!hasMultipleViews && <span className="ds-view-chip">View · {viewTabs[0]}</span>}
+
+          {/* Optional print-zone guides — all off by default. */}
+          <div className="ds-ov">
+            <button
+              type="button"
+              className={`ds-ov__btn${overlays.safe || overlays.bleed || overlays.print ? ' is-on' : ''}`}
+              aria-expanded={overlaysOpen}
+              title="Show print guides"
+              onClick={() => setOverlaysOpen((v) => !v)}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="1.5" strokeDasharray="3 2.5" />
+              </svg>
+              Guides
             </button>
-          ))}
+            {overlaysOpen && (
+              <div className="ds-ov__pop" role="dialog" aria-label="Print guides">
+                {(['print', 'safe', 'bleed'] as const).map((k) => (
+                  <label className="ds-ov__row" key={k}>
+                    <input type="checkbox" checked={overlays[k]} onChange={() => toggleOverlay(k)} />
+                    <span>{k === 'print' ? 'Print area' : k === 'safe' ? 'Safe area' : 'Bleed'}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* The 3D toggle exists only when a real 3D model was imported — never faked. */}
+          {garmentViews.has3D && (
+            <div className="ds-mode">
+              {(['3D', '2D'] as const).map((m) => (
+                <button key={m} className={mode === m ? 'is-active' : ''} type="button" onClick={() => setMode(m)}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -327,7 +371,7 @@ export function StudioCanvas({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/svg+xml,image/webp,image/jpeg"
                 hidden
                 onChange={(e) => {
                   const f = e.target.files?.[0]
@@ -338,16 +382,16 @@ export function StudioCanvas({
             </>
           )}
           {(onAddText || onAddImage) && <span className="ds-toolrail__sep" />}
-          {TOOLS.map((t, i) => (
+          {TOOLS.map((t) => (
             <button
-              key={t}
+              key={t.id}
               type="button"
-              className={tool === t ? 'is-active' : ''}
-              aria-label={t}
-              title={t.charAt(0).toUpperCase() + t.slice(1)}
-              onClick={() => setTool(t)}
+              className={tool === t.id ? 'is-active' : ''}
+              aria-label={t.label}
+              title={t.label}
+              onClick={() => setTool(t.id)}
             >
-              <ToolGlyph i={i} />
+              <ToolGlyph tool={t.id} />
             </button>
           ))}
         </div>
@@ -368,31 +412,30 @@ export function StudioCanvas({
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
           >
             <div className="ds-garment-3d" ref={stageRef}>
-              {GARMENT_PHOTO[garmentKind] ? (
+              {garmentSvg ? (
+                <div
+                  className="ds-garment-vector"
+                  role="img"
+                  aria-label={garmentName}
+                  dangerouslySetInnerHTML={{ __html: garmentSvg }}
+                />
+              ) : garmentImage ? (
+                <img className="ds-garment-photo" src={garmentImage} alt={garmentName} draggable={false} />
+              ) : GARMENT_PHOTO[garmentKind] ? (
                 <img className="ds-garment-photo" src={GARMENT_PHOTO[garmentKind]} alt={garmentName} draggable={false} />
               ) : (
                 <Glyph width="340" height="340" />
-              )}
-              {showSafeArea && (
-                <>
-                  <div className="cv-centerline" aria-hidden="true" />
-                  <div className="cv-safe" aria-hidden="true">
-                    <span className="cv-safe__label">SAFE PRINT AREA</span>
-                    <div className="cv-safe__embroidery">
-                      <span>EMBROIDERY</span>
-                    </div>
-                  </div>
-                </>
               )}
               {objects && onSelectObj && onLiveObj && onCommitObj && onEditText && (
                 <CanvasObjects
                   objects={objects}
                   hidden={hiddenMap ?? {}}
-                  selectedId={selectedObjId ?? null}
+                  selectedIds={selectedObjIds ?? []}
                   onSelect={onSelectObj}
                   onLive={onLiveObj}
                   onCommit={onCommitObj}
                   onEditText={onEditText}
+                  overlays={overlays}
                 />
               )}
             </div>
@@ -409,87 +452,58 @@ export function StudioCanvas({
         </div>
       </div>
 
-      {/* Tech pack / size chart strip — collapsible for a pure-canvas studio */}
-      {stripHidden ? (
-        <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show tech pack panel">
-          <span>Tech Pack · Size Chart</span>
-          <IcoChevron width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
-        </button>
-      ) : (
-      <div className="ds-techpack">
-        <div className="ds-techpack__tabs">
-          {(['Tech Pack', 'Size Chart'] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`ds-tp-tab${bottomTab === t ? ' is-active' : ''}`}
-              onClick={() => setBottomTab(t)}
-            >
-              {t}
-            </button>
-          ))}
-          <button
-            className="cv-strip-hide"
-            type="button"
-            onClick={toggleStrip}
-            aria-expanded
-            aria-label="Hide tech pack panel"
-            title="Hide panel — more room for the canvas"
-          >
-            <IcoChevron width="14" height="14" />
+      {/* Garment Views — only when the garment has more than one real view. A single view
+          shows as a small chip in the title bar instead, so we never waste space here.
+          Not a Tech Pack: real tech-pack generation is a later milestone. */}
+      {hasMultipleViews &&
+        (stripHidden ? (
+          <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show garment views">
+            <span>Garment Views</span>
+            <IcoChevron width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
           </button>
-        </div>
-
-        {bottomTab === 'Tech Pack' ? (
-          <div className="ds-flats">
-            {FLATS.map((f) => (
-              <button
-                className="ds-flat"
-                type="button"
-                key={f}
-                title={`Download ${f} flat as a PDF tech pack`}
-                onClick={() => openFlat(f)}
-              >
-                <div className="ds-flat__art">
-                  <Glyph width="66" height="66" />
-                </div>
-                <span>{f}</span>
-              </button>
-            ))}
-          </div>
         ) : (
-          <div className="ds-sizechart">
-            <table>
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>S</th>
-                  <th>M</th>
-                  <th>L</th>
-                  <th>XL</th>
-                  <th>XXL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {SIZE_ROWS.map(([label, vals]) => (
-                  <tr key={label}>
-                    <td>{label}</td>
-                    {vals.map((v) => (
-                      <td key={v}>{v}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="ds-techpack">
+            <div className="ds-techpack__tabs">
+              <span className="ds-tp-title">Garment Views</span>
+              <button
+                className="cv-strip-hide"
+                type="button"
+                onClick={toggleStrip}
+                aria-expanded
+                aria-label="Hide garment views"
+                title="Hide panel — more room for the canvas"
+              >
+                <IcoChevron width="14" height="14" />
+              </button>
+            </div>
+
+            <div className="ds-flats">
+              {viewTabs.map((v) => (
+                <button
+                  className={`ds-flat${activeView === v ? ' is-active' : ''}`}
+                  type="button"
+                  key={v}
+                  title={`${v} view`}
+                  onClick={() => setActiveView(v)}
+                >
+                  <div className="ds-flat__art">
+                    {viewPreview ? (
+                      <img className="ds-flat__img" src={viewPreview} alt={`${garmentName} — ${v}`} draggable={false} />
+                    ) : (
+                      <Glyph width="66" height="66" />
+                    )}
+                  </div>
+                  <span>{v}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
-      )}
+        ))}
     </main>
   )
 }
 
-function ToolGlyph({ i, small }: { i: number; small?: boolean }) {
+function ToolGlyph({ tool, small }: { tool: string; small?: boolean }) {
   const sz = small ? 16 : 18
   const base = {
     width: sz,
@@ -501,14 +515,11 @@ function ToolGlyph({ i, small }: { i: number; small?: boolean }) {
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
   }
-  const glyphs = [
-    <path key="0" d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3" />,
-    <path key="1" d="M4 12a8 8 0 1 1 3 6M4 12v-4M4 12h4" />,
-    <path key="2" d="M12 3v18M3 12h18" />,
-    <><circle key="a" cx="6" cy="6" r="2" /><circle key="b" cx="18" cy="18" r="2" /><path key="c" d="M8 6h8a2 2 0 0 1 2 2v8" /></>,
-    <rect key="3" x="4" y="4" width="16" height="16" rx="2" />,
-    <path key="4" d="M4 4v16M4 4h16M8 8v4M12 8v8M16 8v4" />,
-    <path key="5" d="M6 6h12v12H6zM3 9h3M18 9h3M3 15h3M18 15h3" />,
-  ]
-  return <svg {...base}>{glyphs[i % glyphs.length]}</svg>
+  const glyphs: Record<string, JSX.Element> = {
+    // arrow cursor (select & move)
+    move: <path d="M5 3l14 7-6 2-2 6L5 3Z" />,
+    // hand (pan)
+    pan: <path d="M8 12V6a1.5 1.5 0 0 1 3 0v5m0-1V5a1.5 1.5 0 0 1 3 0v6m0-1V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2.2L5 15a1.6 1.6 0 0 1 2.6-1.8L8.5 14" />,
+  }
+  return <svg {...base}>{glyphs[tool] ?? glyphs.move}</svg>
 }

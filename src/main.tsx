@@ -12,6 +12,8 @@ import { Signup } from './suite/pages/Auth/Signup'
 import { SuiteApp } from './suite/SuiteApp'
 import { Dashboard } from './suite/pages/Dashboard/Dashboard'
 import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'
+import { GarmentLab } from './suite/pages/GarmentLab/GarmentLab'
+import { GarmentsHome } from './suite/pages/Garments/GarmentsHome'
 import { PatternStudio } from './suite/pages/PatternStudio/PatternStudio'
 import { AIDesigner } from './suite/pages/AIDesigner/AIDesigner'
 import { TechPacks } from './suite/pages/TechPacks/TechPacks'
@@ -24,6 +26,7 @@ import { Analytics } from './suite/pages/Analytics/Analytics'
 import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
 import { AdminOverview } from './suite/admin/pages/AdminOverview'
+import { AdminGarments } from './suite/admin/pages/AdminGarments'
 import { AdminUsers } from './suite/admin/pages/AdminUsers'
 import { AdminDesigns } from './suite/admin/pages/AdminDesigns'
 import { AdminManufacturers } from './suite/admin/pages/AdminManufacturers'
@@ -53,6 +56,14 @@ createRoot(document.getElementById('root')!).render(
                   </RequireAuth>
                 }
               />
+              <Route
+                path="/suite/garment-lab/:garmentId"
+                element={
+                  <RequireAuth>
+                    <GarmentLab />
+                  </RequireAuth>
+                }
+              />
 
               {/* Suite (auth required) */}
               <Route
@@ -64,6 +75,7 @@ createRoot(document.getElementById('root')!).render(
                 }
               >
                 <Route index element={<Dashboard />} />
+                <Route path="garments" element={<GarmentsHome />} />
                 <Route path="pattern" element={<PatternStudio />} />
                 <Route path="ai" element={<AIDesigner />} />
                 <Route path="tech-packs" element={<TechPacks />} />
@@ -87,6 +99,7 @@ createRoot(document.getElementById('root')!).render(
                 }
               >
                 <Route index element={<AdminOverview />} />
+                <Route path="garments" element={<AdminGarments />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="designs" element={<AdminDesigns />} />
                 <Route path="manufacturers" element={<AdminManufacturers />} />

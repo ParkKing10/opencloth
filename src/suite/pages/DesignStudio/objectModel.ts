@@ -21,10 +21,17 @@ export type CanvasObject = {
   color?: string
   font?: string
   weight?: number
+  italic?: boolean
+  underline?: boolean
   letterSpacing?: number
+  lineHeight?: number
+  align?: 'left' | 'center' | 'right'
   // image / graphic
   src?: string // data URL (uploaded image)
   glyph?: string // built-in graphic id
+  /** Mirror the object horizontally / vertically (images + graphics). */
+  flipH?: boolean
+  flipV?: boolean
 }
 
 let seq = 0
@@ -44,13 +51,13 @@ export const GRAPHIC_MARKS: Record<string, string> = {
   'Arch Text': '<path d="M14 66a44 44 0 0 1 72 0" fill="none" stroke="currentColor" stroke-width="6"/><path d="M20 78a40 40 0 0 1 60 0" fill="none" stroke="currentColor" stroke-width="4"/>',
 }
 
-/** Create a text layer placed at the chest. */
-export function makeTextLayer(text = 'YOUR TEXT', color = '#F4F4F6'): Layer {
+/** Create a text layer placed at the chest. Dark by default so it's visible on light blanks. */
+export function makeTextLayer(text = 'Your text', color = '#1A1A20'): Layer {
   return {
     id: nid('t'),
     name: text.slice(0, 22) || 'Text',
     type: 'Text',
-    obj: { type: 'text', x: 0.5, y: 0.42, width: 0.6, rotation: 0, opacity: 1, text, color, font: 'Archivo', weight: 800, letterSpacing: 2 },
+    obj: { type: 'text', x: 0.5, y: 0.42, width: 0.6, rotation: 0, opacity: 1, text, color, font: 'Archivo', weight: 800, letterSpacing: 2, lineHeight: 1.1, align: 'center' },
   }
 }
 
@@ -70,7 +77,7 @@ export function makeGraphicLayer(glyph: string): Layer {
     id: nid('gfx'),
     name: glyph,
     type: 'Graphic',
-    obj: { type: 'graphic', x: 0.5, y: 0.44, width: 0.4, rotation: 0, opacity: 1, glyph, color: '#F4F4F6' },
+    obj: { type: 'graphic', x: 0.5, y: 0.44, width: 0.4, rotation: 0, opacity: 1, glyph, color: '#1A1A20' },
   }
 }
 

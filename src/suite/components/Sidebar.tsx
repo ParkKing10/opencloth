@@ -3,7 +3,6 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   IcoDashboard,
   IcoDesign,
-  IcoPattern,
   IcoAI,
   IcoTechPack,
   IcoFactory,
@@ -29,7 +28,6 @@ const PRIMARY: NavItem[] = [
   { to: '/suite/garments', label: 'Garments', icon: IcoAI },
   { to: '/suite/shop', label: 'Garment Shop', icon: IcoMarketplace },
   { to: '/suite/design', label: 'Design Studio', icon: IcoDesign },
-  { to: '/suite/pattern', label: 'Pattern Studio', icon: IcoPattern },
   { to: '/suite/ai', label: 'AI Designer', icon: IcoAI, badge: 'NEW' },
   { to: '/suite/tech-packs', label: 'Tech Packs', icon: IcoTechPack },
   { to: '/suite/manufacturers', label: 'Manufacturers', icon: IcoFactory },

@@ -14,7 +14,6 @@ import { Dashboard } from './suite/pages/Dashboard/Dashboard'
 import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'
 import { GarmentLab } from './suite/pages/GarmentLab/GarmentLab'
 import { GarmentsHome } from './suite/pages/Garments/GarmentsHome'
-import { PatternStudio } from './suite/pages/PatternStudio/PatternStudio'
 import { AIDesigner } from './suite/pages/AIDesigner/AIDesigner'
 import { TechPacks } from './suite/pages/TechPacks/TechPacks'
 import { Manufacturers } from './suite/pages/Manufacturers/Manufacturers'
@@ -78,7 +77,6 @@ createRoot(document.getElementById('root')!).render(
                 <Route index element={<Dashboard />} />
                 <Route path="garments" element={<GarmentsHome />} />
                 <Route path="shop" element={<GarmentShop />} />
-                <Route path="pattern" element={<PatternStudio />} />
                 <Route path="ai" element={<AIDesigner />} />
                 <Route path="tech-packs" element={<TechPacks />} />
                 <Route path="manufacturers" element={<Manufacturers />} />

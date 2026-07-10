@@ -590,6 +590,10 @@
   background: #7aa2ff;
   color: #0b1020;
 }
+.gm-badge--shop {
+  background: var(--s-accent, #d1f94f);
+  color: var(--s-accent-ink, #14141a);
+}
 
 /* Drag-and-drop import zone (drop files or a whole folder). */
 .gm-dropwrap {

@@ -213,7 +213,11 @@ export function GarmentsHome() {
     return sorted
   }, [garments, query, sort])
 
-  const open = (id: string) => navigate(`/suite/garment-lab/${id}`)
+  // Clicking a garment opens it in the Design Studio to DESIGN it (graphics, colour, prints) —
+  // that is what "open a garment" means for most people. Editing the underlying structure
+  // (regions, panels) is the advanced path and lives in the Garment Lab, one menu click away.
+  const open = (id: string) => navigate(`/suite/design?garment=${id}`)
+  const editStructure = (id: string) => navigate(`/suite/garment-lab/${id}`)
 
   const commitRename = (id: string) => {
     if (userId) renameGarment(userId, id, renameText)
@@ -314,12 +318,14 @@ export function GarmentsHome() {
               tabIndex={0}
               onClick={() => open(g.id)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(g.id) } }}
-              title="Open garment"
-              aria-label={`Open ${g.name}`}
+              title="Design this garment"
+              aria-label={`Design ${g.name}`}
             >
               <img src={g.thumb} alt={g.name} />
               {g.origin === 'ai' && <span className="gm-badge">AI</span>}
               {g.origin === 'photo' && <span className="gm-badge gm-badge--photo">PHOTO</span>}
+              {g.origin === 'shop' && <span className="gm-badge gm-badge--shop">SHOP</span>}
+              {g.origin === 'upload' && <span className="gm-badge gm-badge--shop">IMPORTED</span>}
               <button
                 type="button"
                 className={`gm-fav${g.favorite ? ' is-on' : ''}`}
@@ -351,7 +357,8 @@ export function GarmentsHome() {
                   </button>
                   {menuId === g.id && (
                     <div className="gm-menu" role="menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); open(g.id) }}>Open</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); open(g.id) }}>Design</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); editStructure(g.id) }}>Edit structure</button>
                       <button type="button" role="menuitem" onClick={() => { setMenuId(null); setRenamingId(g.id); setRenameText(g.name) }}>Rename</button>
                       <button type="button" role="menuitem" onClick={() => {
                         setMenuId(null)

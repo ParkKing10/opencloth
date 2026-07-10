@@ -48,6 +48,7 @@ import { RegionInspector } from '../GarmentLab/RegionInspector'
 import { ContextMenu, type MenuItem } from './ContextMenu'
 import { CommandPalette, type Command } from './CommandPalette'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
+import { SessionStartDialog } from './SessionStartDialog'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
@@ -250,14 +251,14 @@ export function DesignStudio() {
   const [helpOpen, setHelpOpen] = useState(false)
   const unread = useMemo(() => data.notifications.filter((n) => !n.read).length, [data.notifications])
 
-  // New-design wizard: guide the first steps instead of an empty editor.
-  const [wizardOpen, setWizardOpen] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem('threados-studio-configured') !== '1'
-    } catch {
-      return true
-    }
-  })
+  // New-design wizard: guide the first steps instead of an empty editor. It is opened by the
+  // session gate (or straight away when there is nothing to continue) — see the entry effect below.
+  const [wizardOpen, setWizardOpen] = useState<boolean>(false)
+
+  // Session gate: on a fresh entry (not opened from a specific garment) we ask "continue or new?"
+  // instead of silently reopening the last design.
+  const [sessionGateOpen, setSessionGateOpen] = useState(false)
+  const [lastDesignName, setLastDesignName] = useState('')
 
   // Workspace layout: resizable Layers panel + collapsible inspector (both persisted).
   const [layersH, setLayersH] = useState<number | null>(() => {
@@ -1194,15 +1195,23 @@ export function DesignStudio() {
     [commit],
   )
 
-  // Restore the last-opened garment once the catalog is available (reload reopens the design).
+  // Session entry: once the catalog is available, decide how the Studio opens. Opening from a
+  // specific garment (?garment=…) is handled by the bridge effect below — no gate then. Otherwise
+  // ask before reopening the last design; if there is nothing to continue, go straight to the wizard.
   const restoredRef = useRef(false)
   useEffect(() => {
     if (restoredRef.current || catalog.length === 0) return
+    if (searchParams.get('garment')) return // the bridge owns this entry
     restoredRef.current = true
     const lastId = loadLastGarment()
     const last = lastId ? catalog.find((g) => g.id === lastId) : null
-    if (last) setActiveName(last.name)
-  }, [catalog])
+    if (last) {
+      setLastDesignName(last.name)
+      setSessionGateOpen(true)
+    } else {
+      setWizardOpen(true)
+    }
+  }, [catalog, searchParams])
 
   // M9/8.2 unified workflow: opened from a garment (?garment=<id>&name=<name>) → make THAT editable
   // garment the active garment (its flat as the backdrop, design keyed to its id), skip the picker.
@@ -1973,6 +1982,20 @@ export function DesignStudio() {
     setWizardOpen(false)
   }, [])
 
+  // Session gate → "Continue": reopen the last design (setting the active garment reloads its doc).
+  const continueLastDesign = useCallback(() => {
+    const lastId = loadLastGarment()
+    const last = lastId ? catalog.find((g) => g.id === lastId) : null
+    if (last) setActiveName(last.name)
+    setSessionGateOpen(false)
+  }, [catalog])
+
+  // Session gate → "New file": drop the last design and open the New Design wizard.
+  const startNewFromGate = useCallback(() => {
+    setSessionGateOpen(false)
+    setWizardOpen(true)
+  }, [])
+
   /** Apply the Brand Kit defaults to this design (fabric, fit, weight). */
   const applyBrandKit = useCallback(
     (k: BrandKit) => {
@@ -2527,6 +2550,12 @@ export function DesignStudio() {
       </div>
 
       {/* New-design wizard — nobody ever starts on an empty editor */}
+      <SessionStartDialog
+        open={sessionGateOpen}
+        lastName={lastDesignName}
+        onContinue={continueLastDesign}
+        onNew={startNewFromGate}
+      />
       <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
 
       {/* Save — name the design + choose (or create) the collection it belongs to */}

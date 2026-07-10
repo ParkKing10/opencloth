@@ -19,7 +19,6 @@ import {
   IcoLogout,
 } from './ui/Icons'
 import { useAuth } from '../auth/auth'
-import { useToast } from './ui/Toast'
 import './sidebar.css'
 
 type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: string }
@@ -47,7 +46,6 @@ function initials(name: string): string {
 
 export function Sidebar() {
   const { user, isAdmin, logout } = useAuth()
-  const toast = useToast()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -100,7 +98,7 @@ export function Sidebar() {
                 <small>Coins</small>
               </span>
             </span>
-            <button className="sb__buy" type="button" onClick={() => toast('Coin top-up is coming soon.', 'info')}>
+            <button className="sb__buy" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
               Buy
             </button>
           </div>
@@ -121,7 +119,7 @@ export function Sidebar() {
             <span className="sb__plan-label">Current plan</span>
             <span className="sb__plan-name">{user?.plan ?? 'Free'}</span>
           </div>
-          <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/settings')}>
+          <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
             Upgrade
           </button>
         </div>

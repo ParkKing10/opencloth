@@ -719,6 +719,15 @@ select.set-input:hover {
   background: rgba(255, 107, 166, 0.16);
   border-color: rgba(255, 107, 166, 0.4);
 }
+.set-btn-danger:disabled,
+.set-switch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.set-btn-danger:disabled:hover {
+  background: rgba(255, 107, 166, 0.08);
+  border-color: rgba(255, 107, 166, 0.24);
+}
 
 /* ---------- Save bar ---------- */
 .set-savebar {

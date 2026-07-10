@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
@@ -26,6 +27,7 @@ import './set.css'
 
 const DOCS_URL = 'https://docs.threados.co'
 const AVATAR_MAX_BYTES = 4 * 1024 * 1024
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Next plan up from the current one, or null when already on the top tier. */
 const PLAN_ORDER = ['Free', 'Studio', 'Scale'] as const
@@ -33,6 +35,37 @@ type Plan = (typeof PLAN_ORDER)[number]
 function nextPlan(plan: Plan): Plan | null {
   const idx = PLAN_ORDER.indexOf(plan)
   return idx >= 0 && idx < PLAN_ORDER.length - 1 ? PLAN_ORDER[idx + 1] : null
+}
+
+/* ---------------------------------------------- local profile persistence */
+
+const PROFILE_DEFAULTS = {
+  company: 'Atelier Nord',
+  handle: 'atelier-nord',
+  bio: 'Contemporary streetwear studio — heavyweight fleece, garment dye, small-batch drops.',
+}
+
+type StoredProfile = typeof PROFILE_DEFAULTS
+
+function profileKey(userId: string): string {
+  return `threados-profile-${userId}`
+}
+
+/** Read the locally persisted profile fields for a user, falling back to defaults. */
+function loadStoredProfile(userId: string | undefined): StoredProfile {
+  if (!userId) return PROFILE_DEFAULTS
+  try {
+    const raw = localStorage.getItem(profileKey(userId))
+    if (!raw) return PROFILE_DEFAULTS
+    const parsed = JSON.parse(raw) as Partial<StoredProfile>
+    return {
+      company: typeof parsed.company === 'string' ? parsed.company : PROFILE_DEFAULTS.company,
+      handle: typeof parsed.handle === 'string' ? parsed.handle : PROFILE_DEFAULTS.handle,
+      bio: typeof parsed.bio === 'string' ? parsed.bio : PROFILE_DEFAULTS.bio,
+    }
+  } catch {
+    return PROFILE_DEFAULTS
+  }
 }
 
 /* ---------------------------------------------------------------- data */
@@ -76,19 +109,21 @@ type Member = {
   initials: string
   role: string
   owner?: boolean
+  /** Invited locally but not yet accepted — email delivery arrives with the backend. */
+  pending?: boolean
 }
 
 type Integration = {
   id: string
   name: string
   desc: string
-  connected: boolean
 }
-const INITIAL_INTEGRATIONS: Integration[] = [
-  { id: 'shopify', name: 'Shopify', desc: 'Sync drops and inventory to your storefront.', connected: true },
-  { id: 'figma', name: 'Figma', desc: 'Pull artboards straight into the design studio.', connected: true },
-  { id: 'stripe', name: 'Stripe', desc: 'Collect deposits and settle factory invoices.', connected: true },
-  { id: 'slack', name: 'Slack', desc: 'Post production milestones to a team channel.', connected: false },
+/** OAuth for these is not built yet — shown honestly as coming soon, never as fake connections. */
+const INTEGRATIONS: Integration[] = [
+  { id: 'shopify', name: 'Shopify', desc: 'Sync drops and inventory to your storefront.' },
+  { id: 'figma', name: 'Figma', desc: 'Pull artboards straight into the design studio.' },
+  { id: 'stripe', name: 'Stripe', desc: 'Collect deposits and settle factory invoices.' },
+  { id: 'slack', name: 'Slack', desc: 'Post production milestones to a team channel.' },
 ]
 
 const REGIONS: { id: string; label: string }[] = [
@@ -117,8 +152,8 @@ function initialsOf(name: string): string {
 
 /* ---------------------------------------------------------------- switch */
 
-type SwitchProps = { on: boolean; onToggle: () => void; label: string }
-function Switch({ on, onToggle, label }: SwitchProps) {
+type SwitchProps = { on: boolean; onToggle?: () => void; label: string; disabled?: boolean }
+function Switch({ on, onToggle, label, disabled }: SwitchProps) {
   return (
     <button
       type="button"
@@ -127,6 +162,7 @@ function Switch({ on, onToggle, label }: SwitchProps) {
       aria-label={label}
       className={`set-switch${on ? ' is-on' : ''}`}
       onClick={onToggle}
+      disabled={disabled}
     />
   )
 }
@@ -147,17 +183,23 @@ export function Settings() {
   const { data, mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const location = useLocation()
 
   const [active, setActive] = useState<NavKey>('profile')
 
-  /* -- Profile form (controlled, seeded from the signed-in user) -- */
+  /* -- Deep links: /suite/settings?section=billing opens that section -- */
+  useEffect(() => {
+    const section = new URLSearchParams(location.search).get('section')
+    if (section && NAV.some((n) => n.key === section)) setActive(section as NavKey)
+  }, [location.key, location.search])
+
+  /* -- Profile form (controlled, seeded from the signed-in user + local storage) -- */
+  const [savedProfile, setSavedProfile] = useState<StoredProfile>(() => loadStoredProfile(user?.id))
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
-  const [company, setCompany] = useState('Atelier Nord')
-  const [handle, setHandle] = useState('atelier-nord')
-  const [bio, setBio] = useState(
-    'Contemporary streetwear studio — heavyweight fleece, garment dye, small-batch drops.',
-  )
+  const [company, setCompany] = useState(savedProfile.company)
+  const [handle, setHandle] = useState(savedProfile.handle)
+  const [bio, setBio] = useState(savedProfile.bio)
 
   /* -- Brand accent + notifications (local preferences) -- */
   const [accent, setAccent] = useState('lime')
@@ -165,19 +207,31 @@ export function Settings() {
 
   /* -- Team roster (local) -- */
   const [members, setMembers] = useState<Member[]>(SEED_MEMBERS)
+  const [inviteEmail, setInviteEmail] = useState('')
 
   /* -- Avatar image (real upload → data URL, shown in the avatar tile) -- */
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement | null>(null)
 
-  /* -- Workspace + integrations (local preferences) -- */
+  /* -- Workspace (local preferences) -- */
   const [workspaceName, setWorkspaceName] = useState('Atelier Nord')
   const [region, setRegion] = useState('eu')
-  const [integrations, setIntegrations] = useState<Integration[]>(INITIAL_INTEGRATIONS)
+
+  /* -- Danger zone: transfer + delete confirmation flows -- */
+  const [transferOpen, setTransferOpen] = useState(false)
+  const [transferTo, setTransferTo] = useState('')
+  const [ownershipTransferred, setOwnershipTransferred] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
 
   /* -- Dirty tracking so the save bar reflects real unsaved edits -- */
   const isDirty =
-    !!user && (name.trim() !== user.name || email.trim().toLowerCase() !== user.email.toLowerCase())
+    !!user &&
+    (name.trim() !== user.name ||
+      email.trim().toLowerCase() !== user.email.toLowerCase() ||
+      company.trim() !== savedProfile.company ||
+      handle.trim() !== savedProfile.handle ||
+      bio.trim() !== savedProfile.bio)
 
   const avatarInitials = useMemo(() => initialsOf(name || user?.name || ''), [name, user?.name])
   const accentHex = ACCENTS.find((a) => a.id === accent)?.hex ?? ACCENTS[0].hex
@@ -203,7 +257,7 @@ export function Settings() {
       setActive('profile')
       return
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    if (!EMAIL_RE.test(cleanEmail)) {
       toast('Enter a valid email address.', 'default')
       setActive('profile')
       return
@@ -213,12 +267,23 @@ export function Settings() {
       toast('That email is already used by another account.', 'default')
       return
     }
+    const nextProfile: StoredProfile = { company: company.trim(), handle: handle.trim(), bio: bio.trim() }
+    try {
+      localStorage.setItem(profileKey(user.id), JSON.stringify(nextProfile))
+    } catch {
+      toast('Could not save — browser storage is unavailable.', 'default')
+      return
+    }
     mutate((d) => ({
       ...d,
       users: d.users.map((u) => (u.id === user.id ? { ...u, name: cleanName, email: cleanEmail } : u)),
     }))
+    setSavedProfile(nextProfile)
     setName(cleanName)
     setEmail(cleanEmail)
+    setCompany(nextProfile.company)
+    setHandle(nextProfile.handle)
+    setBio(nextProfile.bio)
     toast('Profile saved', 'success')
   }
 
@@ -226,25 +291,40 @@ export function Settings() {
     if (!user) return
     setName(user.name)
     setEmail(user.email)
+    setCompany(savedProfile.company)
+    setHandle(savedProfile.handle)
+    setBio(savedProfile.bio)
     toast('Reverted to your last saved profile', 'default')
   }
 
-  const inviteMember = () => {
+  const submitInvite = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     if (members.length + 1 >= SEAT_LIMIT) {
       toast(`All ${SEAT_LIMIT} seats are in use — upgrade to add more.`, 'default')
       setActive('billing')
       return
     }
-    const n = members.length + 2
-    const newMember: Member = {
-      id: uid('m'),
-      name: `Teammate ${n}`,
-      email: `invite${n}@${handle || 'brand'}.co`,
-      initials: `T${n}`,
-      role: 'Designer',
+    const clean = inviteEmail.trim().toLowerCase()
+    if (!EMAIL_RE.test(clean)) {
+      toast('Enter a valid email address to invite.', 'default')
+      return
     }
-    setMembers((prev) => [...prev, newMember])
-    toast(`Invite sent to ${newMember.email}`, 'success')
+    const ownEmail = (email.trim() || user?.email || '').toLowerCase()
+    if (clean === ownEmail || members.some((m) => m.email.toLowerCase() === clean)) {
+      toast('That email is already on this team.', 'default')
+      return
+    }
+    const invited: Member = {
+      id: uid('m'),
+      name: clean,
+      email: clean,
+      initials: clean.slice(0, 2).toUpperCase(),
+      role: 'Invited',
+      pending: true,
+    }
+    setMembers((prev) => [...prev, invited])
+    setInviteEmail('')
+    toast(`Invite for ${clean} recorded — email delivery arrives with the backend.`, 'success')
   }
 
   const cycleRole = (m: Member) => {
@@ -257,7 +337,7 @@ export function Settings() {
 
   const removeMember = (m: Member) => {
     setMembers((prev) => prev.filter((x) => x.id !== m.id))
-    toast(`${m.name} removed from the workspace`, 'default')
+    toast(m.pending ? `Invite for ${m.email} revoked` : `${m.name} removed from the workspace`, 'default')
   }
 
   /* -- Upgrade: real plan change persisted to the store -- */
@@ -354,50 +434,50 @@ export function Settings() {
     toast('Account data exported', 'success')
   }
 
-  const toggleIntegration = (id: string) => {
-    let nowConnected = false
-    setIntegrations((prev) =>
-      prev.map((it) => {
-        if (it.id !== id) return it
-        nowConnected = !it.connected
-        return { ...it, connected: nowConnected }
-      }),
-    )
-    const target = integrations.find((it) => it.id === id)
-    if (target) {
-      toast(
-        nowConnected ? `${target.name} connected` : `${target.name} disconnected`,
-        nowConnected ? 'success' : 'default',
-      )
-    }
-  }
+  /* -- Transfer ownership: pick a member, confirm, then promote in the roster -- */
+  const eligibleOwners = members.filter((m) => !m.owner && !m.pending)
 
-  const connectedCount = integrations.filter((it) => it.connected).length
-
-  /* -- Transfer ownership: really promote a member to Owner in the roster -- */
-  const transferOwnership = () => {
-    const to = members[0]
-    if (!to) {
+  const openTransfer = () => {
+    if (eligibleOwners.length === 0) {
       toast('Invite a teammate before transferring ownership.', 'default')
       setActive('team')
       return
     }
-    if (!window.confirm(`Transfer this workspace to ${to.name}? You will lose owner access.`)) return
+    setDeleteOpen(false)
+    setTransferOpen(true)
+  }
+
+  const confirmTransfer = () => {
+    const to = members.find((m) => m.id === transferTo)
+    if (!to) {
+      toast('Choose a member to receive ownership.', 'default')
+      return
+    }
     setMembers((prev) => prev.map((m) => (m.id === to.id ? { ...m, role: 'Owner', owner: true } : m)))
-    toast(`${to.name} is now the workspace owner`, 'success')
+    setOwnershipTransferred(true)
+    setTransferOpen(false)
+    setTransferTo('')
+    toast(`${to.name} is now the workspace owner — recorded in this workspace.`, 'success')
     setActive('team')
   }
 
-  /* -- Delete workspace: download a real backup before the destructive step -- */
-  const deleteWorkspace = () => {
-    if (!window.confirm(`Permanently delete ${workspaceName || 'this workspace'} and all its data? This cannot be undone.`)) {
-      return
-    }
+  /* -- Delete workspace: backup first, then really clear local THREADOS data -- */
+  const deletePhrase = workspaceName.trim() || 'DELETE'
+
+  const confirmDeleteWorkspace = () => {
+    if (deleteConfirm.trim() !== deletePhrase) return
     downloadJson(
       { exportedAt: new Date().toISOString(), workspace: workspaceName, region, data },
       `threados-${slugify(workspaceName || 'workspace')}-backup.json`,
     )
-    toast('Backup downloaded — deletion confirmation sent to your email.', 'default')
+    const doomed: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('threados-')) doomed.push(key)
+    }
+    doomed.forEach((key) => localStorage.removeItem(key))
+    // Give the backup download a beat to start, then reload into the fresh state.
+    window.setTimeout(() => window.location.reload(), 500)
   }
 
   /* -- Real plan + coins from the signed-in user -- */
@@ -466,12 +546,7 @@ export function Settings() {
           {NAV.map((item) => {
             const Icon = item.icon
             const isActive = item.key === active
-            const count =
-              item.key === 'team'
-                ? String(memberCount)
-                : item.key === 'integrations'
-                  ? String(connectedCount)
-                  : undefined
+            const count = item.key === 'team' ? String(memberCount) : undefined
             return (
               <button
                 key={item.key}
@@ -680,23 +755,113 @@ export function Settings() {
             </div>
             <div className="set-card__body">
               <div className="set-danger-row">
-                <div className="set-danger-row__text">
+                <div className="set-danger-row__text" style={{ flex: 1 }}>
                   <b>Transfer ownership</b>
-                  <p>Move this workspace and all collections to another team member.</p>
+                  <p>
+                    Move this workspace to another team member. The change is recorded in this
+                    workspace — no emails are sent.
+                  </p>
+                  {transferOpen && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <select
+                        className="set-input"
+                        style={{ maxWidth: 260 }}
+                        value={transferTo}
+                        onChange={(e) => setTransferTo(e.target.value)}
+                        aria-label="New workspace owner"
+                      >
+                        <option value="">Choose a member…</option>
+                        {eligibleOwners.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} — {m.role}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        className="set-btn-danger"
+                        type="button"
+                        disabled={!transferTo}
+                        onClick={confirmTransfer}
+                      >
+                        Confirm transfer
+                      </button>
+                      <button
+                        className="s-btn s-btn--subtle"
+                        type="button"
+                        onClick={() => {
+                          setTransferOpen(false)
+                          setTransferTo('')
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button className="set-btn-danger" type="button" onClick={transferOwnership}>
-                  <IcoLogout width="15" height="15" style={{ verticalAlign: '-3px', marginRight: 6 }} />
-                  Transfer
-                </button>
+                {!transferOpen && (
+                  <button
+                    className="set-btn-danger"
+                    type="button"
+                    onClick={openTransfer}
+                    disabled={ownershipTransferred}
+                    title={ownershipTransferred ? 'Ownership already transferred' : undefined}
+                  >
+                    <IcoLogout width="15" height="15" style={{ verticalAlign: '-3px', marginRight: 6 }} />
+                    Transfer
+                  </button>
+                )}
               </div>
               <div className="set-danger-row">
-                <div className="set-danger-row__text">
+                <div className="set-danger-row__text" style={{ flex: 1 }}>
                   <b>Delete workspace</b>
-                  <p>Permanently remove {workspaceName || 'this workspace'}, all designs, tech packs and production data.</p>
+                  <p>
+                    Downloads a backup, then permanently deletes all THREADOS data stored in this
+                    browser — designs, garments, tech packs, drive files and preferences — and
+                    reloads the app to a fresh state.
+                  </p>
+                  {deleteOpen && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <input
+                        className="set-input"
+                        style={{ maxWidth: 260 }}
+                        value={deleteConfirm}
+                        onChange={(e) => setDeleteConfirm(e.target.value)}
+                        placeholder={`Type “${deletePhrase}” to confirm`}
+                        aria-label={`Type ${deletePhrase} to confirm deletion`}
+                      />
+                      <button
+                        className="set-btn-danger"
+                        type="button"
+                        disabled={deleteConfirm.trim() !== deletePhrase}
+                        onClick={confirmDeleteWorkspace}
+                      >
+                        Delete forever
+                      </button>
+                      <button
+                        className="s-btn s-btn--subtle"
+                        type="button"
+                        onClick={() => {
+                          setDeleteOpen(false)
+                          setDeleteConfirm('')
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button className="set-btn-danger" type="button" onClick={deleteWorkspace}>
-                  Delete workspace
-                </button>
+                {!deleteOpen && (
+                  <button
+                    className="set-btn-danger"
+                    type="button"
+                    onClick={() => {
+                      setTransferOpen(false)
+                      setDeleteOpen(true)
+                    }}
+                  >
+                    Delete workspace
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -895,9 +1060,20 @@ export function Settings() {
                   {memberCount} of {SEAT_LIMIT} seats used on the {planName} plan.
                 </p>
               </div>
-              <button className="s-btn s-btn--ghost" type="button" onClick={inviteMember}>
-                <IcoCommunity width="15" height="15" /> Invite member
-              </button>
+              <form style={{ display: 'flex', gap: 8 }} onSubmit={submitInvite}>
+                <input
+                  className="set-input"
+                  style={{ width: 220 }}
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="teammate@brand.com"
+                  aria-label="Invite by email"
+                />
+                <button className="s-btn s-btn--ghost" type="submit">
+                  <IcoCommunity width="15" height="15" /> Invite
+                </button>
+              </form>
             </div>
             <div className="set-card__body">
               <div className="set-members">
@@ -912,9 +1088,15 @@ export function Settings() {
                     <span className="set-member__email">{email || user?.email}</span>
                   </div>
                   <div className="set-member__right">
-                    <span className="set-role set-role--owner" title="You own this workspace">
-                      Owner
-                    </span>
+                    {ownershipTransferred ? (
+                      <span className="set-role" title="Ownership was transferred">
+                        Admin
+                      </span>
+                    ) : (
+                      <span className="set-role set-role--owner" title="You own this workspace">
+                        Owner
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -926,13 +1108,30 @@ export function Settings() {
                         {m.name}
                         {m.owner && <span className="s-chip s-chip--accent">Owner</span>}
                       </span>
-                      <span className="set-member__email">{m.email}</span>
+                      <span className="set-member__email">
+                        {m.pending ? 'Invited · pending' : m.email}
+                      </span>
                     </div>
                     <div className="set-member__right">
                       {m.owner ? (
                         <span className="set-role set-role--owner" title="Workspace owner">
                           Owner
                         </span>
+                      ) : m.pending ? (
+                        <>
+                          <span className="set-role" title="Invite recorded locally — awaiting backend email delivery">
+                            Invited
+                          </span>
+                          <button
+                            className="set-member__more"
+                            type="button"
+                            aria-label={`Revoke invite for ${m.email}`}
+                            title={`Revoke invite for ${m.email}`}
+                            onClick={() => removeMember(m)}
+                          >
+                            <IcoDots width="16" height="16" />
+                          </button>
+                        </>
                       ) : (
                         <>
                           <button
@@ -969,25 +1168,26 @@ export function Settings() {
             <div className="set-card__head">
               <div className="set-card__head-text">
                 <h2>Integrations</h2>
-                <p>Connect the tools your studio already runs on.</p>
+                <p>Connections to outside tools are in development and are not live yet.</p>
               </div>
-              <span className="s-chip s-chip--accent">
-                <IcoMarketplace width="12" height="12" /> {connectedCount} connected
+              <span className="s-chip">
+                <IcoMarketplace width="12" height="12" /> Coming soon
               </span>
             </div>
             <div className="set-card__body">
               <div className="set-toggles">
-                {integrations.map((it) => (
+                {INTEGRATIONS.map((it) => (
                   <div className="set-toggle-row" key={it.id}>
                     <div className="set-toggle-text">
                       <b>{it.name}</b>
                       <small>{it.desc}</small>
                     </div>
-                    <Switch
-                      on={it.connected}
-                      onToggle={() => toggleIntegration(it.id)}
-                      label={`${it.connected ? 'Disconnect' : 'Connect'} ${it.name}`}
-                    />
+                    <span
+                      style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
+                    >
+                      <span className="set-hint">Coming soon</span>
+                      <Switch on={false} disabled label={`${it.name} integration — coming soon`} />
+                    </span>
                   </div>
                 ))}
               </div>

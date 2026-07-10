@@ -721,7 +721,13 @@ export function DesignStudio() {
 
   // The Garment Library is the single source of truth — the catalog loads real garments.
   const { garments: library, loading: libraryLoading } = useGarments()
-  const catalog = useMemo(() => library.map(libToStudio), [library])
+  // The Studio rail is editable-only: every card must resolve to a real region tree so clicking it
+  // shows the garment's parts as layers. Traced/uploaded garments have no region tree (studioGarment
+  // stays null → zero layers), so they're excluded here. This scopes editable-only to the Studio —
+  // the shared listGarments and the Admin Garment Library still show every source. Filtering the
+  // catalog itself (not just visibleGarments) makes catalog[0] — the garment selected on load — a
+  // built-in template too, so the layers appear immediately without a click.
+  const catalog = useMemo(() => library.filter((g) => isBuiltinGarmentId(g.id)).map(libToStudio), [library])
 
   // M9/8.2 bridge: an editable garment injected via ?garment=<id> (from the Garments editor). When
   // present it IS the active garment, so the studio shows YOUR garment (not a catalog item) and keys
@@ -2109,6 +2115,7 @@ export function DesignStudio() {
                 category={activeGarment.category}
                 views={activeGarment.views}
                 representations={garmentReps}
+                hasRegionTree={!!editableTemplateId}
                 onEditRegions={editableTemplateId && user?.id ? openInGarmentEditor : undefined}
               />
               <ProductSpecsEditor specs={specs} onSpec={patchSpec} mode={mode} />

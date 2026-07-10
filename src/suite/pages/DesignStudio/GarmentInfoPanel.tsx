@@ -8,6 +8,9 @@ type Props = {
   views: GarmentViews
   /** The garment's real representations (from getGarment). */
   representations: GarmentRepresentation[]
+  /** True when the garment has a real editable region tree (its parts show as layers), even if the
+   *  Garment Editor button is gated (e.g. the user is signed out). Keeps the status honest. */
+  hasRegionTree?: boolean
   /** When set, this catalog garment has a real region tree — open it in the Garment Editor for
    *  full per-region control (front + back, every part a layer). */
   onEditRegions?: () => void
@@ -22,7 +25,7 @@ const EDITABLE_FORMATS = new Set(['ai', 'svg', 'pdf', 'eps', 'dxf'])
  * we do not have for a freshly selected blank. Real design controls appear only once the
  * user adds a layer (then the object/context inspector takes over).
  */
-export function GarmentInfoPanel({ name, brand, category, views, representations, onEditRegions }: Props) {
+export function GarmentInfoPanel({ name, brand, category, views, representations, hasRegionTree, onEditRegions }: Props) {
   // Real representations only — skip the auto-generated thumbnail.
   const realReps = representations.filter((r) => r.kind !== 'thumbnail')
   const formats = Array.from(new Set(realReps.map((r) => r.format.toUpperCase()))).sort()
@@ -60,8 +63,12 @@ export function GarmentInfoPanel({ name, brand, category, views, representations
       </Row>
 
       <Row label="Editable source">
-        <span className={`gi2__status${hasEditableSource || onEditRegions ? ' is-yes' : ''}`}>
-          {onEditRegions ? 'Yes — editable region tree' : hasEditableSource ? 'Yes — vector source available' : 'No — preview only'}
+        <span className={`gi2__status${hasEditableSource || onEditRegions || hasRegionTree ? ' is-yes' : ''}`}>
+          {onEditRegions || hasRegionTree
+            ? 'Yes — editable region tree'
+            : hasEditableSource
+              ? 'Yes — vector source available'
+              : 'No — preview only'}
         </span>
       </Row>
 

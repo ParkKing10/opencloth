@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type DesignDoc } from './designDoc'
 import { makeTextLayer, makeImageLayer, makeGraphicLayer, patchObject } from './objectModel'
+import { builtinGarments, isBuiltinGarmentId, builtinTemplateId } from '../../garments/builtinGarments'
+import { getTemplate } from '../../garment-model/garmentTemplates'
 
 // jsdom-free localStorage stub so the persistence layer is testable under the 'node' env.
 class MemoryStorage {
@@ -172,5 +174,30 @@ describe('object model', () => {
     // originals untouched (immutability)
     expect(b.obj?.rotation).toBe(0)
     expect(next[0]).toBe(a) // unchanged layer keeps identity
+  })
+})
+
+describe('studio catalog is editable-only', () => {
+  // Contract: the Design Studio rail (DesignStudio.tsx `catalog`) is filtered to builtin ids so
+  // every card resolves to a real region tree. This locks that a builtin id ALWAYS yields a
+  // non-empty region tree (no dead click) and that the filter excludes traced/uploaded ids.
+  it('every builtin catalog garment maps to a template with a non-empty region tree', () => {
+    const rail = builtinGarments().filter((g) => isBuiltinGarmentId(g.id))
+    expect(rail.length).toBeGreaterThanOrEqual(50)
+    for (const g of rail) {
+      const tpl = getTemplate(builtinTemplateId(g.id))
+      expect(tpl, `no template for ${g.id}`).toBeTruthy()
+      const made = tpl!.make()
+      expect(Object.keys(made.regions).length, `${g.id} has no regions`).toBeGreaterThan(0)
+      expect(made.rootIds.length, `${g.id} has no rootIds`).toBeGreaterThan(0)
+      // Every rootId resolves to a real region — the layer tree (flattenRegions) walks these.
+      for (const rid of made.rootIds) expect(made.regions[rid], `${g.id} rootId ${rid} missing`).toBeTruthy()
+    }
+  })
+
+  it('the rail filter keeps only builtin ids (traced/uploaded excluded)', () => {
+    const mixed = [{ id: 'traced-x' }, { id: 'builtin-tpl-tshirt' }, { id: 'up-y' }]
+    const kept = mixed.filter((g) => isBuiltinGarmentId(g.id))
+    expect(kept).toEqual([{ id: 'builtin-tpl-tshirt' }])
   })
 })

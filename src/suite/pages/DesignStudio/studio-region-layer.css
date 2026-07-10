@@ -1,0 +1,43 @@
+/* Transparent interactive region hit-layer over the garment backdrop. */
+.srl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4; /* above the backdrop, below .co-box (z-index 6) so placed objects win the click */
+  overflow: visible;
+}
+.srl.is-inert {
+  pointer-events: none; /* panning / space-drag can grab the canvas over the garment */
+}
+/* The hit path: invisible fill captures clicks across the whole region; the outline appears on
+   hover / selection / drag so the part reads as grabbable. */
+.srl__hit {
+  pointer-events: all;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: stroke var(--duration-fast, 150ms) ease;
+}
+.srl__region {
+  cursor: grab;
+}
+.srl__region:hover .srl__hit {
+  stroke: color-mix(in oklab, var(--s-accent, #d1f94f) 70%, transparent);
+}
+.srl__region.is-selected .srl__hit {
+  stroke: var(--s-accent, #d1f94f);
+}
+.srl__region.is-locked {
+  cursor: not-allowed;
+}
+.srl__region.is-moving {
+  cursor: grabbing;
+}
+.srl__region.is-moving .srl__hit {
+  stroke: var(--s-accent, #d1f94f);
+  stroke-dasharray: 5 4;
+}
+.srl.is-dragging {
+  cursor: grabbing;
+}

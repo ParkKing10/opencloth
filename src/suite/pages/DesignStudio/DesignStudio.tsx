@@ -936,6 +936,22 @@ export function DesignStudio() {
     },
     [studioGarment, commit],
   )
+  /** Move a region by (dx,dy) in SVG viewBox units — accumulates onto any existing transform,
+   *  dropping the override when the part returns to (near) its base position. */
+  const moveRegion = useCallback(
+    (id: string, dx: number, dy: number) => {
+      if (dx === 0 && dy === 0) return
+      const base = presentRef.current
+      const rt = { ...(base.regionTransforms ?? {}) }
+      const cur = rt[id] ?? { dx: 0, dy: 0 }
+      const nextT = { dx: cur.dx + dx, dy: cur.dy + dy }
+      if (Math.abs(nextT.dx) < 0.5 && Math.abs(nextT.dy) < 0.5) delete rt[id]
+      else rt[id] = nextT
+      commit({ ...base, regionTransforms: rt })
+    },
+    [commit],
+  )
+
   // Restore the last-opened garment once the catalog is available (reload reopens the design).
   const restoredRef = useRef(false)
   useEffect(() => {
@@ -2128,6 +2144,10 @@ export function DesignStudio() {
             onEditText={editObjectText}
             onAddText={addTextObject}
             onAddImage={addImageObject}
+            regionGarment={displayGarment}
+            selectedRegionId={regionSel}
+            onSelectRegion={(id) => (id ? selectRegion(id) : setRegionSel(null))}
+            onMoveRegion={moveRegion}
           />
         </div>
 

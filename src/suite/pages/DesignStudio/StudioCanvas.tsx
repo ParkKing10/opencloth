@@ -6,6 +6,8 @@ import { useToast } from '../../components/ui/Toast'
 import { viewList } from '../../garments/import/detect'
 import { EMPTY_VIEWS, type GarmentViews } from '../../garments/types'
 import { CanvasObjects, type Overlays } from './CanvasObjects'
+import { StudioRegionLayer, labelToViewId } from './StudioRegionLayer'
+import type { EditableGarment } from '../../garment-model/editableGarment'
 import type { Layer } from './LayersPanel'
 import type { CanvasObject } from './objectModel'
 import hoodieImg from '../../../assets/cards/hoodie.png'
@@ -69,6 +71,13 @@ type Props = {
   onEditText?: (id: string, text: string) => void
   onAddText?: () => void
   onAddImage?: (file: File) => void
+  // ---- editable garment regions (select + move parts directly on the garment) ----
+  /** The garment with its region tree + overrides (displayGarment). When present, its parts are
+   *  selectable + draggable on the canvas via a transparent hit-layer over the backdrop. */
+  regionGarment?: EditableGarment | null
+  selectedRegionId?: string | null
+  onSelectRegion?: (id: string | null) => void
+  onMoveRegion?: (id: string, dx: number, dy: number) => void
 }
 
 export function StudioCanvas({
@@ -90,6 +99,10 @@ export function StudioCanvas({
   onEditText,
   onAddText,
   onAddImage,
+  regionGarment,
+  selectedRegionId,
+  onSelectRegion,
+  onMoveRegion,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
@@ -430,6 +443,16 @@ export function StudioCanvas({
                 <img className="ds-garment-photo" src={GARMENT_PHOTO[garmentKind]} alt={garmentName} draggable={false} />
               ) : (
                 <Glyph width="340" height="340" />
+              )}
+              {regionGarment && onSelectRegion && onMoveRegion && (
+                <StudioRegionLayer
+                  garment={regionGarment}
+                  view={labelToViewId(activeView, regionGarment)}
+                  selectedId={selectedRegionId ?? null}
+                  interactive={tool !== 'pan' && !spaceHeld}
+                  onSelect={onSelectRegion}
+                  onMoveRegion={onMoveRegion}
+                />
               )}
               {objects && onSelectObj && onLiveObj && onCommitObj && onEditText && (
                 <CanvasObjects

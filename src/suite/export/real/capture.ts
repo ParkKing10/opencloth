@@ -18,7 +18,7 @@ export type CaptureOptions = {
 }
 
 const STAGE_SELECTOR = '.ds-garment-3d'
-const CHROME_SELECTORS = '.co-frame, .co-handle, .co-rotate-stem, .co-guide, .co-warn, .co-zone'
+const CHROME_SELECTORS = '.co-frame, .co-handle, .co-rotate-stem, .co-guide, .co-warn, .co-zone, .srl'
 const GARMENT_SELECTORS = '.ds-garment-photo, .ds-garment-vector'
 
 /** Capture the current design as a PNG blob per the given options. */

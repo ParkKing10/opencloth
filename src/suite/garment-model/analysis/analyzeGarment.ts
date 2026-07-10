@@ -9,6 +9,9 @@ import { buildFromUpload } from '../garmentFactory'
 import { readSvg } from './svgReader'
 import { classifyGraph } from './classify'
 import { mapClassifiedToEditable, type MapResult } from './smartGarmentMapping'
+import { computeSignature } from './signature'
+import { nearestSignatures, saveSignature } from './learningStore'
+import { applyLearningPriors } from './learning'
 
 export type AnalyzeInput = { text?: string; bytes?: Uint8Array; filename: string }
 
@@ -31,9 +34,18 @@ export async function analyzeGarment(input: AnalyzeInput, opts?: { name?: string
     // Need at least a couple of real primitives to attempt an analysis.
     if (graph && graph.paths.length >= 2 && graph.bounds.w > 0) {
       const classified = classifyGraph(graph)
-      const mapped = mapClassifiedToEditable(classified, name, category)
+      // Learning: bias with the nearest previously-analyzed garment, then remember this one.
+      const sig = computeSignature(classified, name)
+      const learned = applyLearningPriors(classified, nearestSignatures(sig))
+      const mapped = mapClassifiedToEditable(learned.garment, name, category)
       const normalized = normalizeGarment(mapped.garment)
-      if (normalized) return { garment: normalized, report: mapped.report }
+      if (normalized) {
+        saveSignature(sig, Date.now())
+        return {
+          garment: normalized,
+          report: { ...mapped.report, matchedPrior: learned.matched, learnedFrom: learned.from },
+        }
+      }
     }
   } catch {
     /* fall through to the honest fallback below */

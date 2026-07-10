@@ -4,6 +4,8 @@ import { classifyGraph } from './classify'
 import { mapClassifiedToEditable } from './smartGarmentMapping'
 import { analyzeGarment } from './analyzeGarment'
 import { pathBounds, isClosedPath, pointInPolygon } from './pathGeometry'
+import { computeSignature, signatureDistance } from './signature'
+import { learnedCount } from './learningStore'
 import { applyMatrixToPath, parseTransform } from './svgTransform'
 import { flattenRegions } from '../regionTree'
 import { isEditableGarment } from '../editableGarment'
@@ -169,6 +171,28 @@ describe('fuller taxonomy (hooded zip jacket)', () => {
     const { garment } = mapClassifiedToEditable(cg, 'Zip Hoodie', 'Outerwear')
     expect(isEditableGarment(garment)).toBe(true)
     expect(flattenRegions(garment).length).toBe(10)
+  })
+})
+
+describe('learning layer', () => {
+  it('signature distance is 0 for identical, > 0 for different garments', () => {
+    const jacket = computeSignature(classifyGraph(readSvg(HOODED_JACKET_SVG)))
+    const tee = computeSignature(classifyGraph(readSvg(TECH_FLAT_TEE_SVG)))
+    expect(signatureDistance(jacket, jacket)).toBe(0)
+    expect(signatureDistance(jacket, tee)).toBeGreaterThan(0.05)
+  })
+  it('recognises a previously-analyzed garment on re-import + remembers each analysis', async () => {
+    expect(learnedCount()).toBe(0)
+    const first = await analyzeGarment({ text: HOODED_JACKET_SVG, filename: 'bomber-a.svg' })
+    expect(first.report.matchedPrior).toBeFalsy() // nothing learned yet
+    expect(learnedCount()).toBe(1)
+    const second = await analyzeGarment({ text: HOODED_JACKET_SVG, filename: 'bomber-b.svg' })
+    expect(second.report.matchedPrior).toBe(true) // now it recognises the shape
+    expect(learnedCount()).toBe(2)
+  })
+  it('does nothing with an empty store (pure geometry)', async () => {
+    const r = await analyzeGarment({ text: TECH_FLAT_TEE_SVG, filename: 'tee.svg' })
+    expect(r.report.matchedPrior).toBeFalsy()
   })
 })
 

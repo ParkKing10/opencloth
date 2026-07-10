@@ -114,7 +114,8 @@ export function GarmentsHome() {
         refresh()
         if (report.regionCount > 0) {
           const parts = Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(', ')
-          toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts}).`, 'success')
+          const learned = report.matchedPrior ? ' · recognised from a similar garment' : ''
+          toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts})${learned}.`, 'success')
         } else {
           toast(`Imported “${garment.name}” — no clear regions detected, edit it in the Studio.`, 'info')
         }

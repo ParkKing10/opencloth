@@ -17,7 +17,14 @@ import { TECH_FLAT } from '../garmentStyle'
 import { translateD } from '../pathTransform'
 import type { ClassifiedGarment } from './classify'
 
-export type MapReport = { regionCount: number; lowConfidence: number; types: Record<string, number> }
+export type MapReport = {
+  regionCount: number
+  lowConfidence: number
+  types: Record<string, number>
+  /** Learning: set when the engine recognised this garment from a previously-analyzed one. */
+  matchedPrior?: boolean
+  learnedFrom?: string
+}
 export type MapResult = { garment: EditableGarment; report: MapReport }
 
 /** Sanitise a source paint into a concrete hex fabric colour, or undefined (default tech-flat white). */

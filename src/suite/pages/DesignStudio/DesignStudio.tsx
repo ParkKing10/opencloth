@@ -2111,7 +2111,7 @@ export function DesignStudio() {
                 representations={garmentReps}
                 onEditRegions={editableTemplateId && user?.id ? openInGarmentEditor : undefined}
               />
-              <ProductSpecsEditor specs={specs} onSpec={patchSpec} />
+              <ProductSpecsEditor specs={specs} onSpec={patchSpec} mode={mode} />
             </div>
           )}
         </aside>

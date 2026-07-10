@@ -163,3 +163,67 @@
 .ps__add:hover {
   text-decoration: underline;
 }
+
+/* Beginner progressive disclosure — production detail one click away. */
+.ps__adv {
+  margin-top: 4px;
+  border-top: 1px solid var(--s-border, rgba(255, 255, 255, 0.08));
+  padding-top: 8px;
+}
+.ps__adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+.ps__adv-toggle:hover {
+  color: var(--s-text);
+}
+.ps__adv-toggle svg {
+  transition: transform var(--duration-fast, 150ms) ease;
+  flex: 0 0 auto;
+}
+.ps__adv-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--s-accent, #d1f94f);
+  color: #14140f;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ps__adv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  animation: ps-adv-in var(--duration-normal, 220ms) var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+}
+@keyframes ps-adv-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ps__adv-body {
+    animation: none;
+  }
+}

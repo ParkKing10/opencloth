@@ -94,6 +94,11 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
               aria-selected={mode === m}
               className={`cb__mode-btn${mode === m ? ' is-active' : ''}`}
               onClick={() => onModeChange(m)}
+              title={
+                m === 'beginner'
+                  ? 'Beginner — the visual essentials, production detail one click away'
+                  : 'Pro — every production field expanded'
+              }
             >
               {m === 'beginner' ? 'Beginner' : 'Pro'}
             </button>

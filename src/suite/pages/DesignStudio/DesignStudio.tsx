@@ -16,7 +16,7 @@ import { useGarments } from '../../garments/useGarments'
 import { loadGarmentDisplay, getGarment } from '../../garments/garmentClient'
 import { isBuiltinGarmentId, builtinTemplateId } from '../../garments/builtinGarments'
 import { buildFromTemplate } from '../../garment-model/garmentFactory'
-import { createGarment } from '../../garment-model/garmentLibrary'
+import { createGarment, getGarment as getEditableSummary } from '../../garment-model/garmentLibrary'
 import { categoryLabel, EMPTY_VIEWS, type Garment as LibGarment, type GarmentCategoryId, type GarmentRepresentation, type GarmentViews } from '../../garments/types'
 import { useToast } from '../../components/ui/Toast'
 import { useSuiteTheme } from '../../theme'
@@ -752,8 +752,27 @@ export function DesignStudio() {
   const editableTemplateId = activeGarment.id && isBuiltinGarmentId(activeGarment.id) ? builtinTemplateId(activeGarment.id) : null
   const openInGarmentEditor = useCallback(() => {
     if (!user?.id || !editableTemplateId) return
+    // Reopen the SAME editable copy on repeat clicks — creating a new garment every time silently
+    // filled the user's collection with duplicates. The template→garment mapping lives per user.
+    const mapKey = `threados-tpl-editable-${user.id}`
+    let map: Record<string, string> = {}
+    try {
+      map = JSON.parse(localStorage.getItem(mapKey) ?? '{}') as Record<string, string>
+    } catch {
+      /* corrupt map — rebuild */
+    }
+    const existing = map[editableTemplateId]
+    if (existing && getEditableSummary(user.id, existing)) {
+      navigate(`/suite/garment-lab/${existing}`)
+      return
+    }
     const built = buildFromTemplate(editableTemplateId)
     const summary = createGarment(user.id, { ...built.garment, name: built.name }, { name: built.name, category: built.category, origin: 'blank' })
+    try {
+      localStorage.setItem(mapKey, JSON.stringify({ ...map, [editableTemplateId]: summary.id }))
+    } catch {
+      /* non-fatal */
+    }
     navigate(`/suite/garment-lab/${summary.id}`)
   }, [user?.id, editableTemplateId, navigate])
 
@@ -1052,8 +1071,9 @@ export function DesignStudio() {
     return layers.filter((l) => l.obj && (sel.has(l.id) || (l.groupId && sel.has(l.groupId)))).map((l) => l.id)
   }, [layers, liveSelected])
 
-  /** Canvas selection: replace, or toggle (Shift+Click / additive). */
+  /** Canvas selection: replace, or toggle (Shift+Click / additive). Clears any region highlight. */
   const selectObj = useCallback((id: string | null, additive?: boolean) => {
+    setRegionSel(null)
     if (id === null) {
       setSelectedIds([])
       return
@@ -1958,7 +1978,10 @@ export function DesignStudio() {
               hidden={hidden}
               selectedIds={liveSelected}
               onCommit={commitLayers}
-              onSelect={setSelectedIds}
+              onSelect={(ids) => {
+                setSelectedIds(ids)
+                if (ids.length > 0) setRegionSel(null) // a layer selection replaces a region selection
+              }}
               onAddLayer={() => {
                 if (layersCollapsed) toggleLayersCollapsed()
                 addLayer()

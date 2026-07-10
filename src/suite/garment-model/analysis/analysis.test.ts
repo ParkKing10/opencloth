@@ -153,6 +153,43 @@ describe('smartGarmentMapping', () => {
   })
 })
 
+describe('robustness / edge cases', () => {
+  it('a single closed shape → one body, valid garment', () => {
+    const g = readSvg('<svg viewBox="0 0 100 100"><rect x="10" y="10" width="80" height="80"/></svg>')
+    const cg = classifyGraph(g)
+    expect(cg.regions.filter((r) => r.type === 'body').length).toBe(1)
+    const { garment } = mapClassifiedToEditable(cg)
+    expect(isEditableGarment(garment)).toBe(true)
+    expect(garment.rootIds.length).toBe(1)
+  })
+  it('only open strokes → no body, no crash, all stitches', () => {
+    const g = readSvg('<svg viewBox="0 0 100 100"><line x1="0" y1="0" x2="50" y2="50"/><path d="M0 0 L10 10"/></svg>')
+    const cg = classifyGraph(g)
+    expect(cg.regions.every((r) => r.type === 'stitch')).toBe(true)
+    expect(isEditableGarment(mapClassifiedToEditable(cg).garment)).toBe(true)
+  })
+  it('every region id in a tree resolves (no orphan children, unique ids)', () => {
+    const cg = classifyGraph(readSvg(TECH_FLAT_TEE_SVG))
+    const { garment } = mapClassifiedToEditable(cg)
+    const ids = new Set(Object.keys(garment.regions))
+    expect(ids.size).toBe(Object.keys(garment.regions).length)
+    for (const r of Object.values(garment.regions)) {
+      for (const c of r.children) expect(ids.has(c)).toBe(true)
+      if (r.mirrorOf) expect(ids.has(r.mirrorOf)).toBe(true)
+    }
+    for (const root of garment.rootIds) expect(ids.has(root)).toBe(true)
+  })
+  it('svgReader: fill="none" yields no fill; self-closing <g/> and stray </g> do not desync', () => {
+    const g = readSvg('<svg viewBox="0 0 100 100"><g/></g><rect x="1" y="1" width="10" height="10" fill="none" stroke="#111"/></svg>')
+    expect(g.paths.length).toBe(1)
+    expect(g.paths[0].fill).toBeUndefined()
+  })
+  it('svgReader: nested <g transform> compounds correctly', () => {
+    const g = readSvg('<svg viewBox="0 0 100 100"><g transform="translate(10 0)"><g transform="translate(0 20)"><rect x="0" y="0" width="5" height="5"/></g></g></svg>')
+    expect(g.paths[0].bounds).toEqual({ minX: 10, minY: 20, w: 5, h: 5 })
+  })
+})
+
 describe('analyzeGarment (end to end)', () => {
   it('turns SVG text into a normalized garment with front + back views', async () => {
     const { garment } = await analyzeGarment({ text: TECH_FLAT_TEE_SVG, filename: 'basic-tee.svg' })

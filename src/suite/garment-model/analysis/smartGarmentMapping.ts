@@ -40,11 +40,16 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
   const dy = -gb.minY
 
   const ids = cg.regions.map((_, i) => `reg-${i}`)
+  // The classifier's parentIndex / mirrorIndex are PATH indices; resolve them to region-array
+  // indices so the mapping stays correct even if not every path became a region.
+  const regionByPath = new Map<number, number>()
+  cg.regions.forEach((r, i) => regionByPath.set(r.pathIndex, i))
   const regions: Record<string, GarmentRegion> = {}
 
   cg.regions.forEach((r, i) => {
     const src = cg.graph.paths[r.pathIndex]
     const d = translateD(src.d, dx, dy)
+    const mirrorRegion = r.mirrorIndex != null ? regionByPath.get(r.mirrorIndex) : undefined
     regions[ids[i]] = {
       id: ids[i],
       name: r.name,
@@ -56,7 +61,7 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
       capabilities: defaultCapabilities(r.type),
       appearance: r.role === 'fill' ? { fill: fabricFill(src.fill) } : undefined,
       // mirrored partner (e.g. the other sleeve), if any — real structure, never faked.
-      ...(r.mirrorIndex != null && ids[r.mirrorIndex] ? { mirrorOf: ids[r.mirrorIndex] } : {}),
+      ...(mirrorRegion != null && ids[mirrorRegion] ? { mirrorOf: ids[mirrorRegion] } : {}),
     }
   })
 
@@ -64,8 +69,9 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
   const order = cg.regions.map((r, i) => ({ i, z: cg.graph.paths[r.pathIndex].zIndex })).sort((a, b) => a.z - b.z)
   const rootIds: string[] = []
   for (const { i } of order) {
-    const parent = cg.regions[i].parentIndex
-    if (parent != null && regions[ids[parent]]) regions[ids[parent]].children.push(ids[i])
+    const parentPath = cg.regions[i].parentIndex
+    const parentRegion = parentPath != null ? regionByPath.get(parentPath) : undefined
+    if (parentRegion != null && parentRegion !== i && regions[ids[parentRegion]]) regions[ids[parentRegion]].children.push(ids[i])
     else rootIds.push(ids[i])
   }
 

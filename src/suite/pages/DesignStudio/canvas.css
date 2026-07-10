@@ -240,3 +240,49 @@
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 12%, transparent);
   border-radius: 2px;
 }
+
+/* Contextual align & distribute toolbar (appears on multi-select). */
+.cv-align {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 11px;
+  background: var(--s-panel, #14151b);
+  border: 1px solid var(--s-border, rgba(255, 255, 255, 0.1));
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.6);
+  animation: cv-align-in 140ms var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
+}
+@keyframes cv-align-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cv-align { animation: none; }
+}
+.cv-align button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--s-text-2, #b6b7be);
+  cursor: pointer;
+}
+.cv-align button:hover {
+  background: var(--s-accent, #d1f94f);
+  color: var(--s-accent-ink, #14141a);
+}
+.cv-align__sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: var(--s-border, rgba(255, 255, 255, 0.12));
+}

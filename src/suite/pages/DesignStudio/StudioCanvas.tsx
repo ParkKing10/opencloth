@@ -24,6 +24,40 @@ const TOOLS: { id: string; label: string }[] = [
   { id: 'pan', label: 'Pan canvas (or hold Space)' },
 ]
 
+const ALIGN_TOOLS: { edge: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'; label: string }[] = [
+  { edge: 'left', label: 'Align left edges' },
+  { edge: 'center', label: 'Align horizontal centers' },
+  { edge: 'right', label: 'Align right edges' },
+  { edge: 'top', label: 'Align top edges' },
+  { edge: 'middle', label: 'Align vertical centers' },
+  { edge: 'bottom', label: 'Align bottom edges' },
+]
+
+/** Compact align/distribute icons (24×24). */
+function AlignGlyph({ edge }: { edge: string }) {
+  const p = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const }
+  switch (edge) {
+    case 'left':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="4" x2="4" y2="20" {...p} /><rect x="6" y="7" width="13" height="3.4" rx="1" fill="currentColor" /><rect x="6" y="13.6" width="8" height="3.4" rx="1" fill="currentColor" /></svg>
+    case 'center':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="12" y1="4" x2="12" y2="20" {...p} /><rect x="5.5" y="7" width="13" height="3.4" rx="1" fill="currentColor" /><rect x="8" y="13.6" width="8" height="3.4" rx="1" fill="currentColor" /></svg>
+    case 'right':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="20" y1="4" x2="20" y2="20" {...p} /><rect x="5" y="7" width="13" height="3.4" rx="1" fill="currentColor" /><rect x="10" y="13.6" width="8" height="3.4" rx="1" fill="currentColor" /></svg>
+    case 'top':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="4" x2="20" y2="4" {...p} /><rect x="7" y="6" width="3.4" height="13" rx="1" fill="currentColor" /><rect x="13.6" y="6" width="3.4" height="8" rx="1" fill="currentColor" /></svg>
+    case 'middle':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="12" x2="20" y2="12" {...p} /><rect x="7" y="5.5" width="3.4" height="13" rx="1" fill="currentColor" /><rect x="13.6" y="8" width="3.4" height="8" rx="1" fill="currentColor" /></svg>
+    case 'bottom':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="20" {...p} /><rect x="7" y="5" width="3.4" height="13" rx="1" fill="currentColor" /><rect x="13.6" y="10" width="3.4" height="8" rx="1" fill="currentColor" /></svg>
+    case 'dist-h':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><rect x="3" y="6" width="3.2" height="12" rx="1" fill="currentColor" /><rect x="10.4" y="6" width="3.2" height="12" rx="1" fill="currentColor" /><rect x="17.8" y="6" width="3.2" height="12" rx="1" fill="currentColor" /></svg>
+    case 'dist-v':
+      return <svg width="18" height="18" viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="3.2" rx="1" fill="currentColor" /><rect x="6" y="10.4" width="12" height="3.2" rx="1" fill="currentColor" /><rect x="6" y="17.8" width="12" height="3.2" rx="1" fill="currentColor" /></svg>
+    default:
+      return null
+  }
+}
+
 const ZOOM_MIN = 0.4
 const ZOOM_MAX = 3
 /** Exponential sensitivity for wheel zooming. */
@@ -82,6 +116,10 @@ type Props = {
   onMoveRegion?: (id: string, dx: number, dy: number) => void
   /** Right-click on the canvas — objectId is the object under the cursor, or null for empty. */
   onContextMenu?: (x: number, y: number, objectId: string | null) => void
+  /** Number of objects currently selected — drives the contextual align toolbar. */
+  objectSelectionCount?: number
+  onAlign?: (edge: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => void
+  onDistribute?: (axis: 'h' | 'v') => void
 }
 
 export function StudioCanvas({
@@ -109,6 +147,9 @@ export function StudioCanvas({
   onSelectRegion,
   onMoveRegion,
   onContextMenu,
+  objectSelectionCount = 0,
+  onAlign,
+  onDistribute,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
@@ -499,6 +540,26 @@ export function StudioCanvas({
               aria-hidden="true"
               style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
             />
+          )}
+          {objectSelectionCount >= 2 && onAlign && (
+            <div className="cv-align" role="toolbar" aria-label="Align & distribute">
+              {ALIGN_TOOLS.map((t) => (
+                <button key={t.edge} type="button" title={t.label} aria-label={t.label} onClick={() => onAlign(t.edge)}>
+                  <AlignGlyph edge={t.edge} />
+                </button>
+              ))}
+              {objectSelectionCount >= 3 && onDistribute && (
+                <>
+                  <span className="cv-align__sep" />
+                  <button type="button" title="Distribute horizontally" aria-label="Distribute horizontally" onClick={() => onDistribute('h')}>
+                    <AlignGlyph edge="dist-h" />
+                  </button>
+                  <button type="button" title="Distribute vertically" aria-label="Distribute vertically" onClick={() => onDistribute('v')}>
+                    <AlignGlyph edge="dist-v" />
+                  </button>
+                </>
+              )}
+            </div>
           )}
           <div
             ref={worldRef}

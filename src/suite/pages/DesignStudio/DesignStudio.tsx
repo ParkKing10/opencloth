@@ -797,6 +797,99 @@ export function DesignStudio() {
     [commit],
   )
 
+  // ---- Align & distribute — operate on real rendered bounds (works without a stored height) ----
+  /** Live screen rects of the selected, editable, visible objects + the print-area frame. */
+  const selectionRects = useCallback(() => {
+    const box = document.querySelector('.co-box')?.getBoundingClientRect()
+    if (!box || box.width === 0) return null
+    const base = presentRef.current
+    const ids = [...expandSelection(liveSelectedRef.current, base.layers)].filter((id) => {
+      const l = base.layers.find((x) => x.id === id)
+      return l?.obj && !l.locked && !base.hidden[id]
+    })
+    const rects = ids
+      .map((id) => {
+        const el = document.querySelector<HTMLElement>(`.co-obj[data-id="${id}"]`)
+        return el ? { id, r: el.getBoundingClientRect() } : null
+      })
+      .filter((x): x is { id: string; r: DOMRect } => !!x)
+    return { box, rects }
+  }, [])
+
+  const alignSelection = useCallback(
+    (edge: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom') => {
+      const data = selectionRects()
+      if (!data || data.rects.length === 0) return
+      const { box, rects } = data
+      // 2+ objects align to the selection's bounds; a single object aligns to the print area.
+      const multi = rects.length > 1
+      const b = {
+        left: multi ? Math.min(...rects.map((x) => x.r.left)) : box.left,
+        right: multi ? Math.max(...rects.map((x) => x.r.right)) : box.right,
+        top: multi ? Math.min(...rects.map((x) => x.r.top)) : box.top,
+        bottom: multi ? Math.max(...rects.map((x) => x.r.bottom)) : box.bottom,
+      }
+      const midX = (b.left + b.right) / 2
+      const midY = (b.top + b.bottom) / 2
+      const base = presentRef.current
+      const patched = base.layers.map((l) => {
+        const hit = rects.find((x) => x.id === l.id)
+        if (!hit || !l.obj) return l
+        const hw = hit.r.width / 2
+        const hh = hit.r.height / 2
+        let sx = hit.r.left + hw
+        let sy = hit.r.top + hh
+        if (edge === 'left') sx = b.left + hw
+        else if (edge === 'right') sx = b.right - hw
+        else if (edge === 'center') sx = midX
+        else if (edge === 'top') sy = b.top + hh
+        else if (edge === 'bottom') sy = b.bottom - hh
+        else if (edge === 'middle') sy = midY
+        return { ...l, obj: { ...l.obj, x: clamp01((sx - box.left) / box.width), y: clamp01((sy - box.top) / box.height) } }
+      })
+      commit({ layers: patched, hidden: base.hidden })
+    },
+    [commit, selectionRects],
+  )
+
+  const distributeSelection = useCallback(
+    (axis: 'h' | 'v') => {
+      const data = selectionRects()
+      if (!data || data.rects.length < 3) {
+        toast('Select 3 or more objects to distribute.', 'info')
+        return
+      }
+      const { box } = data
+      const items = data.rects
+        .map((x) => ({
+          id: x.id,
+          start: axis === 'h' ? x.r.left : x.r.top,
+          end: axis === 'h' ? x.r.right : x.r.bottom,
+          size: axis === 'h' ? x.r.width : x.r.height,
+        }))
+        .sort((a, z) => a.start - z.start)
+      const span = items[items.length - 1].end - items[0].start
+      const totalSize = items.reduce((s, it) => s + it.size, 0)
+      const gap = (span - totalSize) / (items.length - 1)
+      let cursor = items[0].start
+      const centerById: Record<string, number> = {}
+      for (const it of items) {
+        centerById[it.id] = cursor + it.size / 2
+        cursor += it.size + gap
+      }
+      const base = presentRef.current
+      const patched = base.layers.map((l) => {
+        if (centerById[l.id] === undefined || !l.obj) return l
+        const c = centerById[l.id]
+        return axis === 'h'
+          ? { ...l, obj: { ...l.obj, x: clamp01((c - box.left) / box.width) } }
+          : { ...l, obj: { ...l.obj, y: clamp01((c - box.top) / box.height) } }
+      })
+      commit({ layers: patched, hidden: base.hidden })
+    },
+    [commit, selectionRects, toast],
+  )
+
   // ---- Right-click context menu — surfaces the same wired ops at the point of intent ----
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
   const renameHandleRef = useRef<((id: string) => void) | null>(null)
@@ -2289,6 +2382,9 @@ export function DesignStudio() {
             onSelectRegion={(id) => (id ? selectRegion(id) : setRegionSel(null))}
             onMoveRegion={moveRegion}
             onContextMenu={onCanvasContextMenu}
+            objectSelectionCount={selectedObjIds.length}
+            onAlign={alignSelection}
+            onDistribute={distributeSelection}
           />
         </div>
 

@@ -9,7 +9,7 @@ import { initHistory, currentGarment } from './garmentRevision'
 import { loadHistory, saveHistory, deleteHistory } from './garmentDocumentStore'
 import { garmentThumbnailDataUrl } from './garmentThumbnail'
 
-export type GarmentOrigin = 'ai' | 'upload' | 'blank' | 'photo'
+export type GarmentOrigin = 'ai' | 'upload' | 'blank' | 'photo' | 'shop'
 
 export type GarmentSummary = {
   id: string

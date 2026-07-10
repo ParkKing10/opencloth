@@ -22,6 +22,7 @@ import { Production } from './suite/pages/Production/Production'
 import { Collections } from './suite/pages/Collections/Collections'
 import { Community } from './suite/pages/Community/Community'
 import { Marketplace } from './suite/pages/Marketplace/Marketplace'
+import { GarmentShop } from './suite/pages/Shop/GarmentShop'
 import { Analytics } from './suite/pages/Analytics/Analytics'
 import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
@@ -76,6 +77,7 @@ createRoot(document.getElementById('root')!).render(
               >
                 <Route index element={<Dashboard />} />
                 <Route path="garments" element={<GarmentsHome />} />
+                <Route path="shop" element={<GarmentShop />} />
                 <Route path="pattern" element={<PatternStudio />} />
                 <Route path="ai" element={<AIDesigner />} />
                 <Route path="tech-packs" element={<TechPacks />} />

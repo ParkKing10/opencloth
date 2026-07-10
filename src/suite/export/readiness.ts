@@ -26,7 +26,6 @@ export type ReadinessInput = {
   hasColors: boolean
   hasConstruction: boolean
   hasFrontArtwork: boolean
-  hasBackArtwork: boolean
   hasNeckLabelArtwork: boolean
   hasCareLabel: boolean
   hasPackaging: boolean
@@ -48,8 +47,7 @@ const DEFS: Omit<ReadinessCheck, 'ok'>[] = [
   { id: 'materials', label: 'Materials', category: 'Appearance', severity: 'required', weight: 16, hint: 'Set the main fabric and weight.' },
   { id: 'colors', label: 'Colors', category: 'Appearance', severity: 'required', weight: 12, hint: 'Approve at least one colorway.' },
   { id: 'construction', label: 'Construction', category: 'Construction', severity: 'required', weight: 12, hint: 'Confirm stitch, seams and hems.' },
-  { id: 'front-art', label: 'Front Artwork', category: 'Design', severity: 'recommended', weight: 8, hint: 'Add or confirm the front graphic.' },
-  { id: 'back-art', label: 'Back Artwork', category: 'Design', severity: 'recommended', weight: 6, hint: 'Add or confirm the back graphic.' },
+  { id: 'front-art', label: 'Artwork', category: 'Design', severity: 'recommended', weight: 14, hint: 'Place at least one graphic or text on the garment.' },
   { id: 'neck-label', label: 'Neck Label Artwork', category: 'Brand', severity: 'required', weight: 8, hint: 'Upload or generate the woven neck label.' },
   { id: 'care-label', label: 'Care Label', category: 'Brand', severity: 'required', weight: 6, hint: 'Add the care & content label.' },
   { id: 'tolerance', label: 'Tolerance Table', category: 'Manufacturing', severity: 'recommended', weight: 6, hint: 'Confirm the per-measure tolerances.' },
@@ -65,7 +63,6 @@ export function computeReadiness(input: ReadinessInput): Readiness {
     colors: input.hasColors,
     construction: input.hasConstruction,
     'front-art': input.hasFrontArtwork,
-    'back-art': input.hasBackArtwork,
     'neck-label': input.hasNeckLabelArtwork,
     'care-label': input.hasCareLabel,
     tolerance: input.hasTolerance,

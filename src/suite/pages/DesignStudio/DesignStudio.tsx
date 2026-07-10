@@ -1302,8 +1302,8 @@ export function DesignStudio() {
   }
 
   // ---- Smart studio: live readiness, AI command bar & companion ----
-  const frontArt = layers.some((l) => /front/i.test(l.name) && !hidden[l.id])
-  const backArt = layers.some((l) => /back/i.test(l.name) && !hidden[l.id])
+  // Artwork readiness = REAL canvas objects (any visible graphic/text), not layer-name guessing.
+  const frontArt = layers.some((l) => l.obj && !hidden[l.id])
 
   const studioCtx = useMemo<StudioContext>(
     () => ({
@@ -1311,9 +1311,9 @@ export function DesignStudio() {
       config,
       fields,
       frontArt,
-      backArt,
+      specs,
     }),
-    [activeGarment, config, fields, frontArt, backArt],
+    [activeGarment, config, fields, frontArt, specs],
   )
 
   const readinessInput = useMemo(() => deriveReadiness(studioCtx), [studioCtx])
@@ -1508,6 +1508,14 @@ export function DesignStudio() {
       if (action) {
         applyAction(action)
         toast('Marked ready.', 'success')
+      } else if (id === 'front-art') {
+        // Real fix: open the Graphics library so the user can place artwork right now.
+        setRail('Graphics')
+        toast('Pick a graphic — or use Add text in the toolbar. It lands on the garment.', 'info')
+      } else if (id === 'materials' || id === 'colors') {
+        // Real fix: open the Product Specs panel where these fields actually live.
+        setRightHidden(false)
+        toast(id === 'materials' ? 'Set the material in Product Specs on the right.' : 'Add a colorway in Product Specs on the right.', 'info')
       } else {
         toast('Add this from the design panel on the right.', 'info')
       }

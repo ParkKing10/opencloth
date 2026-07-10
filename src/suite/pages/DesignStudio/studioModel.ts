@@ -39,18 +39,18 @@ export type StudioContext = {
   config: StudioConfig
   fields: Record<string, { id: string; label: string; value: string }[]>
   frontArt: boolean
-  backArt: boolean
+  /** The REAL user-entered product specs (Product Specs panel / wizard / AI applies). */
+  specs?: { material?: string; colors?: { name: string; hex: string }[] }
 }
 
-/** Build the readiness input from the live editor state. */
+/** Build the readiness input from the live editor state — every check reads real data. */
 export function deriveReadiness(ctx: StudioContext): ReadinessInput {
   return {
     garmentKind: ctx.garment.kind,
-    hasMaterials: true, // fabric fields are always populated
-    hasColors: true, // palette always has approved colors
+    hasMaterials: !!ctx.specs?.material?.trim(),
+    hasColors: (ctx.specs?.colors?.length ?? 0) > 0,
     hasConstruction: ctx.config.construction,
     hasFrontArtwork: ctx.frontArt,
-    hasBackArtwork: ctx.backArt,
     hasNeckLabelArtwork: ctx.config.neckLabel,
     hasCareLabel: ctx.config.careLabel,
     hasPackaging: ctx.config.packaging,
@@ -230,10 +230,10 @@ export function buildSuggestions(ctx: StudioContext): Suggestion[] {
       actions: [{ kind: 'toggle-config', key: 'packaging', value: true }],
     })
   }
-  if (!ctx.backArt) {
+  if (!ctx.frontArt) {
     out.push({
-      id: 's-back',
-      text: 'A back graphic would balance the design — most streetwear drops carry one.',
+      id: 's-art',
+      text: 'No artwork placed yet — add a graphic or text so the design reads on the garment.',
       actions: [],
     })
   }

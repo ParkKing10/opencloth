@@ -141,6 +141,17 @@ type Snapshot = {
 // text, no fake prints or materials. Real layers appear only when the user adds them.
 const INITIAL_SNAPSHOT: Snapshot = { layers: [], hidden: {} }
 
+/** Where a placement command puts a graphic (canvas coords are 0–1 fractions). */
+const PLACEMENT_SPOTS: Record<string, { x: number; y: number }> = {
+  'left chest': { x: 0.63, y: 0.3 }, // wearer's left = viewer's right
+  'right chest': { x: 0.37, y: 0.3 },
+  'center chest': { x: 0.5, y: 0.34 },
+  'centre chest': { x: 0.5, y: 0.34 },
+  'full front': { x: 0.5, y: 0.46 },
+  'back center': { x: 0.5, y: 0.4 },
+  'center back': { x: 0.5, y: 0.4 },
+}
+
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 const freshId = () => `l-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
@@ -1083,9 +1094,14 @@ export function DesignStudio() {
           f.id === fieldId ? { ...f, value } : f,
         ),
       }))
+      // Placement is a REAL canvas property — move the object, don't just relabel it.
+      if (fieldId === 'cx-placement' && activeLayer.obj) {
+        const spot = PLACEMENT_SPOTS[value.toLowerCase()]
+        if (spot) setObjectProp(activeLayer.id, { x: spot.x, y: spot.y })
+      }
       if (fieldId === 'cx-technique') rememberChoice('technique', value)
     },
-    [activeLayer, rememberChoice],
+    [activeLayer, rememberChoice, setObjectProp],
   )
 
   // The AI reads the selected object and gives one precise, applyable note.
@@ -1109,11 +1125,13 @@ export function DesignStudio() {
             return f
           }),
         }))
+        // …and in the REAL specs the panel shows and the tech pack exports.
+        patchSpec({ weight: '450 GSM', material: 'Heavy French Terry 450 GSM' })
         rememberChoice('weight', '450 GSM')
       }
       toast('Applied — the spec is updated.', 'accent')
     },
-    [setContextField, rememberChoice, toast],
+    [setContextField, rememberChoice, toast, patchSpec],
   )
 
   const commitLayers = useCallback(
@@ -1413,6 +1431,34 @@ export function DesignStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, config, present, activeName, designName, collectionId])
 
+  /**
+   * Route a garment property to the REAL systems — the Product Specs the user sees and the
+   * tech-pack export reads, and the canvas for placement commands. (The legacy `fields` copy is
+   * still written for AI context, but it is never the only destination — no phantom applies.)
+   */
+  const applyRealField = useCallback(
+    (fieldId: string, value: string) => {
+      if (fieldId === 'd-fit') patchSpec({ fit: value })
+      else if (fieldId === 'd-fabric') patchSpec({ material: value })
+      else if (fieldId === 'd-weight') patchSpec({ weight: value })
+      else if (fieldId === 'd-color') patchSpec({ colors: [{ name: value, hex: value }] })
+      else if (/composition/i.test(fieldId)) patchSpec({ composition: value })
+      else if (fieldId === 'de-technique') {
+        const notes = specsRef.current.notes ?? ''
+        const line = `Technique: ${value}`
+        if (!notes.includes(line)) patchSpec({ notes: notes ? `${notes}\n${line}` : line })
+      } else if (fieldId === 'de-placement') {
+        const spot = PLACEMENT_SPOTS[value.toLowerCase()]
+        const target =
+          presentRef.current.layers.find((l) => l.obj && selectedIds.includes(l.id)) ??
+          presentRef.current.layers.find((l) => l.obj && !presentRef.current.hidden[l.id])
+        if (spot && target) setObjectProp(target.id, { x: spot.x, y: spot.y })
+        else if (!target) toast('Add a graphic or text first — there is nothing to reposition yet.', 'info')
+      }
+    },
+    [patchSpec, setObjectProp, selectedIds, toast],
+  )
+
   const applyAction = useCallback(
     (action: StudioAction) => {
       if (action.kind === 'set-field') {
@@ -1422,17 +1468,20 @@ export function DesignStudio() {
             f.id === action.fieldId ? { ...f, value: action.value } : f,
           ),
         }))
+        applyRealField(action.fieldId, action.value)
         const dim = MEMORY_DIMS[action.fieldId]
         if (dim) rememberChoice(dim, action.value)
       } else if (action.kind === 'toggle-config') {
         setConfig((prev) => ({ ...prev, [action.key]: action.value }))
         if (action.key === 'neckLabel' && action.value) rememberChoice('label', 'Woven neck label')
       } else if (action.kind === 'add-note') {
-        // production notes land in the spec via memory; the toast confirms the apply
+        // Production notes land in the REAL spec notes (deduped), not just in memory.
+        const notes = specsRef.current.notes ?? ''
+        if (!notes.includes(action.note)) patchSpec({ notes: notes ? `${notes}\n${action.note}` : action.note })
         if (/wash/i.test(action.note)) rememberChoice('wash', 'Vintage wash')
       }
     },
-    [MEMORY_DIMS, rememberChoice],
+    [MEMORY_DIMS, rememberChoice, applyRealField, patchSpec],
   )
 
   const applyProposal = useCallback(
@@ -1466,17 +1515,18 @@ export function DesignStudio() {
     [applyAction, toast],
   )
 
-  /** Set a garment property (picker-driven — no dialogs anywhere). */
+  /** Set a garment property (picker-driven — no dialogs anywhere). Routed to the real specs too. */
   const setField = useCallback(
     (group: string, fieldId: string, value: string) => {
       setFields((prev) => ({
         ...prev,
         [group]: (prev[group] ?? []).map((f) => (f.id === fieldId ? { ...f, value } : f)),
       }))
+      applyRealField(fieldId, value)
       const dim = MEMORY_DIMS[fieldId]
       if (dim) rememberChoice(dim, value)
     },
-    [MEMORY_DIMS, rememberChoice],
+    [MEMORY_DIMS, rememberChoice, applyRealField],
   )
 
   /** The wizard hands over a configured design — no empty editor, ever. */
@@ -1494,6 +1544,8 @@ export function DesignStudio() {
           return f
         }),
       }))
+      // The wizard's choices are REAL product specs (visible in the panel, read by exports).
+      patchSpec({ fit: r.fit, material: r.fabric, weight: r.weight, colors: [{ name: r.colorName, hex: r.colorHex }] })
       rememberChoice('fit', r.fit)
       rememberChoice('weight', r.weight)
       rememberChoice('color', r.colorName)
@@ -1505,7 +1557,7 @@ export function DesignStudio() {
       setWizardOpen(false)
       toast(`Your ${r.garmentName.toLowerCase()} is ready — ${r.colorName}, ${r.fit.toLowerCase()}, ${r.weight}.`, 'accent')
     },
-    [rememberChoice, toast],
+    [rememberChoice, toast, patchSpec],
   )
 
   const skipWizard = useCallback(() => {
@@ -1530,10 +1582,12 @@ export function DesignStudio() {
           return f
         }),
       }))
+      // Brand defaults land in the REAL specs the panel shows and exports read.
+      patchSpec({ material: k.defaultFabric, fit: k.defaultFit, ...(gsm ? { weight: gsm } : {}) })
       kitRef.current = k
       toast('Brand Kit defaults applied to this design.', 'accent')
     },
-    [toast],
+    [toast, patchSpec],
   )
 
   return (

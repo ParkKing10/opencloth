@@ -23,6 +23,14 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
   const [missNote, setMissNote] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const pillRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  /** Customize = refine the command: keep the text, close the card, put the cursor back. */
+  function customize() {
+    setProposal(null)
+    inputRef.current?.focus()
+    inputRef.current?.select()
+  }
 
   useEffect(() => {
     if (!panelOpen) return
@@ -56,6 +64,7 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
           <IcoSparkle width="16" height="16" />
         </span>
         <input
+          ref={inputRef}
           className="cb__input"
           placeholder="Describe what you want to change…"
           value={input}
@@ -130,7 +139,7 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
             <button type="button" className="cb-proposal__dismiss" onClick={() => setProposal(null)}>
               Dismiss
             </button>
-            <button type="button" className="cb-proposal__customize" onClick={() => setProposal(null)}>
+            <button type="button" className="cb-proposal__customize" onClick={customize} title="Refine the command text">
               Customize
             </button>
             <button type="button" className="cb-proposal__apply" onClick={apply}>

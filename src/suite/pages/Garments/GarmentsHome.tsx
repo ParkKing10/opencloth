@@ -95,35 +95,56 @@ export function GarmentsHome() {
     navigate(`/suite/garment-lab/${summary.id}`)
   }, [userId, navigate])
 
-  // Import = the Garment Analysis Engine. Pick an SVG technical flat → it's analyzed into an
-  // editable Smart Garment (body/sleeves/collar/buttons…) and opens in the editor.
+  // Import = the Garment Analysis Engine. Pick one or MANY SVG/AI/PDF flats → each is analyzed
+  // into an editable Smart Garment (body/sleeves/collar/buttons…). One file opens in the editor;
+  // a batch fills the grid and reports a summary.
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
-  const importGarment = useCallback(
-    async (file: File) => {
-      if (!userId) return
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
+  const importGarments = useCallback(
+    async (files: File[]) => {
+      if (!userId || files.length === 0) return
       setImporting(true)
+      let created = 0
+      let skipped = 0
+      let single: { id: string; garment: import('../../garment-model/editableGarment').EditableGarment; report: import('../../garment-model/analysis/smartGarmentMapping').MapReport } | null = null
       try {
-        const read = await readGarmentFile(file)
-        if (read.kind === 'unknown') {
-          toast('Unsupported file — upload an SVG, AI or PDF garment flat.', 'info')
-          return
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]
+          setImportProgress({ current: i + 1, total: files.length })
+          try {
+            const read = await readGarmentFile(file)
+            if (read.kind === 'unknown') {
+              skipped++
+              continue
+            }
+            const { garment, report } = await analyzeGarment({ text: read.text, bytes: read.bytes, filename: file.name })
+            const summary = createGarment(userId, garment, { name: garment.name, category: garment.category, origin: 'upload' })
+            created++
+            single = { id: summary.id, garment, report }
+          } catch {
+            skipped++
+          }
+          // let the UI breathe between files so the progress + grid update
+          await new Promise((r) => setTimeout(r, 0))
         }
-        const { garment, report } = await analyzeGarment({ text: read.text, bytes: read.bytes, filename: file.name })
-        const summary = createGarment(userId, garment, { name: garment.name, category: garment.category, origin: 'upload' })
         refresh()
-        if (report.regionCount > 0) {
-          const parts = Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(', ')
-          const learned = report.matchedPrior ? ' · recognised from a similar garment' : ''
-          toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts})${learned}.`, 'success')
+        if (files.length === 1 && single) {
+          const { garment, report } = single
+          if (report.regionCount > 0) {
+            const parts = Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(', ')
+            const learned = report.matchedPrior ? ' · recognised from a similar garment' : ''
+            toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts})${learned}.`, 'success')
+          } else {
+            toast(`Imported “${garment.name}” — no clear regions detected, edit it in the Studio.`, 'info')
+          }
+          navigate(`/suite/garment-lab/${single.id}`)
         } else {
-          toast(`Imported “${garment.name}” — no clear regions detected, edit it in the Studio.`, 'info')
+          toast(`Imported ${created} garment${created === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped` : ''}.`, created ? 'success' : 'info')
         }
-        navigate(`/suite/garment-lab/${summary.id}`)
-      } catch {
-        toast('Could not analyze that file.', 'info')
       } finally {
         setImporting(false)
+        setImportProgress(null)
       }
     },
     [userId, navigate, refresh, toast],
@@ -196,15 +217,26 @@ export function GarmentsHome() {
             ref={importInputRef}
             type="file"
             accept=".svg,.ai,.pdf"
+            multiple
             hidden
             onChange={(e) => {
-              const f = e.target.files?.[0]
+              const files = e.target.files ? Array.from(e.target.files) : []
               e.target.value = ''
-              if (f) void importGarment(f)
+              if (files.length) void importGarments(files)
             }}
           />
-          <button type="button" className="s-btn s-btn--ghost" onClick={() => importInputRef.current?.click()} disabled={importing} title="Analyze an Illustrator SVG flat into an editable garment">
-            {importing ? 'Analyzing…' : 'Import garment'}
+          <button
+            type="button"
+            className="s-btn s-btn--ghost"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            title="Analyze one or many Illustrator SVG / AI / PDF flats into editable garments"
+          >
+            {importing
+              ? importProgress
+                ? `Analyzing ${importProgress.current}/${importProgress.total}…`
+                : 'Analyzing…'
+              : 'Import garments'}
           </button>
           <button type="button" className="s-btn s-btn--accent" onClick={createNew}>
             Create garment

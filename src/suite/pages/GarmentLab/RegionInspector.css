@@ -1,0 +1,194 @@
+/**
+ * Co-located styles for RegionInspector so the component is self-contained and portable — it
+ * renders identically in the Garment Lab AND the Design Studio right panel.
+ *
+ * The base .eg-inspector here is LAYOUT ONLY (no border/background/overflow): in the Lab those
+ * panel-chrome rules come from garment-lab.css; in the Studio the component sits inside
+ * .ds-right__scroll which already provides the panel surface. Every inner rule below is identical
+ * to the Lab's, so loading both on the Lab page is idempotent.
+ */
+.eg-inspector {
+  min-height: 0;
+  padding: 16px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.eg-inspector__empty {
+  font-size: 12.5px;
+  color: var(--s-text-3);
+  line-height: 1.5;
+}
+.eg-inspector__eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.eg-inspector__name {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-inset, var(--s-panel-2));
+  color: var(--s-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+}
+.eg-inspector__name:focus {
+  border-color: var(--s-accent-line, var(--s-accent));
+}
+.eg-inspector__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.eg-inspector__row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+.eg-inspector__row span {
+  color: var(--s-text-3);
+}
+.eg-inspector__row b {
+  color: var(--s-text);
+  text-transform: capitalize;
+}
+.eg-inspector__toggles {
+  display: flex;
+  gap: 8px;
+}
+.eg-toggle {
+  flex: 1;
+  padding: 8px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.eg-toggle.is-on {
+  color: var(--s-accent-ink, #14141a);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+}
+.eg-inspector__color {
+  border-top: 1px solid var(--s-line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.eg-inspector__color-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.eg-color-clear {
+  border: none;
+  background: none;
+  color: var(--s-text-3, var(--s-text-2));
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--s-r-sm);
+}
+.eg-color-clear:hover {
+  color: var(--s-text);
+  background: var(--s-panel-2);
+}
+.eg-swatches {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 6px;
+}
+.eg-swatch {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--s-dur, 150ms) var(--s-ease, ease);
+}
+.eg-swatch:hover {
+  transform: scale(1.12);
+}
+.eg-swatch.is-active {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 1px;
+}
+.eg-swatch--custom {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+  position: relative;
+}
+.eg-swatch--custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.eg-inspector__future {
+  border-top: 1px solid var(--s-line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.eg-inspector__future-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.eg-inspector__future-hint {
+  font-size: 11px;
+  color: var(--s-text-3);
+  line-height: 1.45;
+}
+.eg-caps {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+}
+.eg-cap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-radius: var(--s-r-sm);
+  border: 1px dashed var(--s-line-2, var(--s-line));
+  color: var(--s-text-2);
+  font-size: 12px;
+  opacity: 0.85;
+}
+.eg-cap em {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+}
+.eg-cap.is-na {
+  opacity: 0.4;
+}
+.eg-cap.is-na em {
+  color: var(--s-text-3);
+}

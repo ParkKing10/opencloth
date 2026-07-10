@@ -44,6 +44,7 @@ import {
 } from './objectModel'
 import { type PropField } from './GarmentInspector'
 import { GarmentInfoPanel } from './GarmentInfoPanel'
+import { RegionInspector } from '../GarmentLab/RegionInspector'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
@@ -52,6 +53,7 @@ import { loadHistory } from '../../garment-model/garmentDocumentStore'
 import { currentGarment } from '../../garment-model/garmentRevision'
 import { garmentThumbnailSvg } from '../../garment-model/garmentThumbnail'
 import { flattenRegions } from '../../garment-model/regionTree'
+import { translateD } from '../../garment-model/pathTransform'
 import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
@@ -132,9 +134,14 @@ function libToStudio(g: LibGarment): Garment {
 type Snapshot = {
   layers: Layer[]
   hidden: Record<string, boolean>
-  /** Garment-region overrides (hide a sleeve, recolour the body) — undoable + saved with the design. */
+  /** Garment-region overrides (hide a sleeve, recolour the body, rename/lock/move a part) —
+   *  undoable + saved with the design. Every map is sparse: an override equal to the base is dropped. */
   regionHidden?: Record<string, boolean>
   regionFills?: Record<string, string>
+  regionNames?: Record<string, string>
+  regionLocked?: Record<string, boolean>
+  /** Spatial move of a region, in the garment's SVG viewBox units. */
+  regionTransforms?: Record<string, { dx: number; dy: number }>
 }
 
 // A freshly selected imported garment starts with ZERO design layers — no demo VISIONARY
@@ -457,6 +464,9 @@ export function DesignStudio() {
       hidden: snap.hidden,
       regionHidden: snap.regionHidden,
       regionFills: snap.regionFills,
+      regionNames: snap.regionNames,
+      regionLocked: snap.regionLocked,
+      regionTransforms: snap.regionTransforms,
       designName: name ?? designNameRef.current,
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
@@ -499,7 +509,14 @@ export function DesignStudio() {
    */
   const commit = useCallback(
     (next: Snapshot) => {
-      const merged: Snapshot = { regionHidden: present.regionHidden, regionFills: present.regionFills, ...next }
+      const merged: Snapshot = {
+        regionHidden: present.regionHidden,
+        regionFills: present.regionFills,
+        regionNames: present.regionNames,
+        regionLocked: present.regionLocked,
+        regionTransforms: present.regionTransforms,
+        ...next,
+      }
       setPast((prev) => [...prev, present])
       setPresent(merged)
       setFuture([])
@@ -801,16 +818,24 @@ export function DesignStudio() {
     if (!studioGarment) return null
     const rh = present.regionHidden ?? {}
     const rf = present.regionFills ?? {}
-    if (Object.keys(rh).length === 0 && Object.keys(rf).length === 0) return studioGarment
+    const rn = present.regionNames ?? {}
+    const rl = present.regionLocked ?? {}
+    const rt = present.regionTransforms ?? {}
+    if (![rh, rf, rn, rl, rt].some((m) => Object.keys(m).length > 0)) return studioGarment
     const regions = Object.fromEntries(
       Object.entries(studioGarment.regions).map(([id, r]) => {
         const visible = rh[id] !== undefined ? !rh[id] : r.visible
         const fill = rf[id]
-        return [id, { ...r, visible, appearance: fill ? { ...r.appearance, fill } : r.appearance }]
+        const name = rn[id] ?? r.name
+        const locked = rl[id] !== undefined ? rl[id] : r.locked
+        const t = rt[id]
+        // A spatial move translates every shape's path in the garment's own SVG units.
+        const shapes = t ? r.shapes.map((s) => ({ ...s, d: translateD(s.d, t.dx, t.dy) })) : r.shapes
+        return [id, { ...r, visible, name, locked, shapes, appearance: fill ? { ...r.appearance, fill } : r.appearance }]
       }),
     )
     return { ...studioGarment, regions }
-  }, [studioGarment, present.regionHidden, present.regionFills])
+  }, [studioGarment, present.regionHidden, present.regionFills, present.regionNames, present.regionLocked, present.regionTransforms])
 
   // The garment backdrop is rendered FROM the displayed garment, so hiding/recolouring a region
   // updates the canvas live. Falls back to the bridge/library preview when there's no region tree.
@@ -872,7 +897,45 @@ export function DesignStudio() {
     },
     [studioGarment, commit],
   )
-
+  /** Set a region's fill to a specific colour (from the inspector palette). undefined = reset to base. */
+  const setRegionFill = useCallback(
+    (id: string, hex: string | undefined) => {
+      const base = presentRef.current
+      const baseFill = studioGarment?.regions[id]?.appearance?.fill
+      const rf = { ...(base.regionFills ?? {}) }
+      if (!hex || hex.toLowerCase() === (baseFill ?? '').toLowerCase()) delete rf[id]
+      else rf[id] = hex
+      commit({ ...base, regionFills: rf })
+    },
+    [studioGarment, commit],
+  )
+  /** Rename a region — a draft-committed override, dropped when it matches the base name. */
+  const renameRegion = useCallback(
+    (id: string, name: string) => {
+      const base = presentRef.current
+      const baseName = studioGarment?.regions[id]?.name
+      const rn = { ...(base.regionNames ?? {}) }
+      const trimmed = name.trim()
+      if (!trimmed || trimmed === baseName) delete rn[id]
+      else rn[id] = trimmed
+      commit({ ...base, regionNames: rn })
+    },
+    [studioGarment, commit],
+  )
+  /** Lock/unlock a region — locked parts are protected from move (see the canvas drag). */
+  const toggleRegionLock = useCallback(
+    (id: string) => {
+      const base = presentRef.current
+      const baseLocked = studioGarment?.regions[id]?.locked ?? false
+      const rl = { ...(base.regionLocked ?? {}) }
+      const cur = rl[id] !== undefined ? rl[id] : baseLocked
+      const nextLocked = !cur
+      if (nextLocked === baseLocked) delete rl[id]
+      else rl[id] = nextLocked
+      commit({ ...base, regionLocked: rl })
+    },
+    [studioGarment, commit],
+  )
   // Restore the last-opened garment once the catalog is available (reload reopens the design).
   const restoredRef = useRef(false)
   useEffect(() => {
@@ -924,7 +987,15 @@ export function DesignStudio() {
     loadedGarmentRef.current = gid
     const doc = loadDoc(gid)
     const snapshot: Snapshot = doc
-      ? { layers: doc.layers, hidden: doc.hidden, regionHidden: doc.regionHidden, regionFills: doc.regionFills }
+      ? {
+          layers: doc.layers,
+          hidden: doc.hidden,
+          regionHidden: doc.regionHidden,
+          regionFills: doc.regionFills,
+          regionNames: doc.regionNames,
+          regionLocked: doc.regionLocked,
+          regionTransforms: doc.regionTransforms,
+        }
       : { layers: [], hidden: {} }
     const name = doc?.designName || activeGarment.name
     setPast([])
@@ -2105,6 +2176,17 @@ export function DesignStudio() {
                 onFieldChange={setContextField}
                 onApplyNote={applyObjectNote}
                 onBack={() => setSelectedIds([])}
+              />
+            </div>
+          ) : regionSel && displayGarment ? (
+            <div className="ds-right__scroll">
+              <RegionInspector
+                garment={displayGarment}
+                selectedId={regionSel}
+                onRename={renameRegion}
+                onToggleVisible={toggleRegion}
+                onToggleLocked={toggleRegionLock}
+                onSetColor={setRegionFill}
               />
             </div>
           ) : (

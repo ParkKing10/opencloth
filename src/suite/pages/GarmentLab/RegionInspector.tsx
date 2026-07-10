@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import type { EditableGarment, RegionCapabilities } from '../../garment-model/editableGarment'
 import { getRegion } from '../../garment-model/regionTree'
 import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
+import './RegionInspector.css'
 
 // Colour replacement is now real — the remaining slots are genuinely future work.
 const CAP_LABELS: { key: keyof RegionCapabilities; label: string }[] = [

@@ -44,9 +44,13 @@ export type ProjectInfo = {
 export type DesignDoc = {
   layers: Layer[]
   hidden: Record<string, boolean>
-  /** Garment-region overrides (hidden parts / recoloured parts) — the design remembers them. */
+  /** Garment-region overrides (hidden / recoloured / renamed / locked / moved parts) — the design
+   *  remembers them. Every map is sparse. regionTransforms is in the garment's SVG viewBox units. */
   regionHidden?: Record<string, boolean>
   regionFills?: Record<string, string>
+  regionNames?: Record<string, string>
+  regionLocked?: Record<string, boolean>
+  regionTransforms?: Record<string, { dx: number; dy: number }>
   designName: string
   collectionId?: string
   specs?: ProductSpecs

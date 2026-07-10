@@ -94,6 +94,8 @@ export type GarmentRegion = {
   capabilities: RegionCapabilities
   /** Reserved for future milestones; unset today. */
   appearance?: RegionAppearance
+  /** The mirrored partner region id (e.g. the other sleeve), when the analysis engine paired them. */
+  mirrorOf?: string
 }
 
 /** How a garment was produced — honest provenance, never faked. */

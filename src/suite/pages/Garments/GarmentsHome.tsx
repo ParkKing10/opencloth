@@ -3,7 +3,7 @@
  * editor only opens on Open/Continue. Shows a premium onboarding when empty, otherwise the
  * My-Garments grid with search, sort, and per-card actions.
  */
-import { useCallback, useEffect, useMemo, useState, type SVGProps } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useAuth } from '../../auth/auth'
@@ -18,6 +18,8 @@ import {
   type GarmentSummary,
 } from '../../garment-model/garmentLibrary'
 import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
+import { analyzeGarment } from '../../garment-model/analysis/analyzeGarment'
+import { readGarmentFile } from '../../garment-model/analysis/fileReader'
 import './garments.css'
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'favorites'
@@ -93,6 +95,39 @@ export function GarmentsHome() {
     navigate(`/suite/garment-lab/${summary.id}`)
   }, [userId, navigate])
 
+  // Import = the Garment Analysis Engine. Pick an SVG technical flat → it's analyzed into an
+  // editable Smart Garment (body/sleeves/collar/buttons…) and opens in the editor.
+  const importInputRef = useRef<HTMLInputElement>(null)
+  const [importing, setImporting] = useState(false)
+  const importGarment = useCallback(
+    async (file: File) => {
+      if (!userId) return
+      setImporting(true)
+      try {
+        const read = await readGarmentFile(file)
+        if (read.kind !== 'svg' || !read.text) {
+          toast('Direct .ai / .pdf analysis is coming — export an SVG from Illustrator for now.', 'info')
+          return
+        }
+        const { garment, report } = await analyzeGarment({ text: read.text, filename: file.name })
+        const summary = createGarment(userId, garment, { name: garment.name, category: garment.category, origin: 'upload' })
+        refresh()
+        if (report.regionCount > 0) {
+          const parts = Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(', ')
+          toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts}).`, 'success')
+        } else {
+          toast(`Imported “${garment.name}” — no clear regions detected, edit it in the Studio.`, 'info')
+        }
+        navigate(`/suite/garment-lab/${summary.id}`)
+      } catch {
+        toast('Could not analyze that file.', 'info')
+      } finally {
+        setImporting(false)
+      }
+    },
+    [userId, navigate, refresh, toast],
+  )
+
   // Reload when auth hydrates after mount (else a user with garments could see the empty state).
   useEffect(() => {
     refresh()
@@ -155,9 +190,25 @@ export function GarmentsHome() {
       title="Garments"
       subtitle="Your garment collection. Open one to edit its structure, or create a new garment."
       actions={
-        <button type="button" className="s-btn s-btn--accent" onClick={createNew}>
-          Create garment
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".svg,.ai,.pdf"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (f) void importGarment(f)
+            }}
+          />
+          <button type="button" className="s-btn s-btn--ghost" onClick={() => importInputRef.current?.click()} disabled={importing} title="Analyze an Illustrator SVG flat into an editable garment">
+            {importing ? 'Analyzing…' : 'Import garment'}
+          </button>
+          <button type="button" className="s-btn s-btn--accent" onClick={createNew}>
+            Create garment
+          </button>
+        </div>
       }
     >
       <div className="gm-tools">

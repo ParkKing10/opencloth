@@ -15,6 +15,9 @@ import { buildFromPrompt, buildFromTemplate, buildFromUpload } from '../../garme
 import { garmentThumbnailDataUrl } from '../../garment-model/garmentThumbnail'
 import { createGarment, type GarmentOrigin, type GarmentSummary } from '../../garment-model/garmentLibrary'
 import { hasApiKey } from '../../garment-model/aiSettings'
+import { analyzeGarment } from '../../garment-model/analysis/analyzeGarment'
+import { readGarmentFile } from '../../garment-model/analysis/fileReader'
+import type { MapReport } from '../../garment-model/analysis/smartGarmentMapping'
 import './garments.css'
 
 type Method = 'ai' | 'upload' | 'blank'
@@ -31,7 +34,10 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
   const [prompt, setPrompt] = useState('')
   const [templateId, setTemplateId] = useState('tpl-hoodie')
   const [uploadName, setUploadName] = useState('')
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [built, setBuilt] = useState<Built | null>(null)
+  const [report, setReport] = useState<MapReport | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
   const [name, setName] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +52,27 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
     return buildFromTemplate(templateId)
   }
 
-  const goReview = () => {
+  const goReview = async () => {
+    setReport(null)
+    // SVG upload → run the Garment Analysis Engine (geometry → editable Smart Garment).
+    if (method === 'upload' && uploadFile) {
+      setAnalyzing(true)
+      try {
+        const read = await readGarmentFile(uploadFile)
+        if (read.kind === 'svg' && read.text) {
+          const result = await analyzeGarment({ text: read.text, filename: uploadFile.name })
+          setBuilt({ garment: result.garment, name: result.garment.name, category: result.garment.category })
+          setName(result.garment.name)
+          setReport(result.report)
+          setAnalyzing(false)
+          setStep(3)
+          return
+        }
+      } catch {
+        /* fall through to the honest template fallback */
+      }
+      setAnalyzing(false)
+    }
     const b = build()
     setBuilt(b)
     setName(b.name)
@@ -56,7 +82,10 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     e.target.value = ''
-    if (f) setUploadName(f.name)
+    if (f) {
+      setUploadName(f.name)
+      setUploadFile(f)
+    }
   }
 
   const finish = () => {
@@ -133,7 +162,11 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
                 <b>{uploadName || 'Choose a file'}</b>
                 <small>ZIP · SVG · AI · PNG · PDF</small>
               </button>
-              <p className="gw-note">Converting an uploaded pack into editable regions needs the conversion worker (a future milestone). Your garment starts from the closest editable template, named from the file.</p>
+              <p className="gw-note">
+                <b>SVG files are analyzed automatically</b> — THREADOS reads the geometry and builds editable regions
+                (body, sleeves, collar, buttons…) with a confidence score each. Direct <b>.ai / .pdf</b> vector
+                extraction and ZIP packs are coming; those start from the closest editable template for now.
+              </p>
             </div>
           )}
 
@@ -172,6 +205,16 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
                     <b style={{ textTransform: 'capitalize' }}>{method}</b>
                   </div>
                 </div>
+                {report && report.regionCount > 0 && (
+                  <p className="gw-note" style={{ marginTop: 4 }}>
+                    Analysis: <b>{report.regionCount} regions detected</b>
+                    {Object.entries(report.types).length > 0 && (
+                      <> ({Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(' · ')})</>
+                    )}
+                    {report.lowConfidence > 0 && <> · {report.lowConfidence} low-confidence, editable in the Studio</>}
+                    .
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -182,8 +225,8 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
           {step < 3 ? (
-            <button type="button" className="s-btn s-btn--accent" disabled={!canAdvance} onClick={() => (step === 2 ? goReview() : setStep(2))}>
-              Continue
+            <button type="button" className="s-btn s-btn--accent" disabled={!canAdvance || analyzing} onClick={() => (step === 2 ? void goReview() : setStep(2))}>
+              {analyzing ? 'Analyzing…' : 'Continue'}
             </button>
           ) : (
             <button type="button" className="s-btn s-btn--accent" onClick={finish} disabled={!name.trim()}>

@@ -9,7 +9,8 @@ import { learnedCount } from './learningStore'
 import { applyMatrixToPath, parseTransform } from './svgTransform'
 import { flattenRegions } from '../regionTree'
 import { isEditableGarment } from '../editableGarment'
-import { TECH_FLAT_TEE_SVG, HOODED_JACKET_SVG } from './__fixtures__/techFlatTee'
+import { denoiseGraph } from './denoise'
+import { TECH_FLAT_TEE_SVG, HOODED_JACKET_SVG, NOISY_COAT_SVG } from './__fixtures__/techFlatTee'
 
 // jsdom-free storage + crypto shims (node env) so the createGarment round-trip works.
 class MemoryStorage {
@@ -131,9 +132,12 @@ describe('smartGarmentMapping', () => {
     expect(isEditableGarment(garment)).toBe(true)
     expect(garment.views[0].viewBox).toEqual({ w: 400, h: 560 })
   })
-  it('flattenRegions returns every part', () => {
+  it('flattenRegions returns every part (the placket seam folds into the body → 8 layers)', () => {
     const flat = flattenRegions(garment)
-    expect(flat.length).toBe(9)
+    expect(flat.length).toBe(8)
+    // the body carries its folded placket line as a second shape
+    const body = Object.values(garment.regions).find((r) => r.type === 'body')!
+    expect(body.shapes.length).toBeGreaterThanOrEqual(2)
   })
   it('body + both sleeves are top-level; buttons nest inside the body', () => {
     const roots = garment.rootIds.map((id) => garment.regions[id].type)
@@ -149,9 +153,10 @@ describe('smartGarmentMapping', () => {
     expect(sleeves[0].mirrorOf).toBeDefined()
     expect(garment.regions[sleeves[0].mirrorOf!].type).toBe('sleeve')
   })
-  it('reports real numbers', () => {
-    expect(report.regionCount).toBe(9)
+  it('reports the real (folded) layer count + type mix', () => {
+    expect(report.regionCount).toBe(8) // 9 shapes, the stitch line folded into the body
     expect(report.types.button).toBe(4)
+    expect(report.types.stitch).toBeUndefined() // folded, not its own layer
   })
 })
 
@@ -171,6 +176,24 @@ describe('fuller taxonomy (hooded zip jacket)', () => {
     const { garment } = mapClassifiedToEditable(cg, 'Zip Hoodie', 'Outerwear')
     expect(isEditableGarment(garment)).toBe(true)
     expect(flattenRegions(garment).length).toBe(10)
+  })
+})
+
+describe('denoise + fold (real-file noise → clean layers)', () => {
+  it('drops background / duplicate / slivers', () => {
+    const raw = readSvg(NOISY_COAT_SVG)
+    expect(raw.paths.length).toBe(12)
+    const clean = denoiseGraph(raw)
+    // page background + duplicate body outline + 2 micro slivers removed
+    expect(clean.paths.length).toBe(8)
+  })
+  it('folds seam lines into the body → only a few real layers', () => {
+    const clean = denoiseGraph(readSvg(NOISY_COAT_SVG))
+    const { garment, report } = mapClassifiedToEditable(classifyGraph(clean))
+    expect(report.regionCount).toBeLessThanOrEqual(4) // body + 2 sleeves
+    const body = Object.values(garment.regions).find((r) => r.type === 'body')!
+    expect(body.shapes.length).toBeGreaterThan(1) // the seams became shapes ON the body
+    expect(report.types.stitch).toBeUndefined()
   })
 })
 

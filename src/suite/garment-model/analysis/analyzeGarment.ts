@@ -7,6 +7,7 @@
 import { normalizeGarment } from '../garmentNormalize'
 import { buildFromUpload } from '../garmentFactory'
 import { readSvg } from './svgReader'
+import { denoiseGraph } from './denoise'
 import { classifyGraph } from './classify'
 import { mapClassifiedToEditable, type MapResult } from './smartGarmentMapping'
 import { computeSignature } from './signature'
@@ -33,6 +34,7 @@ export async function analyzeGarment(input: AnalyzeInput, opts?: { name?: string
     }
     // Need at least a couple of real primitives to attempt an analysis.
     if (graph && graph.paths.length >= 2 && graph.bounds.w > 0) {
+      graph = denoiseGraph(graph)
       const classified = classifyGraph(graph)
       // Learning: bias with the nearest previously-analyzed garment, then remember this one.
       const sig = computeSignature(classified, name)

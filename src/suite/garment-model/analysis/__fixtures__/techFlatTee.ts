@@ -31,3 +31,21 @@ export const HOODED_JACKET_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBo
   <path d="M 58 334 L 106 334 L 106 350 L 58 350 Z" fill="#eee" stroke="#111"/>
   <path d="M 294 334 L 342 334 L 342 350 L 294 350 Z" fill="#eee" stroke="#111"/>
 </svg>`
+
+/** A NOISY export like a real .ai via pdf.js: a full-page background, a body drawn twice
+ *  (fill + stroke), five seam lines inside the body, and two micro slivers. The engine should
+ *  strip the noise and fold the seams so only a handful of real layers remain. */
+export const NOISY_COAT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 560">
+  <rect x="0" y="0" width="400" height="560" fill="#ffffff"/>
+  <path d="M 120 120 L 280 120 L 280 460 L 120 460 Z" fill="#ffffff" stroke="#111"/>
+  <path d="M 120 120 L 280 120 L 280 460 L 120 460 Z" fill="none" stroke="#111"/>
+  <path d="M 60 130 L 118 130 L 118 300 L 60 300 Z" fill="#ffffff" stroke="#111"/>
+  <path d="M 282 130 L 340 130 L 340 300 L 282 300 Z" fill="#ffffff" stroke="#111"/>
+  <path d="M 140 140 L 140 450" fill="none" stroke="#111"/>
+  <path d="M 165 140 L 165 450" fill="none" stroke="#111"/>
+  <path d="M 200 140 L 200 450" fill="none" stroke="#111"/>
+  <path d="M 235 140 L 235 450" fill="none" stroke="#111"/>
+  <path d="M 260 140 L 260 450" fill="none" stroke="#111"/>
+  <path d="M 10 10 L 12 11 L 11 13 Z" fill="#000"/>
+  <path d="M 380 550 L 382 551 L 381 553 Z" fill="#000"/>
+</svg>`

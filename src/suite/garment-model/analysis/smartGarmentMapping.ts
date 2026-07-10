@@ -51,9 +51,25 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
   // indices so the mapping stays correct even if not every path became a region.
   const regionByPath = new Map<number, number>()
   cg.regions.forEach((r, i) => regionByPath.set(r.pathIndex, i))
-  const regions: Record<string, GarmentRegion> = {}
+  const parentRegionOf = (i: number): number | undefined => {
+    const pp = cg.regions[i].parentIndex
+    return pp != null ? regionByPath.get(pp) : undefined
+  }
 
+  // FOLD construction detail into its part: a seam/stitch line sitting on a fabric region becomes
+  // an extra shape ON that region, not its own layer. This is what stops a real coat from arriving
+  // as dozens of junk seam layers under the body — they belong to the body.
+  const foldInto = new Map<number, number>() // region index → parent region index it folds into
   cg.regions.forEach((r, i) => {
+    if (r.type !== 'stitch') return
+    const parent = parentRegionOf(i)
+    if (parent != null && parent !== i && cg.regions[parent].type !== 'stitch') foldInto.set(i, parent)
+  })
+  const kept = cg.regions.map((_, i) => !foldInto.has(i))
+
+  const regions: Record<string, GarmentRegion> = {}
+  cg.regions.forEach((r, i) => {
+    if (!kept[i]) return
     const src = cg.graph.paths[r.pathIndex]
     const d = translateD(src.d, dx, dy)
     const mirrorRegion = r.mirrorIndex != null ? regionByPath.get(r.mirrorIndex) : undefined
@@ -67,18 +83,25 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
       locked: false,
       capabilities: defaultCapabilities(r.type),
       appearance: r.role === 'fill' ? { fill: fabricFill(src.fill) } : undefined,
-      // mirrored partner (e.g. the other sleeve), if any — real structure, never faked.
-      ...(mirrorRegion != null && ids[mirrorRegion] ? { mirrorOf: ids[mirrorRegion] } : {}),
+      ...(mirrorRegion != null && kept[mirrorRegion] && ids[mirrorRegion] ? { mirrorOf: ids[mirrorRegion] } : {}),
     }
   })
 
-  // Wire children from parent relationships, preserving draw order (z-index).
+  // Append each folded seam/stitch as an extra shape on its parent region.
+  cg.regions.forEach((r, i) => {
+    const target = foldInto.get(i)
+    if (target == null || !regions[ids[target]]) return
+    const src = cg.graph.paths[r.pathIndex]
+    regions[ids[target]].shapes.push({ view: 'front', d: translateD(src.d, dx, dy), role: r.role })
+  })
+
+  // Wire children among KEPT regions only, preserving draw order (z-index).
   const order = cg.regions.map((r, i) => ({ i, z: cg.graph.paths[r.pathIndex].zIndex })).sort((a, b) => a.z - b.z)
   const rootIds: string[] = []
   for (const { i } of order) {
-    const parentPath = cg.regions[i].parentIndex
-    const parentRegion = parentPath != null ? regionByPath.get(parentPath) : undefined
-    if (parentRegion != null && parentRegion !== i && regions[ids[parentRegion]]) regions[ids[parentRegion]].children.push(ids[i])
+    if (!kept[i]) continue
+    const parentRegion = parentRegionOf(i)
+    if (parentRegion != null && parentRegion !== i && kept[parentRegion] && regions[ids[parentRegion]]) regions[ids[parentRegion]].children.push(ids[i])
     else rootIds.push(ids[i])
   }
 
@@ -96,5 +119,13 @@ export function mapClassifiedToEditable(cg: ClassifiedGarment, name = 'Imported 
     createdAt: 0,
   }
 
-  return { garment, report: cg.report }
+  // Report the real layer count the user will see (after folding), plus the detected type mix.
+  const keptTypes: Record<string, number> = {}
+  cg.regions.forEach((r, i) => {
+    if (kept[i]) keptTypes[r.type] = (keptTypes[r.type] ?? 0) + 1
+  })
+  return {
+    garment,
+    report: { regionCount: Object.keys(regions).length, lowConfidence: cg.report.lowConfidence, types: keptTypes },
+  }
 }

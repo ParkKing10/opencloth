@@ -453,6 +453,15 @@ describe('photo reconstruction — vision spec → trusted template (honest, not
     expect(ids.size).toBe(types.length) // 11 distinct templates, not all the same
   })
 
+  it('per-view thumbnails render genuinely different front/back (drives the Studio view tabs)', () => {
+    const g = getTemplate('tpl-varsity')!.make()
+    const front = garmentThumbnailSvg(g)
+    const back = garmentThumbnailSvg({ ...g, views: [...g.views].reverse() })
+    expect(front).not.toBe(back) // the Back tab must not show the front
+    expect(front).toContain('a5,5') // snap buttons are front-only…
+    expect(back).not.toContain('a5,5') // …and never leak onto the back
+  })
+
   it('a detected jacket builds the VARSITY template with intentional per-view construction (no front→back leak)', () => {
     const g = buildFromSpec(coerceSpec(spec())!).garment
     // varsity-specific regions (a plain bomber has none of these) prove the varsity template was used

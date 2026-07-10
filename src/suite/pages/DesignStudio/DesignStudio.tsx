@@ -779,6 +779,15 @@ export function DesignStudio() {
   // The garment backdrop is rendered FROM the displayed garment, so hiding/recolouring a region
   // updates the canvas live. Falls back to the bridge/library preview when there's no region tree.
   const studioBackdropSvg = useMemo(() => (displayGarment ? garmentThumbnailSvg(displayGarment) : null), [displayGarment])
+  // Per-view backdrops: the view tabs genuinely switch Front/Back (the founder's "back stays the
+  // same" fix). garmentThumbnailSvg renders views[0], so Back = the same garment with views swapped.
+  const studioBackdropByView = useMemo(() => {
+    if (!displayGarment || displayGarment.views.length < 2) return null
+    return {
+      Front: garmentThumbnailSvg(displayGarment),
+      Back: garmentThumbnailSvg({ ...displayGarment, views: [...displayGarment.views].reverse() }),
+    }
+  }, [displayGarment])
 
   const garmentRegionLayers = useMemo<GarmentRegionLayer[]>(
     () =>
@@ -1939,6 +1948,7 @@ export function DesignStudio() {
             garmentViews={activeGarment.views}
             garmentImage={garmentDisplayUrl || activeGarment.thumbUrl}
             garmentSvg={studioBackdropSvg ?? (bridgeGarment ? bridgeSvg : garmentSvg)}
+            garmentSvgByView={studioBackdropByView}
             designName={designName}
             onRenameDesign={(n) => {
               setDesignName(n)

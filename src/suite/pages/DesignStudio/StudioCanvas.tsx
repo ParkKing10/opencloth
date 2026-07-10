@@ -48,6 +48,9 @@ type Props = {
   garmentViews?: GarmentViews
   /** The imported garment's real preview (from the Garment Library) — wins over the kind photo. */
   garmentImage?: string
+  /** Per-view backdrops (keyed by view label, e.g. 'Front'/'Back') — the view tabs switch the
+   *  stage AND the strip thumbnails between REAL views instead of sharing one preview. */
+  garmentSvgByView?: Record<string, string> | null
   /** Inline vector markup for the garment — resolution-independent, crisp at any zoom. */
   garmentSvg?: string | null
   /** Show the gentle "what next" hints (when nothing is selected). */
@@ -74,6 +77,7 @@ export function StudioCanvas({
   garmentViews = EMPTY_VIEWS,
   garmentImage,
   garmentSvg,
+  garmentSvgByView,
   designName: designNameProp,
   onRenameDesign,
   saveState,
@@ -96,7 +100,8 @@ export function StudioCanvas({
   const [overlays, setOverlays] = useState<Overlays>({ safe: false, bleed: false, print: false })
   const [overlaysOpen, setOverlaysOpen] = useState(false)
   const toggleOverlay = (k: keyof Overlays) => setOverlays((o) => ({ ...o, [k]: !o[k] }))
-  // Which real view card is highlighted in the Garment Views strip (cosmetic — all share one preview).
+  // The active garment view. With per-view backdrops (garmentSvgByView) the tabs genuinely switch
+  // the stage between Front/Back; without them the tabs highlight over the single shared preview.
   const [activeView, setActiveView] = useState('')
   // The Garment Views strip collapses so the stage can be the whole studio.
   const [stripHidden, setStripHidden] = useState<boolean>(() => {
@@ -412,12 +417,12 @@ export function StudioCanvas({
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
           >
             <div className="ds-garment-3d" ref={stageRef}>
-              {garmentSvg ? (
+              {garmentSvgByView?.[activeView] || garmentSvg ? (
                 <div
                   className="ds-garment-vector"
                   role="img"
-                  aria-label={garmentName}
-                  dangerouslySetInnerHTML={{ __html: garmentSvg }}
+                  aria-label={`${garmentName}${garmentSvgByView?.[activeView] ? ` — ${activeView}` : ''}`}
+                  dangerouslySetInnerHTML={{ __html: garmentSvgByView?.[activeView] ?? (garmentSvg as string) }}
                 />
               ) : garmentImage ? (
                 <img className="ds-garment-photo" src={garmentImage} alt={garmentName} draggable={false} />
@@ -487,7 +492,14 @@ export function StudioCanvas({
                   onClick={() => setActiveView(v)}
                 >
                   <div className="ds-flat__art">
-                    {viewPreview ? (
+                    {garmentSvgByView?.[v] ? (
+                      <img
+                        className="ds-flat__img"
+                        src={`data:image/svg+xml,${encodeURIComponent(garmentSvgByView[v])}`}
+                        alt={`${garmentName} — ${v}`}
+                        draggable={false}
+                      />
+                    ) : viewPreview ? (
                       <img className="ds-flat__img" src={viewPreview} alt={`${garmentName} — ${v}`} draggable={false} />
                     ) : (
                       <Glyph width="66" height="66" />

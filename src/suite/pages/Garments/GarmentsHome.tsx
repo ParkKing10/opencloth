@@ -3,7 +3,7 @@
  * editor only opens on Open/Continue. Shows a premium onboarding when empty, otherwise the
  * My-Garments grid with search, sort, and per-card actions.
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type SVGProps } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useAuth } from '../../auth/auth'
@@ -20,6 +20,7 @@ import {
 import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
 import { analyzeGarment } from '../../garment-model/analysis/analyzeGarment'
 import { readGarmentFile } from '../../garment-model/analysis/fileReader'
+import { filesFromDataTransfer, keepGarmentFiles } from '../../garment-model/analysis/dropFiles'
 import './garments.css'
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'favorites'
@@ -101,6 +102,8 @@ export function GarmentsHome() {
   const importInputRef = useRef<HTMLInputElement>(null)
   const [importing, setImporting] = useState(false)
   const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
   const importGarments = useCallback(
     async (files: File[]) => {
       if (!userId || files.length === 0) return
@@ -150,6 +153,50 @@ export function GarmentsHome() {
     [userId, navigate, refresh, toast],
   )
 
+  // ---- Drag & drop: drop files OR a whole folder of garment flats anywhere on the page. ----
+  const onDrop = useCallback(
+    async (e: DragEvent) => {
+      e.preventDefault()
+      dragDepth.current = 0
+      setDragging(false)
+      const all = await filesFromDataTransfer(e.dataTransfer)
+      const garments = keepGarmentFiles(all)
+      if (garments.length === 0) {
+        toast('No SVG / AI / PDF garment flats found in that drop.', 'info')
+        return
+      }
+      void importGarments(garments)
+    },
+    [importGarments, toast],
+  )
+  const onDragOver = useCallback((e: DragEvent) => {
+    if (e.dataTransfer?.types?.includes('Files')) e.preventDefault()
+  }, [])
+  const onDragEnter = useCallback((e: DragEvent) => {
+    if (!e.dataTransfer?.types?.includes('Files')) return
+    dragDepth.current += 1
+    setDragging(true)
+  }, [])
+  const onDragLeave = useCallback(() => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }, [])
+  /** Wrap a page with the whole-page drop target + the drag overlay. */
+  const withDrop = (content: ReactNode): ReactNode => (
+    <div className="gm-dropwrap" onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      {content}
+      {dragging && (
+        <div className="gm-drop-overlay" aria-hidden="true">
+          <div className="gm-drop-overlay__card">
+            <div className="gm-drop-overlay__glyph">🧥</div>
+            <b>Drop garment flats or a folder</b>
+            <small>SVG · AI · PDF — each is analyzed into an editable garment</small>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
   // Reload when auth hydrates after mount (else a user with garments could see the empty state).
   useEffect(() => {
     refresh()
@@ -184,7 +231,7 @@ export function GarmentsHome() {
 
   // ---- Empty state: premium onboarding ----
   if (garments.length === 0) {
-    return (
+    return withDrop(
       <SuitePage eyebrow="Workspace" title="Garments">
         <div className="gm-onboard">
           <div className="gm-onboard__glyph" aria-hidden="true">🧥</div>
@@ -200,13 +247,14 @@ export function GarmentsHome() {
           <button type="button" className="s-btn s-btn--accent gm-onboard__cta" onClick={createNew}>
             Create your first Garment
           </button>
+          <p className="gm-onboard__hint">…or drag a folder of SVG / AI / PDF flats anywhere here to import them all.</p>
         </div>
-      </SuitePage>
+      </SuitePage>,
     )
   }
 
   // ---- My Garments ----
-  return (
+  return withDrop(
     <SuitePage
       eyebrow="Workspace"
       title="Garments"
@@ -338,6 +386,6 @@ export function GarmentsHome() {
           </article>
         ))}
       </div>
-    </SuitePage>
+    </SuitePage>,
   )
 }

@@ -66,6 +66,8 @@ type Props = {
   hiddenMap?: Record<string, boolean>
   selectedObjIds?: string[]
   onSelectObj?: (id: string | null, additive?: boolean) => void
+  /** Marquee (rubber-band) selection result — the ids enclosed by the drag box. */
+  onMarqueeSelect?: (ids: string[], additive: boolean) => void
   onLiveObj?: (id: string, patch: Partial<CanvasObject>) => void
   onCommitObj?: () => void
   onEditText?: (id: string, text: string) => void
@@ -94,6 +96,7 @@ export function StudioCanvas({
   hiddenMap,
   selectedObjIds,
   onSelectObj,
+  onMarqueeSelect,
   onLiveObj,
   onCommitObj,
   onEditText,
@@ -156,6 +159,9 @@ export function StudioCanvas({
   const panRef = useRef<Pan>({ x: 0, y: 0 })
   const dragRef = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null)
   const interactTimerRef = useRef<number | null>(null)
+  // Marquee (rubber-band) selection: drag on empty canvas to select every object it encloses.
+  const marqueeRef = useRef<{ pointerId: number; startX: number; startY: number; shift: boolean; moved: boolean } | null>(null)
+  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
 
   // Single entry point for view changes keeps refs and state in lockstep.
   function applyView(nextZoom: number, nextPan: Pan) {
@@ -262,7 +268,17 @@ export function StudioCanvas({
 
   function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     const panIntent = e.button === 1 || (e.button === 0 && (tool === 'pan' || spaceHeld))
-    // A left-click on empty canvas (objects stopPropagation) deselects.
+    // Empty-canvas left press (objects/regions stopPropagation their own presses): start a marquee.
+    // A plain click that never moves past the threshold still deselects (handled on pointer-up).
+    if (e.button === 0 && !panIntent && onMarqueeSelect) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        /* capture is best-effort */
+      }
+      marqueeRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, shift: e.shiftKey, moved: false }
+      return
+    }
     if (e.button === 0 && !panIntent && onSelectObj) onSelectObj(null)
     if (!panIntent) return
     e.preventDefault()
@@ -277,7 +293,25 @@ export function StudioCanvas({
     setIsPanning(true)
   }
 
+  const MARQUEE_THRESHOLD = 4
+
   function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const mq = marqueeRef.current
+    if (mq && e.pointerId === mq.pointerId) {
+      const dx = e.clientX - mq.startX
+      const dy = e.clientY - mq.startY
+      if (!mq.moved && Math.abs(dx) < MARQUEE_THRESHOLD && Math.abs(dy) < MARQUEE_THRESHOLD) return
+      mq.moved = true
+      const vp = viewportRef.current?.getBoundingClientRect()
+      if (!vp) return
+      setMarquee({
+        left: Math.min(mq.startX, e.clientX) - vp.left,
+        top: Math.min(mq.startY, e.clientY) - vp.top,
+        width: Math.abs(dx),
+        height: Math.abs(dy),
+      })
+      return
+    }
     const drag = dragRef.current
     if (!drag || e.pointerId !== drag.pointerId) return
     applyView(zoomRef.current, {
@@ -287,6 +321,32 @@ export function StudioCanvas({
   }
 
   function endPan(e: ReactPointerEvent<HTMLDivElement>) {
+    const mq = marqueeRef.current
+    if (mq && e.pointerId === mq.pointerId) {
+      marqueeRef.current = null
+      setMarquee(null)
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+      if (!mq.moved) {
+        // A plain empty-canvas click still deselects.
+        if (!mq.shift) onSelectObj?.(null)
+        return
+      }
+      // Select every visible object whose on-screen box intersects the marquee.
+      const left = Math.min(mq.startX, e.clientX)
+      const top = Math.min(mq.startY, e.clientY)
+      const right = Math.max(mq.startX, e.clientX)
+      const bottom = Math.max(mq.startY, e.clientY)
+      const hits: string[] = []
+      worldRef.current?.querySelectorAll<HTMLElement>('.co-obj[data-id]').forEach((el) => {
+        const b = el.getBoundingClientRect()
+        if (b.left < right && b.right > left && b.top < bottom && b.bottom > top) {
+          const id = el.getAttribute('data-id')
+          if (id) hits.push(id)
+        }
+      })
+      onMarqueeSelect?.(hits, mq.shift)
+      return
+    }
     const drag = dragRef.current
     if (!drag || e.pointerId !== drag.pointerId) return
     dragRef.current = null
@@ -424,6 +484,13 @@ export function StudioCanvas({
           onDoubleClick={handleDoubleClick}
         >
           {showGrid && <div className="ds-viewport__grid" aria-hidden="true" />}
+          {marquee && (
+            <div
+              className="cv-marquee"
+              aria-hidden="true"
+              style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+            />
+          )}
           <div
             ref={worldRef}
             className={`cv-world${isInteracting || isPanning ? ' is-interacting' : ''}`}

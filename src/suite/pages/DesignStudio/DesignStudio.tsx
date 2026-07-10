@@ -2139,6 +2139,10 @@ export function DesignStudio() {
             hiddenMap={hidden}
             selectedObjIds={selectedObjIds}
             onSelectObj={selectObj}
+            onMarqueeSelect={(ids, additive) => {
+              setRegionSel(null)
+              setSelectedIds((prev) => (additive ? [...new Set([...prev, ...ids])] : ids))
+            }}
             onLiveObj={liveObject}
             onCommitObj={commitObject}
             onEditText={editObjectText}

@@ -230,3 +230,13 @@
   margin: 4px 6px;
   background: var(--s-line);
 }
+
+/* Marquee (rubber-band) selection box. */
+.cv-marquee {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid var(--s-accent, #d1f94f);
+  background: color-mix(in oklab, var(--s-accent, #d1f94f) 12%, transparent);
+  border-radius: 2px;
+}

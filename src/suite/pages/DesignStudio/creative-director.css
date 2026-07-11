@@ -3,9 +3,12 @@
 .cd {
   position: fixed;
   z-index: 50; /* below full-screen scrims (Save/AI/wizard at 60+) so it never shares a layer */
-  right: 22px;
+  /* Dock bottom-left, clear of the tool rail — the right side belongs to the object inspector, and
+     the Creative Director must never sit on top of the Size/Rotation/Opacity controls. */
+  left: 84px;
+  right: auto;
   bottom: 22px;
-  width: 320px;
+  width: 316px;
   max-width: calc(100vw - 44px);
   border-radius: 16px;
   border: 1px solid color-mix(in oklab, var(--s-accent) 34%, var(--s-border));

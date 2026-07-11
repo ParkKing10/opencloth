@@ -142,7 +142,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           [0, 1, 2].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
             try {
-              const urls = await generateImages(garmentEditPrompt(clean), { n: 1, references: [garmentPng], size: '1024x1536', quality: 'medium', background: 'transparent', signal })
+              const urls = await generateImages(garmentEditPrompt(clean), { n: 1, references: [garmentPng], size: '1024x1536', quality: 'medium', background: 'transparent', removeBackground: true, signal })
               if (runIdRef.current !== myRun) return
               if (urls[0]) {
                 okG = true
@@ -175,7 +175,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           [0, 1, 2].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(90_000)])
             try {
-              const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', background: 'transparent', signal })
+              const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', background: 'transparent', removeBackground: true, signal })
               if (runIdRef.current !== myRun) return
               if (urls[0]) {
                 anyOk = true
@@ -224,7 +224,10 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setMode(initialMode)
     modeRef.current = initialMode
     setPrompt(initialPrompt)
-    void run(initialPrompt, true)
+    // Opened empty (from a bare "Ask THREADOS AI" click): don't generate — focus the field so the
+    // user picks Design vs Edit Garment above and types their idea.
+    if (initialPrompt.trim()) void run(initialPrompt, true)
+    else inputRef.current?.focus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt, initialMode])
 
@@ -280,7 +283,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       const myRun = runIdRef.current
       setBusyIdx(idx)
       try {
-        const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', signal: abortRef.current?.signal })
+        const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', removeBackground: true, signal: abortRef.current?.signal })
         if (runIdRef.current !== myRun) return // modal closed / superseded
         if (urls[0]) rekey(liveConcept(old.prompt, urls[0], (old.seed + 0x51ed270b) >>> 0))
       } catch (err) {
@@ -410,14 +413,30 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               <span key={t} className="tai__tag">{t}</span>
             ))}
           </div>
-          {generating && !live && <div className="tai__bar"><span style={{ width: `${(progress / 3) * 100}%` }} /></div>}
+          {generating && <div className="tai__bar" role="progressbar" aria-valuemin={0} aria-valuemax={3} aria-valuenow={progress}><span style={{ width: `${Math.max(8, (progress / 3) * 100)}%` }} /></div>}
         </div>
 
         {/* Concepts */}
         <div className="tai__grid">
-          {[0, 1, 2].map((i) => {
+          {!generating && concepts.length === 0 ? (
+            <div className="tai-empty">
+              <IcoSparkle width="26" height="26" />
+              <b>What should we make?</b>
+              <span>
+                Choose <em onClick={() => switchMode('graphic')}>Design</em> for artwork, or{' '}
+                <em onClick={() => switchMode('garment')}>Edit Garment</em> to transform the piece — then describe it above and hit Generate.
+              </span>
+            </div>
+          ) : (
+          [0, 1, 2].map((i) => {
             const c = concepts[i]
-            if (!c) return <div key={i} className="tai-card tai-card--loading" aria-hidden><span className="tai-card__spin" /></div>
+            if (!c)
+              return (
+                <div key={i} className="tai-card tai-card--loading" aria-label="Generating">
+                  <span className="tai-card__spin" />
+                  <span className="tai-card__loading-label">{generating ? (live ? 'Generating…' : 'Composing…') : 'Ready'}</span>
+                </div>
+              )
             return (
               <article key={c.id} className="tai-card">
                 <div className="tai-card__stage tai-checker">
@@ -449,7 +468,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 </div>
               </article>
             )
-          })}
+          })
+          )}
         </div>
 
         {/* Keep creating */}

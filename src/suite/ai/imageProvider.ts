@@ -11,6 +11,7 @@ import { hasRunwareKey, resolveRunwareKey } from '../garment-model/aiSettings'
 
 const ENDPOINT = 'https://api.runware.ai/v1'
 const MODEL = 'google:4@3' // Nano Banana 2 — text→image, image→image, edit
+const BG_REMOVAL_MODEL = 'runware:109@1' // RemBG v1.4 — the imageBackgroundRemoval task requires a model
 
 export type ImageSize = '1024x1024' | '1536x1024' | '1024x1536' | 'auto'
 export type ImageQuality = 'low' | 'medium' | 'high'
@@ -23,6 +24,8 @@ export type GenerateImageOpts = {
   background?: ImageBackground
   /** Reference images (data URLs or URLs). When present the call is an image→image edit. */
   references?: string[]
+  /** Cut out the background so the result is a true transparent PNG (graphics, garment cut-outs). */
+  removeBackground?: boolean
   signal?: AbortSignal
 }
 
@@ -128,7 +131,42 @@ export async function generateImages(prompt: string, opts: GenerateImageOpts = {
   const data = (json as { data?: Array<{ imageBase64Data?: string; imageURL?: string; imageDataURI?: string }> })?.data
   const images = Array.isArray(data) ? data.map(toDataUrl).filter(Boolean) : []
   if (images.length === 0) throw new Error('Runware returned no image. Try a different prompt.')
+
+  // Nano Banana returns an opaque (usually white) background. For graphics and garment cut-outs we
+  // want a real transparent PNG, so run each result through Runware's background remover. If removal
+  // fails for any reason we keep the original image — never break the flow over a nice-to-have.
+  if (opts.removeBackground) {
+    return Promise.all(images.map((img) => removeBackground(img, key, opts.signal)))
+  }
   return images
+}
+
+/** Cut the background out of a generated image via Runware, returning a transparent PNG data URL. */
+async function removeBackground(image: string, key: string, signal?: AbortSignal): Promise<string> {
+  try {
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify([
+        {
+          taskType: 'imageBackgroundRemoval',
+          taskUUID: taskUUID(),
+          model: BG_REMOVAL_MODEL,
+          inputImage: image,
+          outputType: 'base64Data',
+          outputFormat: 'PNG',
+        },
+      ]),
+      signal,
+    })
+    const json = await res.json().catch(() => null)
+    if (!res.ok || (json && (json as { errors?: unknown[] }).errors)) return image
+    const out = (json as { data?: Array<{ imageBase64Data?: string; imageURL?: string; imageDataURI?: string }> })?.data?.[0]
+    const url = out ? toDataUrl(out) : ''
+    return url || image
+  } catch {
+    return image
+  }
 }
 
 /** Engineer a clean, print-ready GRAPHIC prompt from the user's idea. */

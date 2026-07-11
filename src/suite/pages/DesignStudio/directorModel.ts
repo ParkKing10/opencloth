@@ -47,15 +47,17 @@ export function buildDirector(obj: CanvasObject, ctx: DirectorContext): Director
     out.push({ id: 'center', text: 'Want it centred on the front chest?', cta: 'Center it', action: { kind: 'center' } })
   }
 
-  // Print realism — blend art into the fabric so it doesn't look like a sticker.
-  if (isArt && (!obj.blendMode || obj.blendMode === 'normal')) {
-    out.push({ id: 'blend', text: 'Blend it into the fabric with a Multiply pass so it reads like a real print?', cta: 'Apply Multiply', action: { kind: 'blend', blendMode: 'multiply' } })
-  }
-
-  // Keep the collection going — matching pieces, only when we know the prompt.
+  // Keep the collection going — matching pieces, only when we know the prompt. These lead: they're
+  // the moves a designer actually wants next, and they drive more real generation.
   if (ctx.prompt) {
     out.push({ id: 'sleeve', text: 'Design a matching sleeve graphic in the same style?', cta: 'Generate sleeve', action: { kind: 'generate', prompt: `${ctx.prompt} sleeve graphic` } })
     out.push({ id: 'back', text: 'Create a matching back print to complete the set?', cta: 'Generate back print', action: { kind: 'generate', prompt: `${ctx.prompt} back print` } })
+  }
+
+  // Print realism — a Multiply pass. Offered LAST because it only flatters dark/line art; on vivid
+  // multicolour graphics it muddies them, so it should never be the headline suggestion.
+  if (isArt && (!obj.blendMode || obj.blendMode === 'normal')) {
+    out.push({ id: 'blend', text: 'For darker line art, a Multiply pass blends it into the fabric like a real print. Try it?', cta: 'Apply Multiply', action: { kind: 'blend', blendMode: 'multiply' } })
   }
 
   return out.slice(0, 3)

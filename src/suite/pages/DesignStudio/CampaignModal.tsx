@@ -95,7 +95,8 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
     if (!append) setShots([])
     try {
       const params = campaignImageParams(sel)
-      const urls = await generateImages(campaignPrompt(sel), { references: [garmentPng], n: 1, ...params, signal })
+      // A Transparent backdrop means a true cut-out — run Runware's background remover on the result.
+      const urls = await generateImages(campaignPrompt(sel), { references: [garmentPng], n: 1, ...params, removeBackground: sel.background === 'Transparent', signal })
       if (ctrl.signal.aborted) return
       if (urls[0]) {
         const shot: Shot = { id: `sh-${crypto.randomUUID()}`, dataUrl: urls[0] }

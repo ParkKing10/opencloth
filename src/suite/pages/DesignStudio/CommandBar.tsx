@@ -50,13 +50,18 @@ export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, o
 
   function submit() {
     const text = input.trim()
-    if (!text) return
-    // Priority: (1) a garment/fabric edit ("mach die Jacke mit Löchern") edits the garment itself;
-    // (2) a described graphic subject generates artwork; (3) a known studio command stays inline as
-    // a Proposal; (4) anything else generates a graphic.
+    setProposal(null)
+    setMissNote(false)
+    // Empty prompt → still open THREADOS AI so you can pick Design vs Edit Garment and type there.
+    // The button is never dead. Then:
+    // (1) a garment/fabric edit ("mach die Jacke mit Löchern") opens straight into Edit Garment;
+    // (2) a known studio command ("make it oversized") stays inline as a quick, free Proposal;
+    // (3) anything else opens THREADOS AI in Design mode — the modal's toggle is always there to switch.
+    if (!text) {
+      onGenerate('', 'graphic')
+      return
+    }
     if (describesGarmentEdit(text)) {
-      setProposal(null)
-      setMissNote(false)
       onGenerate(text, 'garment')
       return
     }
@@ -64,12 +69,9 @@ export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, o
       const p = interpret(text)
       if (p) {
         setProposal(p)
-        setMissNote(false)
         return
       }
     }
-    setProposal(null)
-    setMissNote(false)
     onGenerate(text, 'graphic')
   }
 
@@ -105,7 +107,7 @@ export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, o
             </button>
           ))}
         </div>
-        <button className="cb__go" type="button" onClick={submit} disabled={!input.trim()}>
+        <button className="cb__go" type="button" onClick={submit} title="Open THREADOS AI — choose Design or Edit Garment">
           Ask THREADOS AI
         </button>
       </div>

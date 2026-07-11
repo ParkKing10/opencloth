@@ -1,6 +1,6 @@
 import { IcoChevron } from '../../components/ui/Icons'
 import type { Layer } from './LayersPanel'
-import { FONT_OPTIONS, type CanvasObject } from './objectModel'
+import { BLEND_MODES, FONT_OPTIONS, type BlendMode, type CanvasObject } from './objectModel'
 import { COLOR_PRESETS } from './presets'
 import './object-inspector.css'
 
@@ -143,6 +143,7 @@ export function ObjectInspector({ layer, onChange, onDelete, onBack, onReplace, 
       <RangeRow label="Size" min={6} max={140} step={1} value={Math.round(o.width * 100)} onChange={(v) => onChange({ width: v / 100 })} suffix="%" />
       <RangeRow label="Rotation" min={-180} max={180} step={1} value={o.rotation} onChange={(v) => onChange({ rotation: v })} suffix="°" />
       <RangeRow label="Opacity" min={10} max={100} step={1} value={Math.round(o.opacity * 100)} onChange={(v) => onChange({ opacity: v / 100 })} suffix="%" />
+      <BlendRow value={o.blendMode ?? 'normal'} onChange={(v) => onChange({ blendMode: v })} />
 
       <div className="oi__actions">
         <button type="button" className="oi__reset" onClick={() => onChange({ rotation: 0 })}>
@@ -185,6 +186,21 @@ function RangeRow({
         </b>
       </span>
       <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    </label>
+  )
+}
+
+function BlendRow({ value, onChange }: { value: BlendMode; onChange: (v: BlendMode) => void }) {
+  return (
+    <label className="oi__range oi__blend">
+      <span className="oi__range-label">Blend mode</span>
+      <select className="oi__select" value={value} onChange={(e) => onChange(e.target.value as BlendMode)}>
+        {BLEND_MODES.map((m) => (
+          <option key={m} value={m}>
+            {m === 'normal' ? 'Normal' : m.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+          </option>
+        ))}
+      </select>
     </label>
   )
 }

@@ -254,6 +254,8 @@ function ObjectContent({
   onText: (t: string) => void
   onDone: () => void
 }) {
+  // Blend the artwork onto the garment (scoped to content so the selection frame stays crisp).
+  const bm = obj.blendMode && obj.blendMode !== 'normal' ? obj.blendMode : undefined
   if (obj.type === 'text') {
     if (editing) {
       return (
@@ -289,6 +291,7 @@ function ObjectContent({
           letterSpacing: obj.letterSpacing,
           lineHeight: obj.lineHeight ?? 1.1,
           textAlign: obj.align ?? 'center',
+          mixBlendMode: bm,
         }}
       >
         {obj.text || 'Text'}
@@ -300,11 +303,11 @@ function ObjectContent({
     return <VectorContent obj={obj} flip={flip} />
   }
   if (obj.type === 'image' && obj.src) {
-    return <img className="co-img" src={obj.src} alt="" draggable={false} style={{ transform: flip }} />
+    return <img className="co-img" src={obj.src} alt="" draggable={false} style={{ transform: flip, mixBlendMode: bm }} />
   }
   // graphic
   return (
-    <svg className="co-gfx" viewBox="0 0 100 100" style={{ color: obj.color, transform: flip }} dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph ?? ''] ?? GRAPHIC_MARKS['Box Logo'] }} />
+    <svg className="co-gfx" viewBox="0 0 100 100" style={{ color: obj.color, transform: flip, mixBlendMode: bm }} dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph ?? ''] ?? GRAPHIC_MARKS['Box Logo'] }} />
   )
 }
 
@@ -315,8 +318,9 @@ function VectorContent({ obj, flip }: { obj: CanvasObject; flip: string }) {
   const sw = Math.max(0, obj.strokeWidth ?? 0)
   const fill = obj.fill && obj.fill !== 'none' ? obj.fill : 'none'
   const stroke = obj.stroke && obj.stroke !== 'none' ? obj.stroke : 'none'
+  const bm = obj.blendMode && obj.blendMode !== 'normal' ? obj.blendMode : undefined
   return (
-    <svg className="co-shape" viewBox={`0 0 100 ${vbH}`} style={{ transform: flip }} preserveAspectRatio="none">
+    <svg className="co-shape" viewBox={`0 0 100 ${vbH}`} style={{ transform: flip, mixBlendMode: bm }} preserveAspectRatio="none">
       {obj.type === 'shape' && obj.shape === 'ellipse' ? (
         <ellipse cx={50} cy={vbH / 2} rx={Math.max(0.5, 50 - sw / 2)} ry={Math.max(0.5, vbH / 2 - sw / 2)} fill={fill} stroke={stroke} strokeWidth={sw} />
       ) : obj.type === 'shape' ? (

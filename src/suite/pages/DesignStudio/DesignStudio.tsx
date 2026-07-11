@@ -54,6 +54,8 @@ import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SessionStartDialog } from './SessionStartDialog'
 import { ThreadosAIModal } from './ThreadosAIModal'
 import { conceptName, type Concept } from '../../ai/conceptEngine'
+import { CreativeDirector } from './CreativeDirector'
+import { buildDirector, type DirectorSuggestion } from './directorModel'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
@@ -246,6 +248,8 @@ export function DesignStudio() {
   // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt).
   const [aiOpen, setAiOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
+  // Creative Director — proactive, real suggestions after a graphic lands.
+  const [director, setDirector] = useState<{ objectId: string; suggestions: DirectorSuggestion[] } | null>(null)
 
   // Save dialog: name + which collection the design belongs to (created inline if needed).
   const [saveOpen, setSaveOpen] = useState(false)
@@ -597,9 +601,40 @@ export function DesignStudio() {
       commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([layer.id])
       toast(`“${layer.name}” added to your design.`, 'success')
+      // The Creative Director keeps designing with the user, from the real placed object.
+      const suggestions = buildDirector(layer.obj!, { prompt: concept.prompt, objectType: 'image' })
+      setDirector(suggestions.length ? { objectId: layer.id, suggestions } : null)
     },
     [commit, toast],
   )
+
+  /** Apply a Creative Director suggestion — every action is real and undoable. */
+  function applyDirector(s: DirectorSuggestion) {
+    if (!director) return
+    const a = s.action
+    if (a.kind === 'generate') {
+      setAiPrompt(a.prompt)
+      setAiOpen(true)
+      setDirector(null)
+      return
+    }
+    if (a.kind === 'scale') {
+      const cur = presentRef.current.layers.find((l) => l.id === director.objectId)?.obj
+      if (cur) setObjectProp(director.objectId, { width: Math.max(0.06, Math.min(1.4, cur.width * a.factor)) })
+    } else if (a.kind === 'center') {
+      setObjectProp(director.objectId, { x: 0.5, y: 0.45 })
+    } else if (a.kind === 'blend') {
+      setObjectProp(director.objectId, { blendMode: a.blendMode })
+    }
+    const rest = director.suggestions.filter((x) => x.id !== s.id)
+    setDirector(rest.length ? { ...director, suggestions: rest } : null)
+  }
+
+  function dismissDirectorSuggestion(id: string) {
+    if (!director) return
+    const rest = director.suggestions.filter((x) => x.id !== id)
+    setDirector(rest.length ? { ...director, suggestions: rest } : null)
+  }
 
   const addImageObject = useCallback(
     (file: File) => {
@@ -2596,6 +2631,14 @@ export function DesignStudio() {
         onClose={() => setAiOpen(false)}
         onAddToCanvas={addGeneratedConcept}
       />
+      {director && !aiOpen && (
+        <CreativeDirector
+          suggestions={director.suggestions}
+          onApply={applyDirector}
+          onDismiss={dismissDirectorSuggestion}
+          onClose={() => setDirector(null)}
+        />
+      )}
       <SessionStartDialog
         open={sessionGateOpen}
         lastName={lastDesignName}

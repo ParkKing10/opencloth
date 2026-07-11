@@ -158,6 +158,20 @@
   flex-direction: column;
   gap: 6px;
 }
+.oi__select {
+  width: 100%;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--s-line-strong);
+  background: var(--s-inset);
+  color: var(--s-text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.oi__select:focus-visible {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 1px;
+}
 .oi__range-label {
   display: flex;
   justify-content: space-between;

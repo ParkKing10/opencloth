@@ -10,6 +10,34 @@ export type CanvasObjectType = 'text' | 'image' | 'graphic' | 'shape' | 'path'
 /** Vector primitives drawn with the shape tools. */
 export type ShapeKind = 'rect' | 'ellipse'
 
+/** CSS mix-blend-mode values — how an object composites onto the garment beneath it. */
+export type BlendMode =
+  | 'normal'
+  | 'multiply'
+  | 'screen'
+  | 'overlay'
+  | 'darken'
+  | 'lighten'
+  | 'color-dodge'
+  | 'hard-light'
+  | 'soft-light'
+  | 'difference'
+  | 'luminosity'
+
+export const BLEND_MODES: BlendMode[] = [
+  'normal',
+  'multiply',
+  'screen',
+  'overlay',
+  'darken',
+  'lighten',
+  'color-dodge',
+  'hard-light',
+  'soft-light',
+  'difference',
+  'luminosity',
+]
+
 /** Transform + content, in normalized print-area coordinates (0..1, center-based). */
 export type CanvasObject = {
   type: CanvasObjectType
@@ -19,6 +47,8 @@ export type CanvasObject = {
   width: number
   rotation: number
   opacity: number
+  /** How the object composites onto the garment (default 'normal'). */
+  blendMode?: BlendMode
   // text
   text?: string
   color?: string

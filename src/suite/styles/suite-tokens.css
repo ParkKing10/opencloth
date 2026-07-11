@@ -17,6 +17,10 @@
   --s-line: rgba(255, 255, 255, 0.06);
   --s-line-2: rgba(255, 255, 255, 0.1);
   --s-line-strong: rgba(255, 255, 255, 0.16);
+  /* Aliases — 14 files use --s-border/--s-border-strong; without these the intended borders
+     silently render as no border. Kept in sync with the --s-line* values above (both themes). */
+  --s-border: var(--s-line);
+  --s-border-strong: var(--s-line-strong);
 
   /* Text */
   --s-text: #f4f4f6;

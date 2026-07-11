@@ -164,7 +164,8 @@
   transition: background var(--s-dur), color var(--s-dur);
 }
 .tai-choice:hover .tai-choice__icon { background: var(--s-accent); color: var(--s-accent-ink, #14141a); }
-.tai-choice > b { font-size: 17px; color: var(--s-text); }
+.tai-choice > b { font-size: 17px; color: var(--s-text); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tai-choice__badge { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 7px; border-radius: 6px; background: color-mix(in oklab, var(--s-warn, #e5a44d) 20%, var(--s-inset)); color: var(--s-warn, #e5a44d); }
 .tai-choice > small { font-size: 12.5px; line-height: 1.55; color: var(--s-text-3); }
 .tai-choice__go { margin-top: auto; font-size: 12.5px; font-weight: 700; color: var(--s-accent-2); transition: color var(--s-dur); }
 .tai-choice:hover .tai-choice__go { color: var(--s-accent); }

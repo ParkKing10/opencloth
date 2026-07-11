@@ -98,6 +98,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const [live] = useState(() => hasImageAi())
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const firstChoiceRef = useRef<HTMLButtonElement>(null)
   const refsRef = useRef<string[]>([])
   const runIdRef = useRef(0)
   const nonceRef = useRef(0)
@@ -235,6 +236,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       void run(initialPrompt, true)
     } else {
       setChoosing(true)
+      setTimeout(() => firstChoiceRef.current?.focus(), 0) // move focus into the dialog for keyboard/SR users
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt, initialMode])
@@ -245,6 +247,25 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       if (e.key === 'Escape') {
         if (zoom) setZoom(null)
         else onClose()
+        return
+      }
+      // Trap Tab within the dialog so focus can't wander behind the scrim (aria-modal contract).
+      if (e.key === 'Tab' && !zoom) {
+        const root = document.querySelector('.tai')
+        if (!root) return
+        const nodes = Array.from(root.querySelectorAll<HTMLElement>('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'))
+          .filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null)
+        if (nodes.length === 0) return
+        const first = nodes[0]
+        const last = nodes[nodes.length - 1]
+        const active = document.activeElement as HTMLElement | null
+        if (e.shiftKey && (active === first || !root.contains(active))) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -263,6 +284,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setFavs([])
     setBusyIdx(null)
     setChoosing(false)
+    setHistoryOpen(false)
+    setReferences([]) // reference images must not leak into (and silently steer) the next session
   }, [open])
 
   if (!open) return null
@@ -379,7 +402,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               <span>THREADOS AI works two ways — pick one to begin.</span>
             </div>
             <div className="tai-chooser__cards">
-              <button type="button" className="tai-choice tai-choice--graphic" onClick={() => pickMode('graphic')}>
+              <button ref={firstChoiceRef} type="button" className="tai-choice tai-choice--graphic" onClick={() => pickMode('graphic')}>
                 <span className="tai-choice__icon" aria-hidden>
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 2.5l1.7 4.8 4.8 1.7-4.8 1.7L12 15.5l-1.7-4.8L5.5 9l4.8-1.7z" />
@@ -396,9 +419,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                     <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
                   </svg>
                 </span>
-                <b>Edit the Garment</b>
+                <b>Edit the Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
                 <small>Transform the actual piece — rips, holes, acid &amp; bleach washes, distressing, colour. THREADOS edits your real garment, not a graphic.</small>
-                <span className="tai-choice__go">Start editing →</span>
+                <span className="tai-choice__go">{live ? 'Start editing →' : 'Add a key in Settings → AI'}</span>
               </button>
             </div>
           </div>
@@ -445,7 +468,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           </div>
         </div>
 
-        {references.length > 0 && (
+        {mode === 'graphic' && references.length > 0 && (
           <div className="tai__refs">
             <span className="tai__refs-label">References</span>
             {references.map((r, i) => (

@@ -258,6 +258,17 @@
 .design:hover .design__preview {
   color: var(--s-text-2);
 }
+/* Real design preview thumbnail — fills the card head, garment sits on its own white capture bg. */
+.design__preview--img {
+  padding: 0;
+  background: #ffffff;
+}
+.design__preview--img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
 .design__meta {
   padding: 12px 13px 13px;
   display: flex;

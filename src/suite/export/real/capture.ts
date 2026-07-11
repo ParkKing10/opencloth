@@ -55,3 +55,30 @@ export async function captureDesignPng(opts: CaptureOptions): Promise<Blob> {
     holder.remove()
   }
 }
+
+/**
+ * Capture a small, compact JPEG preview of the current design (garment + artwork) for Recent-Designs
+ * cards. Downscaled to `maxSize` on the long edge and JPEG-compressed to keep it tiny (~15–30 KB) so
+ * many previews fit in localStorage. Returns null on any failure — a missing preview is non-fatal.
+ */
+export async function captureDesignThumbnail(maxSize = 512, quality = 0.72): Promise<string | null> {
+  try {
+    const blob = await captureDesignPng({ scope: 'garment', background: 'white', scale: 1 })
+    const bmp = await createImageBitmap(blob)
+    const factor = Math.min(1, maxSize / Math.max(bmp.width, bmp.height))
+    const w = Math.max(1, Math.round(bmp.width * factor))
+    const h = Math.max(1, Math.round(bmp.height * factor))
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, w, h)
+    ctx.drawImage(bmp, 0, 0, w, h)
+    bmp.close?.()
+    return canvas.toDataURL('image/jpeg', quality)
+  } catch {
+    return null
+  }
+}

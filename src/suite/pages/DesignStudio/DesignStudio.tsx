@@ -24,6 +24,8 @@ import { useSuiteTheme } from '../../theme'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { uid } from '../../data/utils'
+import { saveDesignThumb } from '../../data/designThumbs'
+import { captureDesignThumbnail } from '../../export/real/capture'
 import type { RealExportProject } from '../../export/real/exportProject'
 import { computeReadiness } from '../../export/readiness'
 import { BrandKitPanel } from '../../drive/ui/BrandKitPanel'
@@ -1824,6 +1826,20 @@ export function DesignStudio() {
   )
 
   // ---- Save + auto-save: the design lands in Recent Designs, always current ----
+  // A real preview thumbnail for Recent-Designs cards. Fire-and-forget (never blocks the save) and
+  // throttled on auto-save so html2canvas doesn't run on every keystroke-quiet tick. Stored in a
+  // separate local cache keyed by design id — no schema change, no Supabase risk.
+  const lastThumbRef = useRef(0)
+  const THUMB_MIN_INTERVAL = 20_000
+  const captureThumb = useCallback((id: string, force: boolean) => {
+    const now = Date.now()
+    if (!force && now - lastThumbRef.current < THUMB_MIN_INTERVAL) return
+    lastThumbRef.current = now
+    void captureDesignThumbnail().then((url) => {
+      if (url) saveDesignThumb(id, url)
+    })
+  }, [])
+
   const persistDesign = useCallback(
     (name: string, colId: string | undefined, notify: boolean) => {
       if (!user || !designId) {
@@ -1852,12 +1868,13 @@ export function DesignStudio() {
         }
       })
       window.setTimeout(() => setSaveState('saved'), 350)
+      captureThumb(designId, notify) // force a fresh preview on explicit saves, throttle on auto-save
       if (notify) {
         const col = colId ? data.collections.find((c) => c.id === colId)?.name : undefined
         toast(col ? `“${name}” saved to ${col}.` : `“${name}” saved.`, 'success')
       }
     },
-    [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections],
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections, captureThumb],
   )
 
   /**
@@ -1906,12 +1923,13 @@ export function DesignStudio() {
       setCollectionId(colId)
       // Persist the local document with the chosen name + collection right away.
       saveCurrentDoc(presentRef.current, choice.name, colId)
+      captureThumb(designId, true) // real preview for Recent Designs
       window.setTimeout(() => setSaveState('saved'), 350)
       const colName = choice.newCollection ?? (choice.collectionId ? myCollections.find((c) => c.id === choice.collectionId)?.name : undefined)
       toast(colName ? `“${choice.name}” saved to ${colName}.` : `“${choice.name}” saved.`, 'success')
       setSaveOpen(false)
     },
-    [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc],
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc, captureThumb],
   )
 
   // Auto-save (metadata → Recent Designs): any real change persists after 2s of quiet.

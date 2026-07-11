@@ -5,6 +5,7 @@ import { TechPackFlats, GlobePins } from './FeatureArt'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { relativeTime } from '../../data/utils'
+import { loadDesignThumb } from '../../data/designThumbs'
 import teeImg from '../../../assets/cards/tee.png'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import './dashboard.css'
@@ -155,6 +156,7 @@ export function Dashboard() {
               <div className="dash-designs">
                 {recentDesigns.map((d) => {
                   const Glyph = GARMENT_GLYPHS[d.kind]
+                  const thumb = loadDesignThumb(d.id)
                   return (
                     <article
                       className="design"
@@ -162,8 +164,12 @@ export function Dashboard() {
                       title={`Open ${d.name} in the Design Studio`}
                       onClick={() => navigate('/suite/design')}
                     >
-                      <div className="design__preview">
-                        <Glyph width="52" height="52" />
+                      <div className={`design__preview${thumb ? ' design__preview--img' : ''}`}>
+                        {thumb ? (
+                          <img src={thumb} alt={`${d.name} preview`} loading="lazy" />
+                        ) : (
+                          <Glyph width="52" height="52" />
+                        )}
                       </div>
                       <div className="design__meta">
                         <span className="design__name">{d.name}</span>

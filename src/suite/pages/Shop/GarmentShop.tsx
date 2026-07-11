@@ -39,7 +39,8 @@ export function GarmentShop() {
     if (!user) return
     const ownedId = owned[item.templateId]
     if (ownedId) {
-      navigate(`/suite/garment-lab/${ownedId}`)
+      // Consistent with My Garments: opening a garment means designing it.
+      navigate(`/suite/design?garment=${ownedId}`)
       return
     }
     if (coins < item.price) {

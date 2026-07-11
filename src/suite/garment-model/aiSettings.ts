@@ -110,6 +110,46 @@ export function hasApiKey(): boolean {
   return resolveApiKey().length > 0
 }
 
+// ---- Runware (image generation: Nano Banana 2 etc.) ----
+// Stored obfuscated at rest (same caveat as the OpenAI key — never truly secret in a static app).
+// NEVER hardcode a key; it comes from here (Settings → AI) or VITE_RUNWARE_API_KEY.
+const RUNWARE_KEY_STORE = 'threados-runware-key'
+
+function envRunwareKey(): string {
+  try {
+    return (import.meta.env?.VITE_RUNWARE_API_KEY as string | undefined)?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function loadRunwareKey(): string {
+  try {
+    const raw = localStorage.getItem(RUNWARE_KEY_STORE)
+    return raw ? deobfuscate(raw) : ''
+  } catch {
+    return ''
+  }
+}
+
+export function saveRunwareKey(key: string): void {
+  try {
+    const trimmed = key.trim()
+    if (trimmed) localStorage.setItem(RUNWARE_KEY_STORE, obfuscate(trimmed))
+    else localStorage.removeItem(RUNWARE_KEY_STORE)
+  } catch {
+    /* non-fatal */
+  }
+}
+
+export function resolveRunwareKey(): string {
+  return loadRunwareKey() || envRunwareKey()
+}
+
+export function hasRunwareKey(): boolean {
+  return resolveRunwareKey().length > 0
+}
+
 /** True when the string looks like an OpenAI key (sk-… / project keys). Cheap pre-check only. */
 export function looksLikeOpenAiKey(key: string): boolean {
   return /^sk-[A-Za-z0-9_-]{20,}$/.test(key.trim())

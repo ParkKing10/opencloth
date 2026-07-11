@@ -33,7 +33,7 @@ type Shot = { id: string; dataUrl: string }
 /**
  * Campaign Generator — turn the finished garment into on-model campaign photography without leaving
  * the Studio. Step 1 auto-renders the garment (no manual export). Step 2 collects shoot preferences.
- * Step 3 sends the render + a hidden garment-preserving prompt to gpt-image-1. Honest: with no key it
+ * Step 3 sends the render + a hidden garment-preserving prompt to Runware. Honest: with no key it
  * explains what to connect instead of faking a person.
  */
 export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
@@ -84,7 +84,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   const runOne = useCallback(async (append: boolean) => {
     if (!garmentPng) return
     if (!hasImageAi()) {
-      toast('Connect your OpenAI API key in Settings → AI to generate campaign photos.', 'info')
+      toast('Connect your Runware API key in Settings → AI to generate campaign photos.', 'info')
       return
     }
     abortRef.current?.abort()
@@ -103,7 +103,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       }
     } catch (err) {
       if (!ctrl.signal.aborted) {
-        const msg = err instanceof DOMException && err.name === 'TimeoutError' ? 'OpenAI took too long — try again or lower the quality.' : err instanceof Error ? err.message : 'Campaign generation failed.'
+        const msg = err instanceof DOMException && err.name === 'TimeoutError' ? 'Runware took too long — try again in a moment.' : err instanceof Error ? err.message : 'Campaign generation failed.'
         toast(msg, 'info')
       }
     } finally {
@@ -187,7 +187,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
             <button type="button" className="cg__go" onClick={() => runOne(false)} disabled={!garmentPng || generating}>
               {generating ? 'Generating…' : `Generate image${model ? ` · ${model.label}` : ''}`}
             </button>
-            {!live && <p className="cg__gate">Campaign photos need a real image model. Add your OpenAI API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}
+            {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}
           </div>
 
           {/* Right: results — one image, then a "+" tile to pull more */}

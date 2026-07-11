@@ -121,7 +121,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       // real image model — there is no honest on-device way to repaint a garment, and we won't fake it.
       if (modeRef.current === 'garment') {
         if (!hasImageAi()) {
-          toast('Editing the garment needs a real image model. Add your OpenAI API key in Settings → AI.', 'info')
+          toast('Editing the garment needs a real image model. Add your Runware API key in Settings → AI.', 'info')
           setGenerating(false)
           return
         }
@@ -165,7 +165,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         return
       }
 
-      // Real generation with OpenAI gpt-image-1 when a key is configured. Fire THREE independent
+      // Real generation with Runware (Nano Banana 2) when a key is configured. Fire THREE independent
       // single-image requests so results stream in one-by-one (not one slow batch), a single
       // failure never kills the others, and a 90s timeout guarantees it can't hang forever.
       if (hasImageAi()) {
@@ -198,7 +198,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           return
         }
         const msg = firstErr instanceof DOMException && firstErr.name === 'TimeoutError'
-          ? 'OpenAI took too long to respond. Try again, or lower the quality.'
+          ? 'Runware took too long to respond. Try again in a moment.'
           : firstErr instanceof Error ? firstErr.message : 'Image generation failed — showing vector previews instead.'
         toast(msg, 'info')
         // fall through to the on-device engine so the user still gets something usable
@@ -325,11 +325,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const engineNote =
     mode === 'garment'
       ? isLiveConceptAi()
-        ? 'Editing your garment with OpenAI gpt-image-1 — the same piece, transformed. Apply one to update the design.'
-        : 'Garment editing needs a real image model. Add your OpenAI API key in Settings → AI — THREADOS won’t fake it.'
+        ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Apply one to update the design.'
+        : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
       : isLiveConceptAi()
-        ? 'Generating with OpenAI gpt-image-1 · transparent PNGs. Upload a reference image to guide the look.'
-        : 'On-device vector previews. Add your OpenAI API key in Settings → AI to generate photoreal images — same workflow.'
+        ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
+        : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
 
   return createPortal(
     <div className="suite">

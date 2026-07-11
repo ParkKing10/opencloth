@@ -12,6 +12,9 @@ import {
   hasApiKey,
   looksLikeOpenAiKey,
   OPENAI_MODEL_OPTIONS,
+  loadRunwareKey,
+  saveRunwareKey,
+  hasRunwareKey,
   type ConnectionStatus,
 } from '../../garment-model/aiSettings'
 import './ai-settings.css'
@@ -33,8 +36,18 @@ export function AiSettings() {
   const [showKey, setShowKey] = useState(false)
   const [status, setStatus] = useState<ConnectionStatus>('untested')
   const [testing, setTesting] = useState(false)
+  // Runware — the image-generation engine (Nano Banana 2) behind THREADOS AI graphics, garment
+  // edits and campaign photos.
+  const [runwareKey, setRunwareKey] = useState(loadRunwareKey())
+  const [showRunware, setShowRunware] = useState(false)
+  const runwareActive = hasRunwareKey()
 
   const activeProvider = hasApiKey() ? 'OpenAI' : 'Placeholder'
+
+  const saveRunware = () => {
+    saveRunwareKey(runwareKey)
+    toast(runwareKey.trim() ? 'Runware key saved — THREADOS AI images are live.' : 'Runware key cleared.', 'success')
+  }
 
   const save = () => {
     saveAiSettings({
@@ -62,12 +75,47 @@ export function AiSettings() {
   const keyFormatWarning = apiKey.trim() && !looksLikeOpenAiKey(apiKey) ? "That doesn't look like an OpenAI key (expected sk-…)." : ''
 
   return (
+    <>
     <section className="set-card">
       <div className="aiset">
         <div className="aiset__head">
           <div>
-            <h2>AI Provider</h2>
-            <p className="aiset__sub">Connect OpenAI to power garment editing. Without a key, THREADOS uses the built-in placeholder.</p>
+            <h2>Image Generation · Runware</h2>
+            <p className="aiset__sub">Powers THREADOS AI — graphics, garment edits and campaign photos (Nano Banana 2). Get a key at runware.ai.</p>
+          </div>
+          <span className={`aiset__provider aiset__provider--${runwareActive ? 'openai' : 'placeholder'}`}>
+            {runwareActive ? 'Connected' : 'Not connected'}
+          </span>
+        </div>
+
+        <label className="aiset__field">
+          <span>Runware API Key</span>
+          <div className="aiset__key">
+            <input type={showRunware ? 'text' : 'password'} value={runwareKey} onChange={(e) => setRunwareKey(e.target.value)} placeholder="Your Runware API key" autoComplete="off" spellCheck={false} />
+            <button type="button" className="aiset__reveal" onClick={() => setShowRunware((v) => !v)}>
+              {showRunware ? 'Hide' : 'Show'}
+            </button>
+          </div>
+        </label>
+
+        <div className="aiset__actions">
+          <button type="button" className="s-btn s-btn--accent" onClick={saveRunware}>Save</button>
+        </div>
+
+        <p className="aiset__security">
+          <b>Security:</b> saved obfuscated in your browser (a static app can’t truly encrypt it). For production, set
+          <code>VITE_RUNWARE_API_KEY</code> at build time instead. The key is never hardcoded, and without one THREADOS
+          AI falls back to on-device vector previews (garment/campaign photos are gated, never faked).
+        </p>
+      </div>
+    </section>
+
+    <section className="set-card">
+      <div className="aiset">
+        <div className="aiset__head">
+          <div>
+            <h2>Garment Text AI · OpenAI</h2>
+            <p className="aiset__sub">Optional — powers garment-structure generation in the Garment Lab. Without a key, THREADOS uses the built-in placeholder.</p>
           </div>
           <span className={`aiset__provider aiset__provider--${activeProvider.toLowerCase()}`}>
             Active: {activeProvider}
@@ -123,5 +171,6 @@ export function AiSettings() {
         </p>
       </div>
     </section>
+    </>
   )
 }

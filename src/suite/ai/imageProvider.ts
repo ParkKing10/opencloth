@@ -1,19 +1,16 @@
 /**
- * Real OpenAI image generation (gpt-image-1) — the engine behind THREADOS AI when a key is set.
+ * Real image generation via Runware (https://runware.ai) — the engine behind every THREADOS AI
+ * image (graphics, garment edits, campaign shots). Default model: Nano Banana 2 (google:4@3),
+ * which does text→image and image→image (reference) editing.
  *
- * Auth reuses the app's existing OpenAI settings (Settings → AI): the user's key from localStorage
- * or VITE_OPENAI_API_KEY. NOTHING is hardcoded and no key is ever logged. When no key is present,
- * callers fall back to the on-device vector concept engine — honestly, never faking a diffusion call.
- *
- * Two modes:
- *  - text → image via /v1/images/generations
- *  - image + text → image via /v1/images/edits, with input_fidelity:'high' so a supplied reference
- *    (a garment render, an uploaded graphic) is preserved rather than redesigned.
+ * Auth: the Runware key from Settings → AI (localStorage) or VITE_RUNWARE_API_KEY. NOTHING is
+ * hardcoded and no key is ever logged. When no key is present, callers fall back to the on-device
+ * vector engine (graphics) or gate honestly (garment/campaign) — never a faked image.
  */
-import { hasApiKey, resolveApiKey } from '../garment-model/aiSettings'
+import { hasRunwareKey, resolveRunwareKey } from '../garment-model/aiSettings'
 
-const IMAGE_MODEL = 'gpt-image-1'
-const BASE = 'https://api.openai.com/v1/images'
+const ENDPOINT = 'https://api.runware.ai/v1'
+const MODEL = 'google:4@3' // Nano Banana 2 — text→image, image→image, edit
 
 export type ImageSize = '1024x1024' | '1536x1024' | '1024x1536' | 'auto'
 export type ImageQuality = 'low' | 'medium' | 'high'
@@ -24,87 +21,94 @@ export type GenerateImageOpts = {
   size?: ImageSize
   quality?: ImageQuality
   background?: ImageBackground
-  /** Reference images (data URLs). When present the call uses /edits so they are preserved. */
+  /** Reference images (data URLs or URLs). When present the call is an image→image edit. */
   references?: string[]
   signal?: AbortSignal
 }
 
-/** Whether real image generation is available (an OpenAI key is configured). */
+/** Whether real image generation is available (a Runware key is configured). */
 export function hasImageAi(): boolean {
-  return hasApiKey()
+  return hasRunwareKey()
 }
 
-async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  return fetch(dataUrl).then((r) => r.blob())
-}
-
-/** Turn an OpenAI error response into a short, honest, user-facing message (never leaks the key). */
-async function toMessage(res: Response): Promise<string> {
-  let detail = ''
+/** RFC4122-ish id for the Runware task (crypto.randomUUID where available). */
+function taskUUID(): string {
   try {
-    const body = await res.json()
-    detail = body?.error?.message ?? ''
+    return crypto.randomUUID()
   } catch {
-    /* ignore */
+    return `${Date.now().toString(16)}-${Math.floor(Math.random() * 1e9).toString(16)}`
   }
-  if (res.status === 401 || res.status === 403) {
-    if (/verif/i.test(detail)) return 'Your OpenAI organization must be verified to use gpt-image-1. Verify it in the OpenAI dashboard, then try again.'
-    return 'OpenAI rejected the API key. Check it in Settings → AI.'
-  }
-  if (res.status === 429) return 'OpenAI rate limit or quota reached. Try again shortly.'
-  if (res.status >= 500) return 'OpenAI had a server error. Try again in a moment.'
-  return detail || `Image generation failed (HTTP ${res.status}).`
 }
 
-function readImages(json: unknown): string[] {
-  const data = (json as { data?: Array<{ b64_json?: string; url?: string }> })?.data
-  if (!Array.isArray(data)) return []
-  return data
-    .map((d) => (d.b64_json ? `data:image/png;base64,${d.b64_json}` : d.url ?? ''))
-    .filter(Boolean)
+/** Parse "1024x1536" → [1024, 1536]; 'auto' → a safe square. Runware needs multiples of 64. */
+function parseSize(size: ImageSize): [number, number] {
+  if (size === 'auto' || !/^\d+x\d+$/.test(size)) return [1024, 1024]
+  const [w, h] = size.split('x').map((n) => parseInt(n, 10))
+  const round = (v: number) => Math.max(256, Math.min(2048, Math.round(v / 64) * 64))
+  return [round(w), round(h)]
+}
+
+function toDataUrl(item: { imageBase64Data?: string; imageURL?: string; imageDataURI?: string }): string {
+  if (item.imageDataURI) return item.imageDataURI
+  if (item.imageBase64Data) {
+    return item.imageBase64Data.startsWith('data:') ? item.imageBase64Data : `data:image/png;base64,${item.imageBase64Data}`
+  }
+  return item.imageURL ?? ''
+}
+
+/** Turn a Runware error response into a short, honest message (never leaks the key). */
+function errorMessage(status: number, json: unknown): string {
+  const errs = (json as { errors?: Array<{ message?: string; code?: string }> })?.errors
+  const first = Array.isArray(errs) && errs.length > 0 ? errs[0] : null
+  const detail = first?.message ?? ''
+  const code = first?.code ?? ''
+  if (/invalidapikey|unauthorized/i.test(code) || (!detail && (status === 401 || status === 403))) {
+    return 'Runware rejected the API key. Check it in Settings → AI.'
+  }
+  // Runware's own messages (insufficient credits + wallet link, rate limits, etc.) are already
+  // clear and actionable — pass them straight through so the user knows exactly what to do.
+  return detail || `Image generation failed (HTTP ${status}).`
 }
 
 /**
- * Generate N images from a prompt (optionally conditioned on reference images). Returns PNG data
- * URLs. Throws with a friendly message on failure — callers decide whether to fall back.
+ * Generate N images from a prompt (optionally conditioned on reference images) via Runware. Returns
+ * PNG data URLs. Throws with a friendly message on failure — callers decide whether to fall back.
  */
 export async function generateImages(prompt: string, opts: GenerateImageOpts = {}): Promise<string[]> {
-  const key = resolveApiKey()
-  if (!key) throw new Error('Add your OpenAI API key in Settings → AI to generate images.')
+  const key = resolveRunwareKey()
+  if (!key) throw new Error('Add your Runware API key in Settings → AI to generate images.')
 
   const n = Math.max(1, Math.min(4, opts.n ?? 1))
-  const size = opts.size ?? '1024x1024'
-  const quality = opts.quality ?? 'high'
-  const background = opts.background ?? 'transparent'
-  const refs = opts.references ?? []
+  const [width, height] = parseSize(opts.size ?? '1024x1024')
+  const refs = (opts.references ?? []).filter(Boolean)
 
-  let res: Response
-  if (refs.length > 0) {
-    const form = new FormData()
-    form.append('model', IMAGE_MODEL)
-    form.append('prompt', prompt)
-    form.append('n', String(n))
-    form.append('size', size)
-    form.append('quality', quality)
-    form.append('background', background)
-    form.append('input_fidelity', 'high')
-    for (let i = 0; i < refs.length; i += 1) {
-      const blob = await dataUrlToBlob(refs[i])
-      form.append('image[]', blob, `reference-${i}.png`)
-    }
-    res = await fetch(`${BASE}/edits`, { method: 'POST', headers: { Authorization: `Bearer ${key}` }, body: form, signal: opts.signal })
-  } else {
-    res = await fetch(`${BASE}/generations`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: IMAGE_MODEL, prompt, n, size, quality, background, output_format: 'png' }),
-      signal: opts.signal,
-    })
+  const task: Record<string, unknown> = {
+    taskType: 'imageInference',
+    taskUUID: taskUUID(),
+    positivePrompt: prompt,
+    model: MODEL,
+    width,
+    height,
+    numberResults: n,
+    outputType: 'base64Data',
+    outputFormat: 'PNG',
   }
+  if (refs.length > 0) task.referenceImages = refs
 
-  if (!res.ok) throw new Error(await toMessage(res))
-  const images = readImages(await res.json())
-  if (images.length === 0) throw new Error('OpenAI returned no image. Try a different prompt.')
+  const res = await fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify([task]),
+    signal: opts.signal,
+  })
+
+  const json = await res.json().catch(() => null)
+  if (!res.ok || (json && (json as { errors?: unknown[] }).errors)) {
+    throw new Error(errorMessage(res.status, json))
+  }
+  const data = (json as { data?: Array<{ imageBase64Data?: string; imageURL?: string; imageDataURI?: string }> })?.data
+  const images = Array.isArray(data) ? data.map(toDataUrl).filter(Boolean) : []
+  if (images.length === 0) throw new Error('Runware returned no image. Try a different prompt.')
   return images
 }
 
@@ -112,7 +116,7 @@ export async function generateImages(prompt: string, opts: GenerateImageOpts = {
 export function graphicPrompt(idea: string): string {
   return (
     `${idea.trim()}. A single high-detail graphic design for streetwear apparel, ` +
-    `centered and isolated on a fully transparent background, crisp clean edges, sticker/print style, ` +
+    `centered and isolated on a plain flat transparent background, crisp clean edges, sticker/print style, ` +
     `no mockup, no fabric, no garment, no person, no text unless part of the idea.`
   )
 }
@@ -127,7 +131,7 @@ export function garmentEditPrompt(intent: string): string {
     `Edit the exact garment shown in the reference image: ${intent.trim()}. ` +
     `Keep the SAME garment type, silhouette, cut and any existing prints/logos — only apply the requested change ` +
     `to the fabric realistically (rips, washes, textures, colour, distressing, etc.). ` +
-    `Product flat-lay / ghost-mannequin shot isolated on a fully transparent background, no person, no mannequin, ` +
+    `Product flat-lay / ghost-mannequin shot isolated on a plain background, no person, no mannequin, ` +
     `high detail, realistic fabric, even studio lighting.`
   )
 }

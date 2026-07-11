@@ -40,12 +40,31 @@ function taskUUID(): string {
   }
 }
 
-/** Parse "1024x1536" → [1024, 1536]; 'auto' → a safe square. Runware needs multiples of 64. */
-function parseSize(size: ImageSize): [number, number] {
-  if (size === 'auto' || !/^\d+x\d+$/.test(size)) return [1024, 1024]
-  const [w, h] = size.split('x').map((n) => parseInt(n, 10))
-  const round = (v: number) => Math.max(256, Math.min(2048, Math.round(v / 64) * 64))
-  return [round(w), round(h)]
+// Nano Banana 2 (google:4@3) accepts only a fixed set of dimensions, not arbitrary values. This is a
+// practical ~1–1.7 MP subset covering square, portrait and landscape aspect ratios.
+const SUPPORTED_SIZES: [number, number][] = [
+  [1024, 1024],
+  [1264, 848], [848, 1264], // 3:2 / 2:3
+  [1200, 896], [896, 1200], // 4:3 / 3:4
+  [1152, 928], [928, 1152], // 5:4 / 4:5
+  [1376, 768], [768, 1376], // 16:9 / 9:16
+]
+
+/** Snap any requested size to the nearest SUPPORTED Nano Banana dimension by aspect ratio. */
+function snapSize(size: ImageSize): [number, number] {
+  const [rw, rh] = size === 'auto' || !/^\d+x\d+$/.test(size) ? [1024, 1024] : size.split('x').map((n) => parseInt(n, 10))
+  const target = rw / rh
+  let best = SUPPORTED_SIZES[0]
+  let bestScore = Infinity
+  for (const [w, h] of SUPPORTED_SIZES) {
+    // Match aspect first; a small resolution penalty avoids jumping to the largest option.
+    const score = Math.abs(w / h - target) * 100 + Math.abs((w * h) / 1_000_000 - 1.2)
+    if (score < bestScore) {
+      bestScore = score
+      best = [w, h]
+    }
+  }
+  return best
 }
 
 function toDataUrl(item: { imageBase64Data?: string; imageURL?: string; imageDataURI?: string }): string {
@@ -79,7 +98,7 @@ export async function generateImages(prompt: string, opts: GenerateImageOpts = {
   if (!key) throw new Error('Add your Runware API key in Settings → AI to generate images.')
 
   const n = Math.max(1, Math.min(4, opts.n ?? 1))
-  const [width, height] = parseSize(opts.size ?? '1024x1024')
+  const [width, height] = snapSize(opts.size ?? '1024x1024')
   const refs = (opts.references ?? []).filter(Boolean)
 
   const task: Record<string, unknown> = {

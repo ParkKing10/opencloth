@@ -4,7 +4,7 @@ import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
 import { generateConcepts, regenerateConcept, isLiveConceptAi, liveConcept, type Concept } from '../../ai/conceptEngine'
-import { generateImages, graphicPrompt, garmentEditPrompt, hasImageAi } from '../../ai/imageProvider'
+import { generateImages, graphicPrompt, garmentEditPrompt, removeImageBackground, hasImageAi } from '../../ai/imageProvider'
 import { blobToDataUrl } from '../../assets/assetThumb'
 import { saveGeneratedAsset } from '../../assets/saveGenerated'
 import { captureDesignPng } from '../../export/real/capture'
@@ -125,6 +125,20 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       setConcepts([])
       setProgress(0)
 
+      // Show the raw image the INSTANT it's generated, then swap to the transparent cut-out when
+      // background removal finishes (and save the final asset). This is what makes results appear
+      // fast — the user never waits on the extra transparency pass.
+      const finalize = (conceptId: string, rawUrl: string, name: string, category: 'ai-graphic' | 'garment-edit') => {
+        void removeImageBackground(rawUrl, ctrl.signal).then((cut) => {
+          if (runIdRef.current !== myRun) return
+          const finalUrl = cut || rawUrl
+          if (finalUrl !== rawUrl) {
+            setConcepts((prev) => prev.map((c) => (c && c.id === conceptId ? { ...c, dataUrl: finalUrl } : c)))
+          }
+          if (userId) void saveGeneratedAsset({ userId, dataUrl: finalUrl, name, category })
+        })
+      }
+
       // Edit-garment mode: transform the actual garment (add holes, wash, distress…). Requires a
       // real image model — there is no honest on-device way to repaint a garment, and we won't fake it.
       if (modeRef.current === 'garment') {
@@ -150,17 +164,19 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           [0, 1, 2].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
             try {
-              const urls = await generateImages(garmentEditPrompt(clean), { n: 1, references: [garmentPng], size: '1024x1536', quality: 'medium', background: 'transparent', removeBackground: true, signal })
+              // Example/reference uploads guide the edit alongside the captured garment.
+              const urls = await generateImages(garmentEditPrompt(clean), { n: 1, references: [garmentPng, ...refsRef.current], size: '1024x1536', quality: 'medium', signal })
               if (runIdRef.current !== myRun) return
               if (urls[0]) {
                 okG = true
+                const c = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
                 setConcepts((prev) => {
                   const next = prev.slice()
-                  next[i] = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
+                  next[i] = c
                   return next
                 })
                 setProgress((p) => p + 1)
-                if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `Garment — ${clean.slice(0, 32)}`, category: 'garment-edit' })
+                finalize(c.id, urls[0], `Garment — ${clean.slice(0, 32)}`, 'garment-edit')
               }
             } catch (err) {
               if (!errG) errG = err
@@ -184,17 +200,18 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           [0, 1, 2].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(90_000)])
             try {
-              const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', background: 'transparent', removeBackground: true, signal })
+              const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', signal })
               if (runIdRef.current !== myRun) return
               if (urls[0]) {
                 anyOk = true
+                const c = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
                 setConcepts((prev) => {
                   const next = prev.slice()
-                  next[i] = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
+                  next[i] = c
                   return next
                 })
                 setProgress((p) => p + 1)
-                if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: clean.slice(0, 40) || 'AI graphic', category: 'ai-graphic' })
+                finalize(c.id, urls[0], clean.slice(0, 40) || 'AI graphic', 'ai-graphic')
               }
             } catch (err) {
               if (!firstErr) firstErr = err
@@ -328,11 +345,21 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       const myRun = runIdRef.current
       setBusyIdx(idx)
       try {
-        const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', removeBackground: true, signal: abortRef.current?.signal })
+        const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', signal: abortRef.current?.signal })
         if (runIdRef.current !== myRun) return // modal closed / superseded
         if (urls[0]) {
-          rekey(liveConcept(old.prompt, urls[0], (old.seed + 0x51ed270b) >>> 0))
-          if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `${old.prompt.slice(0, 36)} (v2)`, category: mode === 'garment' ? 'garment-edit' : 'ai-graphic' })
+          const rawUrl = urls[0]
+          const fresh = liveConcept(old.prompt, rawUrl, (old.seed + 0x51ed270b) >>> 0)
+          rekey(fresh) // show the raw result immediately
+          void removeImageBackground(rawUrl, abortRef.current?.signal).then((cut) => {
+            if (runIdRef.current !== myRun) return
+            const finalUrl = cut || rawUrl
+            if (finalUrl !== rawUrl) {
+              setConcepts((prev) => prev.map((c) => (c && c.id === fresh.id ? { ...c, dataUrl: finalUrl } : c)))
+              setFavs((f) => f.map((x) => (x.id === fresh.id ? { ...x, dataUrl: finalUrl } : x)))
+            }
+            if (userId) void saveGeneratedAsset({ userId, dataUrl: finalUrl, name: `${old.prompt.slice(0, 36)} (v2)`, category: mode === 'garment' ? 'garment-edit' : 'ai-graphic' })
+          })
         }
       } catch (err) {
         if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : 'Could not regenerate that one.', 'info')
@@ -376,7 +403,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const engineNote =
     mode === 'garment'
       ? isLiveConceptAi()
-        ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Apply one to update the design.'
+        ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Upload examples to steer the look, then apply one to update the design.'
         : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
       : isLiveConceptAi()
         ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
@@ -448,10 +475,10 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
             aria-label="Design prompt"
           />
           <div className="tai__prompt-actions">
-            {live && mode === 'graphic' && (
+            {live && (
               <>
-                <button type="button" className="tai__ghost" title="Upload a reference image to guide the result" onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
-                  + Reference
+                <button type="button" className="tai__ghost" title={mode === 'garment' ? 'Upload example images to guide the edit' : 'Upload a reference image to guide the result'} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
+                  + {mode === 'garment' ? 'Example' : 'Reference'}
                 </button>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { void addReference(e.target.files?.[0]); e.target.value = '' }} />
               </>
@@ -476,9 +503,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           </div>
         </div>
 
-        {mode === 'graphic' && references.length > 0 && (
+        {references.length > 0 && (
           <div className="tai__refs">
-            <span className="tai__refs-label">References</span>
+            <span className="tai__refs-label">{mode === 'garment' ? 'Examples' : 'References'}</span>
             {references.map((r, i) => (
               <span key={i} className="tai-ref tai-checker">
                 <img src={r} alt={`Reference ${i + 1}`} />

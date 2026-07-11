@@ -141,6 +141,17 @@ export async function generateImages(prompt: string, opts: GenerateImageOpts = {
   return images
 }
 
+/**
+ * Public background remover — lets callers show a generated image IMMEDIATELY (opaque) and swap to
+ * the transparent cut-out when it's ready, instead of waiting for both steps. Returns the original
+ * image on any failure or when no key is set (never blocks the flow over a nice-to-have).
+ */
+export async function removeImageBackground(image: string, signal?: AbortSignal): Promise<string> {
+  const key = resolveRunwareKey()
+  if (!key) return image
+  return removeBackground(image, key, signal)
+}
+
 /** Cut the background out of a generated image via Runware, returning a transparent PNG data URL. */
 async function removeBackground(image: string, key: string, signal?: AbortSignal): Promise<string> {
   try {

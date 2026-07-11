@@ -75,6 +75,7 @@ import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
 import { ElementsPanel } from './ElementsPanel'
 import { VersionsBar } from './VersionsBar'
+import { GarmentSwitchDialog } from './GarmentSwitchDialog'
 import { InspirationPanel } from './InspirationPanel'
 import {
   INITIAL_CONFIG,
@@ -294,6 +295,8 @@ export function DesignStudio() {
   // Session gate: on a fresh entry (not opened from a specific garment) we ask "continue or new?"
   // instead of silently reopening the last design.
   const [sessionGateOpen, setSessionGateOpen] = useState(false)
+  // Pending garment switch awaiting the user's choice (open new vs. carry the design over).
+  const [garmentSwitchTarget, setGarmentSwitchTarget] = useState<Garment | null>(null)
   const [lastDesignName, setLastDesignName] = useState('')
 
   // Workspace layout: resizable Layers panel + collapsible inspector (both persisted).
@@ -1646,9 +1649,42 @@ export function DesignStudio() {
     [commit, toast],
   )
 
-  function selectGarment(g: Garment) {
+  function doSelectGarment(g: Garment) {
     setActiveName(g.name)
     toast(`Loaded ${g.name} blank onto the canvas.`, 'success')
+  }
+
+  /** Copy the current design's prints/graphics onto the target garment, then open it. Region-part
+   *  overrides are garment-specific, so they reset for the new blank — the layers carry over. */
+  function moveDesignToGarment(target: Garment) {
+    const src = presentRef.current
+    if (target.id) {
+      const verId = uid('ver')
+      saveDoc(target.id, {
+        layers: [],
+        hidden: {},
+        designName: designNameRef.current,
+        collectionId: collectionIdRef.current,
+        specs: specsRef.current,
+        projectInfo: projectInfoRef.current,
+        versions: [{ id: verId, name: 'Version 1', layers: src.layers, hidden: src.hidden }],
+        activeVersionId: verId,
+        updatedAt: Date.now(),
+      })
+    }
+    setGarmentSwitchTarget(null)
+    doSelectGarment(target)
+  }
+
+  function selectGarment(g: Garment) {
+    if (g.name === activeName) return
+    // A different garment with real work open → ask first (each garment keeps its own saved design,
+    // so nothing is lost — but "keep separate" vs "carry the design over" should be an explicit choice).
+    if (presentRef.current.layers.length > 0) {
+      setGarmentSwitchTarget(g)
+      return
+    }
+    doSelectGarment(g)
   }
 
   /** '+' in the Layers panel adds REAL content — an editable text object on the canvas. An
@@ -2007,6 +2043,15 @@ export function DesignStudio() {
       if (url) saveDesignThumb(id, url)
     })
   }, [])
+
+  // Capture a real preview shortly after a design opens (once the canvas has painted), so
+  // Recent-Designs cards show the actual design — not a glyph — even for designs opened but not yet
+  // re-saved. Cancelled if the user flicks to another garment first (no wasted html2canvas).
+  useEffect(() => {
+    if (!designId) return
+    const t = window.setTimeout(() => captureThumb(designId, true), 1800)
+    return () => window.clearTimeout(t)
+  }, [designId, captureThumb])
 
   const persistDesign = useCallback(
     (name: string, colId: string | undefined, notify: boolean) => {
@@ -2860,7 +2905,7 @@ export function DesignStudio() {
       />
       <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
       <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
-      {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && (
+      {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && !garmentSwitchTarget && (
         <CreativeDirector
           suggestions={director.suggestions}
           onApply={applyDirector}
@@ -2873,6 +2918,20 @@ export function DesignStudio() {
         lastName={lastDesignName}
         onContinue={continueLastDesign}
         onNew={startNewFromGate}
+      />
+      <GarmentSwitchDialog
+        open={!!garmentSwitchTarget}
+        currentName={designName || activeGarment.name}
+        targetName={garmentSwitchTarget?.name ?? ''}
+        onOpenNew={() => {
+          const t = garmentSwitchTarget
+          setGarmentSwitchTarget(null)
+          if (t) doSelectGarment(t)
+        }}
+        onMoveHere={() => {
+          if (garmentSwitchTarget) moveDesignToGarment(garmentSwitchTarget)
+        }}
+        onCancel={() => setGarmentSwitchTarget(null)}
       />
       <NewDesignWizard open={wizardOpen} onComplete={completeWizard} onClose={skipWizard} />
 

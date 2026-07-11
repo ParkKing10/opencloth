@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { IcoSparkle } from '../../components/ui/Icons'
 import type { Readiness } from '../../export/readiness'
-import { COMMAND_EXAMPLES, type Proposal } from './studioModel'
+import { type Proposal } from './studioModel'
+import { describesGraphic } from '../../ai/promptParse'
 import { ReadinessPanel } from './ReadinessPanel'
 import './smart-studio.css'
 
 export type StudioMode = 'beginner' | 'pro'
+
+/** Imagination-first prompts — describe a graphic and THREADOS AI generates it. */
+const GENERATION_EXAMPLES = ['Chrome tribal star', 'Vintage skull with roses', 'Graffiti butterfly']
 
 type Props = {
   mode: StudioMode
@@ -14,10 +18,12 @@ type Props = {
   interpret: (text: string) => Proposal | null
   onApply: (p: Proposal) => void
   onFix: (checkId: string) => void
+  /** Open THREADOS AI to generate a graphic from a described idea (non-edit prompts route here). */
+  onGenerate: (prompt: string) => void
 }
 
 /** The permanent AI command bar at the top of the editor. */
-export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, onFix }: Props) {
+export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, onFix, onGenerate }: Props) {
   const [input, setInput] = useState('')
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [missNote, setMissNote] = useState(false)
@@ -42,9 +48,23 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
   }, [panelOpen])
 
   function submit() {
-    const p = interpret(input)
-    setProposal(p)
-    setMissNote(!p && input.trim().length > 0)
+    const text = input.trim()
+    if (!text) return
+    // A described graphic subject ("chrome tribal star", "vintage skull with roses") generates.
+    // Otherwise an edit command ("make it oversized", "add a vintage wash") stays inline as a
+    // Proposal. describesGraphic() ignores prompts that open with an edit verb, so "vintage" alone
+    // never hijacks a generation prompt.
+    if (!describesGraphic(text)) {
+      const p = interpret(text)
+      if (p) {
+        setProposal(p)
+        setMissNote(false)
+        return
+      }
+    }
+    setProposal(null)
+    setMissNote(false)
+    onGenerate(text)
   }
 
   function apply() {
@@ -66,15 +86,15 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
         <input
           ref={inputRef}
           className="cb__input"
-          placeholder="Describe what you want to change…"
+          placeholder="Describe a graphic — “chrome tribal star” — or an edit — “make it oversized”…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           aria-label="AI command"
         />
         <div className="cb__chips">
-          {COMMAND_EXAMPLES.slice(0, 3).map((ex) => (
-            <button key={ex} type="button" className="cb__chip" onClick={() => setInput(ex)}>
+          {GENERATION_EXAMPLES.map((ex) => (
+            <button key={ex} type="button" className="cb__chip" onClick={() => onGenerate(ex)}>
               {ex}
             </button>
           ))}

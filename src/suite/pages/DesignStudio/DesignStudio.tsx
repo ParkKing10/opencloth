@@ -52,6 +52,8 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { CommandPalette, type Command } from './CommandPalette'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SessionStartDialog } from './SessionStartDialog'
+import { ThreadosAIModal } from './ThreadosAIModal'
+import { conceptName, type Concept } from '../../ai/conceptEngine'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
@@ -241,6 +243,10 @@ export function DesignStudio() {
   // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
+  // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt).
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+
   // Save dialog: name + which collection the design belongs to (created inline if needed).
   const [saveOpen, setSaveOpen] = useState(false)
   const [collectionId, setCollectionId] = useState<string | undefined>(undefined)
@@ -578,6 +584,19 @@ export function DesignStudio() {
       commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([l.id])
       toast(`${shape === 'rect' ? 'Rectangle' : 'Ellipse'} added — set its fill, stroke and corners in the inspector.`, 'success')
+    },
+    [commit, toast],
+  )
+
+  // THREADOS AI → canvas: a generated concept becomes a normal image object (its SVG data URL as
+  // the source), centred and selected. Mirrors placeAsset, so it inherits layers/undo/save/inspector.
+  const addGeneratedConcept = useCallback(
+    (concept: Concept) => {
+      const base = makeImageLayer(conceptName(concept.prompt), concept.dataUrl)
+      const layer: Layer = { ...base, name: conceptName(concept.prompt), obj: { ...base.obj!, x: 0.5, y: 0.5, width: 0.42 } }
+      commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+      setSelectedIds([layer.id])
+      toast(`“${layer.name}” added to your design.`, 'success')
     },
     [commit, toast],
   )
@@ -2196,6 +2215,10 @@ export function DesignStudio() {
         interpret={interpret}
         onApply={applyProposal}
         onFix={fixCheck}
+        onGenerate={(prompt) => {
+          setAiPrompt(prompt)
+          setAiOpen(true)
+        }}
       />
 
       {/* ---- Body ---- */}
@@ -2567,6 +2590,12 @@ export function DesignStudio() {
       </div>
 
       {/* New-design wizard — nobody ever starts on an empty editor */}
+      <ThreadosAIModal
+        open={aiOpen}
+        initialPrompt={aiPrompt}
+        onClose={() => setAiOpen(false)}
+        onAddToCanvas={addGeneratedConcept}
+      />
       <SessionStartDialog
         open={sessionGateOpen}
         lastName={lastDesignName}

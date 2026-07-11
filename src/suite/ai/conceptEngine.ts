@@ -12,6 +12,7 @@ import { hashSeed, makeRng } from './rng'
 import { buildMotif } from './motifs'
 import { buildStyle, type Style } from './styles'
 import { parsePrompt, type StyleKey } from './promptParse'
+import { hasImageAi } from './imageProvider'
 
 export type Concept = {
   id: string
@@ -19,10 +20,12 @@ export type Concept = {
   tags: string[]
   styleLabel: string
   seed: number
-  /** Raw transparent SVG markup (0..200 viewBox) — also the editable source once vectors land. */
-  svg: string
-  /** `image/svg+xml` data URL, ready for an <img> preview or makeImageLayer(). */
+  /** Raw transparent SVG markup — present for on-device vector concepts, absent for live PNG images. */
+  svg?: string
+  /** Data URL (image/svg+xml for vector concepts, image/png for live gpt-image-1 output). */
   dataUrl: string
+  /** True when produced by the real image model, false/undefined for the on-device vector fallback. */
+  isLive?: boolean
 }
 
 function esc(s: string): string {
@@ -91,12 +94,16 @@ export function generateConcepts(prompt: string, opts: GenerateOpts = {}): Conce
   return out
 }
 
-/** Re-seed a single concept in place (the per-card "regenerate this variation" action). */
-export function regenerateConcept(prompt: string, prevSeed: number): Concept {
+/**
+ * Re-seed a single concept in place (the per-card "regenerate this variation" action). Pass the
+ * card's slot index so a style-less concept keeps its chrome/neon/vintage identity — the artwork
+ * re-seeds, the slot's style does not drift.
+ */
+export function regenerateConcept(prompt: string, prevSeed: number, idx = 0): Concept {
   const parsed = parsePrompt(prompt.trim())
   const specified = parsed.styles.length > 0
   const seed = ((prevSeed >>> 0) + 0x51ed270b) >>> 0
-  const styleOverride = specified ? undefined : DEFAULT_CYCLE[seed % DEFAULT_CYCLE.length]
+  const styleOverride = specified ? undefined : DEFAULT_CYCLE[idx % DEFAULT_CYCLE.length]
   const { svg, style } = buildConceptSvg(prompt.trim(), seed, styleOverride)
   return { id: `cc-${seed.toString(36)}`, prompt: prompt.trim(), tags: parsed.tags, styleLabel: style.label, seed, svg, dataUrl: svgToDataUrl(svg) }
 }
@@ -108,11 +115,16 @@ export function conceptName(prompt: string): string {
   return name || 'AI Graphic'
 }
 
+/** Build a Concept from a live gpt-image-1 PNG data URL (no SVG source; it is a raster image). */
+export function liveConcept(prompt: string, dataUrl: string, seed: number): Concept {
+  const parsed = parsePrompt(prompt.trim())
+  return { id: `li-${seed.toString(36)}`, prompt: prompt.trim(), tags: parsed.tags, styleLabel: 'GPT Image', seed, dataUrl, isLive: true }
+}
+
 /**
- * Whether a live image/diffusion model is producing these concepts. Honestly false today — the
- * concepts are real on-device vector synthesis. Flips to true when a diffusion provider is wired to
- * `generateConcepts` (same UI, richer output).
+ * Whether a live image model (OpenAI gpt-image-1) is producing concepts — true when an API key is
+ * configured, false when we fall back to the honest on-device vector engine. The UI discloses which.
  */
 export function isLiveConceptAi(): boolean {
-  return false
+  return hasImageAi()
 }

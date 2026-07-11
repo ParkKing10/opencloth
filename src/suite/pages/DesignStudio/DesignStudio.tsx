@@ -618,17 +618,24 @@ export function DesignStudio() {
       setDirector(null)
       return
     }
-    if (a.kind === 'scale') {
-      const cur = presentRef.current.layers.find((l) => l.id === director.objectId)?.obj
-      if (cur) setObjectProp(director.objectId, { width: Math.max(0.06, Math.min(1.4, cur.width * a.factor)) })
-    } else if (a.kind === 'center') {
-      setObjectProp(director.objectId, { x: 0.5, y: 0.45 })
-    } else if (a.kind === 'blend') {
-      setObjectProp(director.objectId, { blendMode: a.blendMode })
+    // Guard every mutating branch: if the target object is gone (deleted / garment switched), drop
+    // the card instead of committing a no-op that would push a phantom undo entry + re-save the doc.
+    const cur = presentRef.current.layers.find((l) => l.id === director.objectId)?.obj
+    if (!cur) {
+      setDirector(null)
+      return
     }
+    if (a.kind === 'scale') setObjectProp(director.objectId, { width: Math.max(0.06, Math.min(1.4, cur.width * a.factor)) })
+    else if (a.kind === 'center') setObjectProp(director.objectId, { x: 0.5, y: 0.45 })
+    else if (a.kind === 'blend') setObjectProp(director.objectId, { blendMode: a.blendMode })
     const rest = director.suggestions.filter((x) => x.id !== s.id)
     setDirector(rest.length ? { ...director, suggestions: rest } : null)
   }
+
+  // Drop the Creative Director card whenever its target object no longer exists (delete / undo / redo).
+  useEffect(() => {
+    if (director && !present.layers.some((l) => l.id === director.objectId)) setDirector(null)
+  }, [present.layers, director])
 
   function dismissDirectorSuggestion(id: string) {
     if (!director) return
@@ -2631,7 +2638,7 @@ export function DesignStudio() {
         onClose={() => setAiOpen(false)}
         onAddToCanvas={addGeneratedConcept}
       />
-      {director && !aiOpen && (
+      {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && (
         <CreativeDirector
           suggestions={director.suggestions}
           onApply={applyDirector}

@@ -91,8 +91,9 @@ describe('generateConcepts', () => {
     expect(re.svg).not.toBe(first.svg)
   })
 
-  it('honestly reports no live diffusion model yet', () => {
-    expect(isLiveConceptAi()).toBe(false)
+  it('reports live-AI availability as a boolean (false without an API key, as in tests)', () => {
+    expect(typeof isLiveConceptAi()).toBe('boolean')
+    expect(isLiveConceptAi()).toBe(false) // no OpenAI key in the test environment
   })
 })
 

@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
-import { generateConcepts, regenerateConcept, isLiveConceptAi, type Concept } from '../../ai/conceptEngine'
+import { generateConcepts, regenerateConcept, isLiveConceptAi, liveConcept, type Concept } from '../../ai/conceptEngine'
+import { generateImages, graphicPrompt, hasImageAi } from '../../ai/imageProvider'
+import { blobToDataUrl } from '../../assets/assetThumb'
 import { hashSeed } from '../../ai/rng'
 import './threados-ai.css'
 
@@ -26,7 +28,8 @@ const REVEAL_MS = 90
 function loadHistory(): string[] {
   try {
     const raw = localStorage.getItem(HISTORY_KEY)
-    return raw ? (JSON.parse(raw) as string[]) : []
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : []
   } catch {
     return []
   }
@@ -61,32 +64,66 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
   const [progress, setProgress] = useState(0)
   const [favs, setFavs] = useState<Concept[]>([])
   const [zoom, setZoom] = useState<Concept | null>(null)
+  const [busyIdx, setBusyIdx] = useState<number | null>(null)
   const [history, setHistory] = useState<string[]>(loadHistory)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [references, setReferences] = useState<string[]>([])
+  const [live] = useState(() => hasImageAi())
   const inputRef = useRef<HTMLInputElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const refsRef = useRef<string[]>([])
   const runIdRef = useRef(0)
   const nonceRef = useRef(0)
+  const abortRef = useRef<AbortController | null>(null)
+  useEffect(() => {
+    refsRef.current = references
+  }, [references])
 
-  const run = useCallback(async (p: string, fresh: boolean) => {
-    const clean = p.trim()
-    if (!clean) return
-    if (fresh) nonceRef.current = 0
-    else nonceRef.current += 1
-    const base = (hashSeed(clean.toLowerCase()) ^ (nonceRef.current * 0x27d4eb2f)) >>> 0
-    const myRun = ++runIdRef.current
-    setGenerating(true)
-    setConcepts([])
-    setProgress(0)
-    const all = generateConcepts(clean, { baseSeed: base })
-    for (let i = 0; i < all.length; i++) {
-      await new Promise((r) => setTimeout(r, REVEAL_MS))
-      if (runIdRef.current !== myRun) return // superseded by a newer run
-      setConcepts((prev) => [...prev, all[i]])
-      setProgress(i + 1)
-    }
-    setGenerating(false)
-    setHistory(pushHistory(clean))
-  }, [])
+  const run = useCallback(
+    async (p: string, fresh: boolean) => {
+      const clean = p.trim()
+      if (!clean) return
+      if (fresh) nonceRef.current = 0
+      else nonceRef.current += 1
+      const base = (hashSeed(clean.toLowerCase()) ^ (nonceRef.current * 0x27d4eb2f)) >>> 0
+      const myRun = ++runIdRef.current
+      abortRef.current?.abort()
+      const ctrl = new AbortController()
+      abortRef.current = ctrl
+      setGenerating(true)
+      setConcepts([])
+      setProgress(0)
+
+      // Real generation with OpenAI gpt-image-1 when a key is configured.
+      if (hasImageAi()) {
+        try {
+          const urls = await generateImages(graphicPrompt(clean), { n: 3, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', signal: ctrl.signal })
+          if (runIdRef.current !== myRun) return
+          setConcepts(urls.map((u, i) => liveConcept(clean, u, (base + i * 0x9e3779b1) >>> 0)))
+          setProgress(3)
+          setGenerating(false)
+          setHistory(pushHistory(clean))
+          return
+        } catch (err) {
+          if (runIdRef.current !== myRun) return
+          toast(err instanceof Error ? err.message : 'Image generation failed — showing vector previews instead.', 'info')
+          // fall through to the on-device engine so the user still gets something usable
+        }
+      }
+
+      // On-device vector concepts (no key, or the live call failed) — revealed as they compose.
+      const all = generateConcepts(clean, { baseSeed: base })
+      for (let i = 0; i < all.length; i += 1) {
+        await new Promise((r) => setTimeout(r, REVEAL_MS))
+        if (runIdRef.current !== myRun) return // superseded by a newer run
+        setConcepts((prev) => [...prev, all[i]])
+        setProgress(i + 1)
+      }
+      setGenerating(false)
+      setHistory(pushHistory(clean))
+    },
+    [toast],
+  )
 
   // Generate whenever the modal opens with a prompt, or the incoming prompt changes.
   useEffect(() => {
@@ -108,6 +145,19 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose, zoom])
 
+  // On close, supersede any in-flight run (its post-await/setTimeout work bails at the runId guard),
+  // abort a live request, and clear transient per-session UI so nothing leaks into the next open.
+  useEffect(() => {
+    if (open) return
+    runIdRef.current += 1
+    abortRef.current?.abort()
+    setGenerating(false)
+    setProgress(0)
+    setZoom(null)
+    setFavs([])
+    setBusyIdx(null)
+  }, [open])
+
   if (!open) return null
 
   const submit = () => run(prompt, true)
@@ -116,25 +166,62 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
     setPrompt(next)
     void run(next, true)
   }
-  const regenOne = (idx: number) => {
-    setConcepts((prev) => prev.map((c, i) => (i === idx ? regenerateConcept(c.prompt, c.seed) : c)))
+  const regenOne = async (idx: number) => {
+    const old = concepts[idx]
+    if (!old || busyIdx !== null) return
+    // Replace the card AND re-key its favorite entry so a favorited card keeps its filled heart.
+    const rekey = (next: Concept) => {
+      setConcepts((prev) => prev.map((x, i) => (i === idx ? next : x)))
+      setFavs((f) => (f.some((x) => x.id === old.id) ? f.map((x) => (x.id === old.id ? next : x)) : f))
+    }
+    if (old.isLive && hasImageAi()) {
+      const myRun = runIdRef.current
+      setBusyIdx(idx)
+      try {
+        const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', signal: abortRef.current?.signal })
+        if (runIdRef.current !== myRun) return // modal closed / superseded
+        if (urls[0]) rekey(liveConcept(old.prompt, urls[0], (old.seed + 0x51ed270b) >>> 0))
+      } catch (err) {
+        if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : 'Could not regenerate that one.', 'info')
+      } finally {
+        if (runIdRef.current === myRun) setBusyIdx(null)
+      }
+      return
+    }
+    rekey(regenerateConcept(old.prompt, old.seed, idx))
   }
   const toggleFav = (c: Concept) => {
     setFavs((prev) => (prev.some((f) => f.id === c.id) ? prev.filter((f) => f.id !== c.id) : [...prev, c]))
   }
   const isFav = (c: Concept) => favs.some((f) => f.id === c.id)
-  const download = (c: Concept) => {
-    downloadBlob(new Blob([c.svg], { type: 'image/svg+xml' }), `${slugify(c.prompt) || 'concept'}-${c.seed.toString(36)}.svg`)
-    toast('Concept downloaded as SVG.', 'success')
+  const download = async (c: Concept) => {
+    const stem = `${slugify(c.prompt) || 'concept'}-${c.seed.toString(36)}`
+    if (c.svg) {
+      downloadBlob(new Blob([c.svg], { type: 'image/svg+xml' }), `${stem}.svg`)
+      toast('Concept downloaded as SVG.', 'success')
+    } else {
+      const blob = await fetch(c.dataUrl).then((r) => r.blob())
+      downloadBlob(blob, `${stem}.png`)
+      toast('Concept downloaded as PNG.', 'success')
+    }
   }
   const add = (c: Concept) => {
     onAddToCanvas(c)
     onClose()
   }
+  const addReference = async (file: File | undefined) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast('Please choose an image file to use as a reference.', 'info')
+      return
+    }
+    const dataUrl = await blobToDataUrl(file)
+    setReferences((prev) => [...prev, dataUrl].slice(0, 3))
+  }
 
   const engineNote = isLiveConceptAi()
-    ? 'Live AI image model connected.'
-    : 'THREADOS concept engine · transparent vector graphics generated on-device. Connect an image model later for photoreal renders — same workflow.'
+    ? 'Generating with OpenAI gpt-image-1 · transparent PNGs. Upload a reference image to guide the look.'
+    : 'On-device vector previews. Add your OpenAI API key in Settings → AI to generate photoreal images — same workflow.'
 
   return createPortal(
     <div className="suite">
@@ -164,6 +251,14 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
             aria-label="Design prompt"
           />
           <div className="tai__prompt-actions">
+            {live && (
+              <>
+                <button type="button" className="tai__ghost" title="Upload a reference image to guide the result" onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
+                  + Reference
+                </button>
+                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { void addReference(e.target.files?.[0]); e.target.value = '' }} />
+              </>
+            )}
             <div className="tai__hist-wrap">
               <button type="button" className="tai__ghost" onClick={() => setHistoryOpen((v) => !v)} aria-expanded={historyOpen} disabled={history.length === 0}>
                 History
@@ -179,10 +274,22 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
               )}
             </div>
             <button type="button" className="tai__go" onClick={submit} disabled={!prompt.trim() || generating}>
-              {generating ? `Composing ${progress}/3…` : 'Generate'}
+              {generating ? (live ? 'Generating…' : `Composing ${progress}/3…`) : 'Generate'}
             </button>
           </div>
         </div>
+
+        {references.length > 0 && (
+          <div className="tai__refs">
+            <span className="tai__refs-label">References</span>
+            {references.map((r, i) => (
+              <span key={i} className="tai-ref tai-checker">
+                <img src={r} alt={`Reference ${i + 1}`} />
+                <button type="button" className="tai-ref__x" aria-label="Remove reference" onClick={() => setReferences((prev) => prev.filter((_, j) => j !== i))}>×</button>
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Tags + progress */}
         <div className="tai__meta">
@@ -191,7 +298,7 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
               <span key={t} className="tai__tag">{t}</span>
             ))}
           </div>
-          {generating && <div className="tai__bar"><span style={{ width: `${(progress / 3) * 100}%` }} /></div>}
+          {generating && !live && <div className="tai__bar"><span style={{ width: `${(progress / 3) * 100}%` }} /></div>}
         </div>
 
         {/* Concepts */}
@@ -203,6 +310,7 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
               <article key={c.id} className="tai-card">
                 <div className="tai-card__stage tai-checker">
                   <img src={c.dataUrl} alt={`${c.prompt} concept ${i + 1}`} />
+                  {busyIdx === i && <span className="tai-card__busy"><span className="tai-card__spin" /></span>}
                   <span className="tai-card__num">{i + 1}</span>
                   <button type="button" className={`tai-card__fav${isFav(c) ? ' is-on' : ''}`} aria-label={isFav(c) ? 'Unfavorite' : 'Favorite'} aria-pressed={isFav(c)} onClick={() => toggleFav(c)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav(c) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8"><path d="M12 20s-7-4.4-9.2-8.3C1 8.5 2.6 5 6 5c2 0 3.2 1.2 4 2.3C10.8 6.2 12 5 14 5c3.4 0 5 3.5 3.2 6.7C19 15.6 12 20 12 20Z" /></svg>

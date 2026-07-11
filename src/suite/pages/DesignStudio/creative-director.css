@@ -2,7 +2,7 @@
 
 .cd {
   position: fixed;
-  z-index: 60;
+  z-index: 50; /* below full-screen scrims (Save/AI/wizard at 60+) so it never shares a layer */
   right: 22px;
   bottom: 22px;
   width: 320px;

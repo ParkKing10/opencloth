@@ -168,7 +168,7 @@ function serpent(rng: Rng): MotifResult {
   const head = 'M132 34 C 146 30, 158 40, 152 54 C 148 62, 134 62, 128 52 C 124 44, 126 36, 132 34 Z'
   const eye = { kind: 'path' as const, d: diamond(140, 46, 3), role: 'detail' as const }
   return [
-    { kind: 'path', d: body, role: 'primary', stroke: range(rng, 13, 17) },
+    { kind: 'path', d: body, role: 'primary', stroke: r2(range(rng, 13, 17)) },
     { kind: 'path', d: head, role: 'accent' },
     eye,
   ]
@@ -227,7 +227,7 @@ function barbedWire(rng: Rng): MotifResult {
 
 function monogram(rng: Rng, initials: string): MotifResult {
   return [
-    { kind: 'path', d: `M100 100 m-70 0 a70 70 0 1 0 140 0 a70 70 0 1 0 -140 0`, role: 'accent', stroke: range(rng, 5, 8) },
+    { kind: 'path', d: `M100 100 m-70 0 a70 70 0 1 0 140 0 a70 70 0 1 0 -140 0`, role: 'accent', stroke: r2(range(rng, 5, 8)) },
     { kind: 'text', text: initials.slice(0, 2), x: 100, y: 100, size: 78, role: 'primary' },
   ]
 }

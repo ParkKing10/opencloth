@@ -34,6 +34,8 @@ export type ArtworkRow = {
   y: string
   rotation: string
   placement: string
+  /** Non-normal compositing intent (e.g. 'Multiply'), documented so it isn't a silent divergence. */
+  blend?: string
 }
 
 /** Human placement derived honestly from the normalized position (no fake data). */
@@ -49,6 +51,8 @@ export function artworkRows(project: RealExportProject): ArtworkRow[] {
     .filter((l) => l.obj && !project.hidden[l.id])
     .map((l) => {
       const o = l.obj!
+      const blend = o.blendMode && o.blendMode !== 'normal' ? o.blendMode.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : undefined
+      const place = placementOf(o.x, o.y)
       return {
         name: l.name,
         type: o.type,
@@ -56,7 +60,9 @@ export function artworkRows(project: RealExportProject): ArtworkRow[] {
         x: `${Math.round(o.x * 100)}%`,
         y: `${Math.round(o.y * 100)}%`,
         rotation: `${Math.round(o.rotation)}°`,
-        placement: placementOf(o.x, o.y),
+        // Fold the blend intent into the visible placement cell so the tech pack documents it.
+        placement: blend ? `${place} · ${blend}` : place,
+        blend,
       }
     })
 }

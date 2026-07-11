@@ -41,6 +41,23 @@ export type ProjectInfo = {
   season?: string
 }
 
+/**
+ * A saved VERSION of the design — an independent editable board (its own layers + garment-region
+ * overrides) under the same garment, so a user can keep e.g. three variations of one hoodie in one
+ * file. The persisted shape mirrors the editor's snapshot plus an id + display name.
+ */
+export type DesignVersionDoc = {
+  id: string
+  name: string
+  layers: Layer[]
+  hidden: Record<string, boolean>
+  regionHidden?: Record<string, boolean>
+  regionFills?: Record<string, string>
+  regionNames?: Record<string, string>
+  regionLocked?: Record<string, boolean>
+  regionTransforms?: Record<string, { dx: number; dy: number }>
+}
+
 export type DesignDoc = {
   layers: Layer[]
   hidden: Record<string, boolean>
@@ -57,6 +74,10 @@ export type DesignDoc = {
   projectInfo?: ProjectInfo
   /** AI-edited garment image (data URL) that overrides the garment backdrop, when applied. */
   garmentEdit?: string
+  /** Multiple versions/boards of this design. When present, `layers`/`hidden` above mirror the
+   *  active version (kept for backward-compatible loading by older code paths). */
+  versions?: DesignVersionDoc[]
+  activeVersionId?: string
   updatedAt: number
 }
 

@@ -62,7 +62,7 @@ import { buildDirector, type DirectorSuggestion } from './directorModel'
 import { CampaignModal } from './CampaignModal'
 import { ConnectAppDialog } from './ConnectAppDialog'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
-import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
+import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo, type DesignVersionDoc } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
 import { loadHistory } from '../../garment-model/garmentDocumentStore'
 import { currentGarment } from '../../garment-model/garmentRevision'
@@ -74,6 +74,7 @@ import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
 import { ElementsPanel } from './ElementsPanel'
+import { VersionsBar } from './VersionsBar'
 import { InspirationPanel } from './InspirationPanel'
 import {
   INITIAL_CONFIG,
@@ -157,6 +158,18 @@ type Snapshot = {
   regionLocked?: Record<string, boolean>
   /** Spatial move of a region, in the garment's SVG viewBox units. */
   regionTransforms?: Record<string, { dx: number; dy: number }>
+}
+
+/** An editable version/board of the design — its own snapshot under the same garment. */
+type DesignVersion = { id: string; name: string; snapshot: Snapshot }
+
+/** Deep-copy a snapshot so a duplicated version never shares mutable arrays/objects with its source. */
+function cloneSnapshot(s: Snapshot): Snapshot {
+  try {
+    return structuredClone(s)
+  } catch {
+    return JSON.parse(JSON.stringify(s)) as Snapshot
+  }
 }
 
 // A freshly selected imported garment starts with ZERO design layers — no demo VISIONARY
@@ -425,6 +438,19 @@ export function DesignStudio() {
   const [present, setPresent] = useState<Snapshot>(INITIAL_SNAPSHOT)
   const [future, setFuture] = useState<Snapshot[]>([])
 
+  // Versions/boards: `present` always mirrors the ACTIVE version's live state, so every existing
+  // edit/undo/save path works unchanged. Switching a version swaps `present` (and resets undo).
+  const [versions, setVersions] = useState<DesignVersion[]>([])
+  const [activeVersionId, setActiveVersionId] = useState('')
+  const versionsRef = useRef<DesignVersion[]>([])
+  const activeVersionIdRef = useRef('')
+  useEffect(() => {
+    versionsRef.current = versions
+  }, [versions])
+  useEffect(() => {
+    activeVersionIdRef.current = activeVersionId
+  }, [activeVersionId])
+
   // Editable property fields — clicking a field really changes its displayed value.
   const [fields, setFields] = useState<Record<string, PropField[]>>(INITIAL_FIELDS)
   const [showCatalogHint, setShowCatalogHint] = useState(false)
@@ -489,6 +515,21 @@ export function DesignStudio() {
   const saveCurrentDoc = useCallback((snap: Snapshot, name?: string, col?: string) => {
     const gid = loadedGarmentRef.current
     if (!gid) return
+    // Persist every version, with the ACTIVE one reflecting the snapshot being saved.
+    const snapToVersionDoc = (v: DesignVersion, s: Snapshot): DesignVersionDoc => ({
+      id: v.id,
+      name: v.name,
+      layers: s.layers,
+      hidden: s.hidden,
+      regionHidden: s.regionHidden,
+      regionFills: s.regionFills,
+      regionNames: s.regionNames,
+      regionLocked: s.regionLocked,
+      regionTransforms: s.regionTransforms,
+    })
+    const versionDocs = versionsRef.current.length
+      ? versionsRef.current.map((v) => snapToVersionDoc(v, v.id === activeVersionIdRef.current ? snap : v.snapshot))
+      : undefined
     saveDoc(gid, {
       layers: snap.layers,
       hidden: snap.hidden,
@@ -502,6 +543,8 @@ export function DesignStudio() {
       specs: specsRef.current,
       projectInfo: projectInfoRef.current,
       garmentEdit: garmentEditRef.current ?? undefined,
+      versions: versionDocs,
+      activeVersionId: activeVersionIdRef.current || undefined,
       updatedAt: Date.now(),
     })
   }, [])
@@ -554,6 +597,82 @@ export function DesignStudio() {
       saveCurrentDoc(merged)
     },
     [present, saveCurrentDoc],
+  )
+
+  // ---- Versions / boards: multiple editable variations of the same garment in one file ----
+  /** Fold the given snapshot into the active version's stored snapshot; returns the updated list. */
+  const syncActiveVersion = useCallback((snap: Snapshot): DesignVersion[] => {
+    const next = versionsRef.current.map((v) => (v.id === activeVersionIdRef.current ? { ...v, snapshot: snap } : v))
+    versionsRef.current = next
+    setVersions(next)
+    return next
+  }, [])
+
+  /** Make `snap` the live editable state under version `id`, resetting undo for a clean session. */
+  const loadVersion = useCallback((snap: Snapshot, id: string) => {
+    setPast([])
+    setFuture([])
+    setPresent(snap)
+    presentRef.current = snap
+    setActiveVersionId(id)
+    activeVersionIdRef.current = id
+    setSelectedIds([])
+  }, [])
+
+  const switchVersion = useCallback(
+    (targetId: string) => {
+      if (targetId === activeVersionIdRef.current) return
+      syncActiveVersion(presentRef.current)
+      const target = versionsRef.current.find((v) => v.id === targetId)
+      if (!target) return
+      loadVersion(target.snapshot, targetId)
+      saveCurrentDoc(target.snapshot)
+    },
+    [syncActiveVersion, loadVersion, saveCurrentDoc],
+  )
+
+  const addVersion = useCallback(() => {
+    const synced = syncActiveVersion(presentRef.current)
+    const newId = uid('ver')
+    const name = `Version ${synced.length + 1}`
+    const copy = cloneSnapshot(presentRef.current)
+    const next = [...synced, { id: newId, name, snapshot: copy }]
+    versionsRef.current = next
+    setVersions(next)
+    loadVersion(copy, newId)
+    saveCurrentDoc(copy)
+    toast(`${name} created — an editable copy of this one.`, 'success')
+  }, [syncActiveVersion, loadVersion, saveCurrentDoc, toast])
+
+  const renameVersion = useCallback(
+    (id: string, name: string) => {
+      const clean = name.trim().slice(0, 40) || 'Version'
+      const next = versionsRef.current.map((v) => (v.id === id ? { ...v, name: clean } : v))
+      versionsRef.current = next
+      setVersions(next)
+      saveCurrentDoc(presentRef.current)
+    },
+    [saveCurrentDoc],
+  )
+
+  const deleteVersion = useCallback(
+    (id: string) => {
+      if (versionsRef.current.length <= 1) {
+        toast('A design needs at least one version.', 'info')
+        return
+      }
+      const remaining = versionsRef.current.filter((v) => v.id !== id)
+      versionsRef.current = remaining
+      setVersions(remaining)
+      if (id === activeVersionIdRef.current) {
+        loadVersion(remaining[0].snapshot, remaining[0].id)
+        saveCurrentDoc(remaining[0].snapshot)
+      } else {
+        saveCurrentDoc(presentRef.current)
+      }
+      toast('Version deleted.', 'success')
+    },
+    [loadVersion, saveCurrentDoc, toast],
   )
 
   // Live mirror so object drags read the freshest state without stale closures.
@@ -1356,11 +1475,36 @@ export function DesignStudio() {
           regionTransforms: doc.regionTransforms,
         }
       : { layers: [], hidden: {} }
+    // Versions: restore saved boards, or wrap the single loaded snapshot as "Version 1" (migration
+    // for pre-versions docs and fresh designs). `present` mirrors the active version.
+    const versionDocToSnapshot = (v: DesignVersionDoc): Snapshot => ({
+      layers: v.layers,
+      hidden: v.hidden ?? {},
+      regionHidden: v.regionHidden,
+      regionFills: v.regionFills,
+      regionNames: v.regionNames,
+      regionLocked: v.regionLocked,
+      regionTransforms: v.regionTransforms,
+    })
+    let loadedVersions: DesignVersion[]
+    let activeId: string
+    if (doc?.versions && doc.versions.length > 0) {
+      loadedVersions = doc.versions.map((v) => ({ id: v.id, name: v.name, snapshot: versionDocToSnapshot(v) }))
+      activeId = doc.versions.some((v) => v.id === doc.activeVersionId) ? doc.activeVersionId! : loadedVersions[0].id
+    } else {
+      activeId = uid('ver')
+      loadedVersions = [{ id: activeId, name: 'Version 1', snapshot }]
+    }
+    const activeSnapshot = loadedVersions.find((v) => v.id === activeId)?.snapshot ?? snapshot
+    setVersions(loadedVersions)
+    versionsRef.current = loadedVersions
+    setActiveVersionId(activeId)
+    activeVersionIdRef.current = activeId
     const name = doc?.designName || activeGarment.name
     setPast([])
     setFuture([])
-    setPresent(snapshot)
-    presentRef.current = snapshot
+    setPresent(activeSnapshot)
+    presentRef.current = activeSnapshot
     setDesignName(name)
     designNameRef.current = name
     setCollectionId(doc?.collectionId)
@@ -2564,6 +2708,16 @@ export function DesignStudio() {
               saveCurrentDoc(presentRef.current, n)
             }}
             saveState={saveState}
+            versionsBar={
+              <VersionsBar
+                versions={versions.map((v) => ({ id: v.id, name: v.name }))}
+                activeId={activeVersionId}
+                onSwitch={switchVersion}
+                onAdd={addVersion}
+                onRename={renameVersion}
+                onDelete={deleteVersion}
+              />
+            }
             objects={objectLayers}
             hiddenMap={hidden}
             selectedObjIds={selectedObjIds}

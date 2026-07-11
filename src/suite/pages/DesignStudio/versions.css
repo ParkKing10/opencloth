@@ -1,0 +1,123 @@
+/* Versions bar — sits in the canvas title bar. vbar- prefix, .suite tokens. */
+
+.vbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.vbar__label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+  flex-shrink: 0;
+}
+.vbar__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  min-width: 0;
+}
+.vbar__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.vbar__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: 9px;
+  border: 1px solid var(--s-border);
+  background: var(--s-inset);
+  padding-right: 2px;
+  transition: border-color var(--s-dur), background var(--s-dur);
+  flex-shrink: 0;
+}
+.vbar__tab.is-active {
+  border-color: color-mix(in oklab, var(--s-accent) 55%, var(--s-border));
+  background: color-mix(in oklab, var(--s-accent) 12%, var(--s-inset));
+}
+.vbar__tab:not(.is-active):hover {
+  border-color: var(--s-border-strong);
+}
+
+.vbar__name {
+  max-width: 140px;
+  padding: 5px 9px;
+  border: none;
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color var(--s-dur);
+}
+.vbar__tab.is-active .vbar__name {
+  color: var(--s-text);
+}
+.vbar__name:hover {
+  color: var(--s-text);
+}
+
+.vbar__mini {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--s-text-3);
+  cursor: pointer;
+  transition: color var(--s-dur), background var(--s-dur);
+}
+.vbar__mini:hover {
+  color: var(--s-text);
+  background: color-mix(in oklab, var(--s-accent) 18%, transparent);
+}
+.vbar__mini--del:hover {
+  color: #e5484d;
+  background: color-mix(in oklab, #e5484d 16%, transparent);
+}
+
+.vbar__edit {
+  width: 130px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  border: 1px solid var(--s-accent);
+  background: var(--s-panel);
+  color: var(--s-text);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+}
+
+.vbar__add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 9px;
+  border: 1px dashed var(--s-border-strong);
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--s-dur), border-color var(--s-dur), background var(--s-dur);
+}
+.vbar__add:hover {
+  color: var(--s-accent-ink, #14141a);
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+  border-style: solid;
+}

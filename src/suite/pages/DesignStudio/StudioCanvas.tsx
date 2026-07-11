@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
@@ -141,6 +141,8 @@ type Props = {
   designName?: string
   onRenameDesign?: (name: string) => void
   saveState?: 'saved' | 'saving' | 'unsaved'
+  /** Versions switcher (Canva-style boards) rendered in the title bar. */
+  versionsBar?: ReactNode
   // ---- editable canvas objects ----
   objects?: Layer[]
   hiddenMap?: Record<string, boolean>
@@ -181,6 +183,7 @@ export function StudioCanvas({
   designName: designNameProp,
   onRenameDesign,
   saveState,
+  versionsBar,
   objects,
   hiddenMap,
   selectedObjIds,
@@ -565,6 +568,7 @@ export function StudioCanvas({
           />{' '}
           {saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Edited' : 'Saved'}
         </span>
+        {versionsBar}
         <div className="ds-bar-right">
           {/* Single-view garments show the view as a small label instead of a whole bottom strip. */}
           {!hasMultipleViews && <span className="ds-view-chip">View · {viewTabs[0]}</span>}

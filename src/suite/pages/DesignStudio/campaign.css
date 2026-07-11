@@ -73,6 +73,10 @@
 .cg-shot { position: relative; margin: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--s-border); background: var(--s-panel-2); aspect-ratio: 2 / 3; }
 .cg-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cg-shot--loading { display: grid; place-items: center; }
+.cg-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; color: var(--s-text-3); background: var(--s-inset); border: 1px dashed var(--s-border-strong); transition: color var(--s-dur), border-color var(--s-dur), background var(--s-dur); }
+.cg-add:hover { color: var(--s-text); border-color: var(--s-accent); background: color-mix(in oklab, var(--s-accent) 8%, var(--s-inset)); }
+.cg-add__plus { font-size: 34px; font-weight: 300; line-height: 1; }
+.cg-add__label { font-size: 12px; font-weight: 600; }
 .cg-shot__fav { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; border: none; background: rgba(255, 255, 255, 0.72); color: #33333a; cursor: pointer; }
 .cg-shot__fav.is-on { color: #e5484d; }
 .cg-shot__bar { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 6px; padding: 8px; background: linear-gradient(0deg, rgba(12, 12, 16, 0.9), transparent); }

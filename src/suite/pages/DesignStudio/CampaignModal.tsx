@@ -79,7 +79,9 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
-  const generate = useCallback(async () => {
+  // Generate ONE campaign image. `append` adds another to the set; otherwise it starts fresh.
+  // One-at-a-time keeps it fast and cheap — the "+" tile lets the user pull more only when wanted.
+  const runOne = useCallback(async (append: boolean) => {
     if (!garmentPng) return
     if (!hasImageAi()) {
       toast('Connect your OpenAI API key in Settings → AI to generate campaign photos.', 'info')
@@ -88,15 +90,22 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
     abortRef.current?.abort()
     const ctrl = new AbortController()
     abortRef.current = ctrl
+    const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
     setGenerating(true)
-    setShots([])
+    if (!append) setShots([])
     try {
       const params = campaignImageParams(sel)
-      const urls = await generateImages(campaignPrompt(sel), { references: [garmentPng], n: 4, ...params, signal: ctrl.signal })
+      const urls = await generateImages(campaignPrompt(sel), { references: [garmentPng], n: 1, ...params, signal })
       if (ctrl.signal.aborted) return
-      setShots(urls.map((u) => ({ id: `sh-${crypto.randomUUID()}`, dataUrl: u })))
+      if (urls[0]) {
+        const shot: Shot = { id: `sh-${crypto.randomUUID()}`, dataUrl: urls[0] }
+        setShots((prev) => (append ? [...prev, shot] : [shot]))
+      }
     } catch (err) {
-      if (!ctrl.signal.aborted) toast(err instanceof Error ? err.message : 'Campaign generation failed.', 'info')
+      if (!ctrl.signal.aborted) {
+        const msg = err instanceof DOMException && err.name === 'TimeoutError' ? 'OpenAI took too long — try again or lower the quality.' : err instanceof Error ? err.message : 'Campaign generation failed.'
+        toast(msg, 'info')
+      }
     } finally {
       if (!ctrl.signal.aborted) setGenerating(false)
     }
@@ -175,26 +184,21 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
             <ChoiceRow label="Lighting" options={CAMPAIGN_LIGHTING} value={sel.lighting} onPick={(v) => set({ lighting: v })} />
             <ChoiceRow label="Quality" options={CAMPAIGN_QUALITIES.map((q) => q.label)} value={CAMPAIGN_QUALITIES.find((q) => q.id === sel.quality)?.label ?? 'High'} onPick={(v) => set({ quality: (CAMPAIGN_QUALITIES.find((q) => q.label === v)?.id ?? 'high') })} />
 
-            <button type="button" className="cg__go" onClick={generate} disabled={!garmentPng || generating}>
-              {generating ? 'Generating campaign…' : `Generate 4 images${model ? ` · ${model.label}` : ''}`}
+            <button type="button" className="cg__go" onClick={() => runOne(false)} disabled={!garmentPng || generating}>
+              {generating ? 'Generating…' : `Generate image${model ? ` · ${model.label}` : ''}`}
             </button>
             {!live && <p className="cg__gate">Campaign photos need a real image model. Add your OpenAI API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}
           </div>
 
-          {/* Right: results */}
+          {/* Right: results — one image, then a "+" tile to pull more */}
           <div className="cg__results">
             {shots.length === 0 && !generating && (
               <div className="cg__empty">
                 <IcoSparkle width="22" height="22" />
-                <p>Pick a model and shoot, then generate four campaign-quality photos of this exact garment on a person.</p>
+                <p>Pick a model and shoot, then generate a campaign-quality photo of this exact garment on a person. Add more with +.</p>
               </div>
             )}
-            {generating && (
-              <div className="cg__grid">
-                {[0, 1, 2, 3].map((i) => <div key={i} className="cg-shot cg-shot--loading"><span className="cg-spin" /></div>)}
-              </div>
-            )}
-            {!generating && shots.length > 0 && (
+            {(shots.length > 0 || generating) && (
               <div className="cg__grid">
                 {shots.map((shot, i) => (
                   <figure key={shot.id} className="cg-shot">
@@ -208,6 +212,13 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
                     </figcaption>
                   </figure>
                 ))}
+                {generating && <div className="cg-shot cg-shot--loading"><span className="cg-spin" /></div>}
+                {!generating && shots.length > 0 && (
+                  <button type="button" className="cg-shot cg-add" onClick={() => runOne(true)} title="Generate one more" aria-label="Generate one more">
+                    <span className="cg-add__plus">+</span>
+                    <span className="cg-add__label">One more</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -10,6 +10,7 @@ import {
   IcoHelp,
   IcoSun,
   IcoMoon,
+  IcoSparkle,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useGarments } from '../../garments/useGarments'
@@ -56,6 +57,7 @@ import { ThreadosAIModal } from './ThreadosAIModal'
 import { conceptName, type Concept } from '../../ai/conceptEngine'
 import { CreativeDirector } from './CreativeDirector'
 import { buildDirector, type DirectorSuggestion } from './directorModel'
+import { CampaignModal } from './CampaignModal'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
@@ -250,6 +252,8 @@ export function DesignStudio() {
   const [aiPrompt, setAiPrompt] = useState('')
   // Creative Director — proactive, real suggestions after a graphic lands.
   const [director, setDirector] = useState<{ objectId: string; suggestions: DirectorSuggestion[] } | null>(null)
+  // Campaign Generator — the finished garment → on-model campaign photography.
+  const [campaignOpen, setCampaignOpen] = useState(false)
 
   // Save dialog: name + which collection the design belongs to (created inline if needed).
   const [saveOpen, setSaveOpen] = useState(false)
@@ -2133,6 +2137,14 @@ export function DesignStudio() {
           <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
             <IcoUpload width="16" height="16" /> Share
           </button>
+          <button
+            className="s-btn s-btn--accent"
+            type="button"
+            title="Generate campaign photos of this garment on a model"
+            onClick={() => setCampaignOpen(true)}
+          >
+            <IcoSparkle width="15" height="15" /> Generate
+          </button>
           <Suspense
             fallback={
               <button className="s-btn s-btn--accent" type="button" disabled>
@@ -2638,6 +2650,7 @@ export function DesignStudio() {
         onClose={() => setAiOpen(false)}
         onAddToCanvas={addGeneratedConcept}
       />
+      <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
       {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && (
         <CreativeDirector
           suggestions={director.suggestions}

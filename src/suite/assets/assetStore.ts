@@ -16,6 +16,8 @@ export type Asset = {
   /** MIME type, e.g. image/png, image/svg+xml. */
   type: string
   kind: AssetKind
+  /** Optional grouping, e.g. 'campaign' for AI campaign photos. Absent for user uploads. */
+  category?: string
   width: number
   height: number
   /** Bytes. */

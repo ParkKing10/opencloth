@@ -6,6 +6,7 @@ import { downloadBlob, slugify } from '../../lib/download'
 import { captureDesignPng } from '../../export/real/capture'
 import { blobToDataUrl } from '../../assets/assetThumb'
 import { putAsset, type Asset } from '../../assets/assetStore'
+import { saveGeneratedAsset } from '../../assets/saveGenerated'
 import { generateImages, hasImageAi } from '../../ai/imageProvider'
 import {
   CAMPAIGN_MODELS,
@@ -101,6 +102,12 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       if (urls[0]) {
         const shot: Shot = { id: `sh-${crypto.randomUUID()}`, dataUrl: urls[0] }
         setShots((prev) => (append ? [...prev, shot] : [shot]))
+        // Auto-save every campaign photo to the Asset Library so nothing is lost.
+        if (userId) {
+          void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `Campaign — ${garmentName}`, category: 'campaign' }).then((a) => {
+            if (a) setSaved((s) => new Set(s).add(shot.id))
+          })
+        }
       }
     } catch (err) {
       if (!ctrl.signal.aborted) {
@@ -110,7 +117,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
     } finally {
       if (!ctrl.signal.aborted) setGenerating(false)
     }
-  }, [garmentPng, sel, toast])
+  }, [garmentPng, sel, toast, userId, garmentName])
 
   if (!open) return null
 
@@ -124,6 +131,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   }
 
   const saveToLibrary = async (shot: Shot, i: number) => {
+    if (saved.has(shot.id)) return // already auto-saved on generation
     if (!userId) {
       toast('Sign in to save to your Asset Library.', 'info')
       return

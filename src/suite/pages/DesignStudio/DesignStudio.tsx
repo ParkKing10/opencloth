@@ -2848,6 +2848,7 @@ export function DesignStudio() {
         open={aiOpen}
         initialPrompt={aiPrompt}
         initialMode={aiMode}
+        userId={user?.id}
         onClose={() => setAiOpen(false)}
         onAddToCanvas={addGeneratedConcept}
         onApplyGarment={(dataUrl) => {

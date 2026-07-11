@@ -3,7 +3,7 @@
  * mutations (upload, rename, duplicate, delete, favorite, mark-used) so the UI stays declarative.
  */
 import { useCallback, useEffect, useState } from 'react'
-import { deleteAsset, getAsset, listAssets, patchAsset, putAsset, type Asset } from './assetStore'
+import { ASSETS_CHANGED_EVENT, deleteAsset, getAsset, listAssets, patchAsset, putAsset, type Asset } from './assetStore'
 import { analyzeFile, isAcceptedFile } from './assetThumb'
 
 function newId(): string {
@@ -38,6 +38,13 @@ export function useAssets(userId: string | undefined) {
     return () => {
       alive = false
     }
+  }, [refresh])
+
+  // Refresh when a generation auto-saves into the library from elsewhere (AI/campaign modals).
+  useEffect(() => {
+    const onChange = () => void refresh()
+    window.addEventListener(ASSETS_CHANGED_EVENT, onChange)
+    return () => window.removeEventListener(ASSETS_CHANGED_EVENT, onChange)
   }, [refresh])
 
   const upload = useCallback(

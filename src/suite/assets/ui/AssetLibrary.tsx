@@ -202,7 +202,7 @@ export function AssetLibrary({ userId, onPlace }: Props) {
       <header className="al-head">
         <div>
           <h2>Graphics</h2>
-          <p className="al-head__hint">Your asset library — drag or double-click onto the garment</p>
+          <p className="al-head__hint">Your library — uploads + every AI creation, auto-saved. Drag or double-click onto the garment</p>
         </div>
         <button type="button" className="al-upload" onClick={() => fileInputRef.current?.click()} disabled={busy}>
           {busy ? <span className="al-spin" aria-hidden="true" /> : <IcoUpload width={13} height={13} />}
@@ -229,7 +229,7 @@ export function AssetLibrary({ userId, onPlace }: Props) {
             <span className="al-empty__ico">
               <IcoUpload width={16} height={16} />
             </span>
-            <p>Upload PNG, JPG, SVG or WEBP graphics. They stay in your library, ready to drop onto any garment.</p>
+            <p>Upload PNG, JPG, SVG or WEBP graphics — and everything you make with THREADOS AI saves here automatically. All ready to drop onto any garment.</p>
             <button type="button" className="al-upload" onClick={() => fileInputRef.current?.click()}>
               <IcoUpload width={13} height={13} />
               Upload graphics

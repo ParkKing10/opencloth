@@ -35,6 +35,9 @@ const DB_NAME = 'threados-assets'
 const STORE = 'assets'
 const VERSION = 1
 
+/** Fired after an asset is auto-saved (AI generations) so any open Asset panel can refresh live. */
+export const ASSETS_CHANGED_EVENT = 'threados:assets-changed'
+
 let dbPromise: Promise<IDBDatabase> | null = null
 
 function openDb(): Promise<IDBDatabase> {

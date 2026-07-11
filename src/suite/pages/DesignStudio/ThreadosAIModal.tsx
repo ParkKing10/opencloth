@@ -6,6 +6,7 @@ import { downloadBlob, slugify } from '../../lib/download'
 import { generateConcepts, regenerateConcept, isLiveConceptAi, liveConcept, type Concept } from '../../ai/conceptEngine'
 import { generateImages, graphicPrompt, garmentEditPrompt, hasImageAi } from '../../ai/imageProvider'
 import { blobToDataUrl } from '../../assets/assetThumb'
+import { saveGeneratedAsset } from '../../assets/saveGenerated'
 import { captureDesignPng } from '../../export/real/capture'
 import { hashSeed } from '../../ai/rng'
 import './threados-ai.css'
@@ -63,6 +64,8 @@ type Props = {
   open: boolean
   initialPrompt: string
   initialMode?: AiMode
+  /** Signed-in user — every generated image auto-saves to their Asset Library. */
+  userId?: string
   onClose: () => void
   onAddToCanvas: (concept: Concept) => void
   /** Apply an edited garment image as the new garment backdrop (Edit Garment mode). */
@@ -74,7 +77,7 @@ type Props = {
  * keep steering with suggestions, then Add to Canvas. Honest about the engine: on-device vector
  * synthesis today (isLiveConceptAi() === false), same UI when a diffusion model connects later.
  */
-export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', onClose, onAddToCanvas, onApplyGarment }: Props) {
+export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', userId, onClose, onAddToCanvas, onApplyGarment }: Props) {
   const toast = useToast()
   const [mode, setMode] = useState<AiMode>(initialMode)
   const modeRef = useRef<AiMode>(initialMode)
@@ -157,6 +160,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                   return next
                 })
                 setProgress((p) => p + 1)
+                if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `Garment — ${clean.slice(0, 32)}`, category: 'garment-edit' })
               }
             } catch (err) {
               if (!errG) errG = err
@@ -190,6 +194,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                   return next
                 })
                 setProgress((p) => p + 1)
+                if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: clean.slice(0, 40) || 'AI graphic', category: 'ai-graphic' })
               }
             } catch (err) {
               if (!firstErr) firstErr = err
@@ -325,7 +330,10 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       try {
         const urls = await generateImages(graphicPrompt(old.prompt), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', removeBackground: true, signal: abortRef.current?.signal })
         if (runIdRef.current !== myRun) return // modal closed / superseded
-        if (urls[0]) rekey(liveConcept(old.prompt, urls[0], (old.seed + 0x51ed270b) >>> 0))
+        if (urls[0]) {
+          rekey(liveConcept(old.prompt, urls[0], (old.seed + 0x51ed270b) >>> 0))
+          if (userId) void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `${old.prompt.slice(0, 36)} (v2)`, category: mode === 'garment' ? 'garment-edit' : 'ai-graphic' })
+        }
       } catch (err) {
         if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : 'Could not regenerate that one.', 'info')
       } finally {

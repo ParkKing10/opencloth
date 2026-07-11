@@ -1660,7 +1660,7 @@ export function DesignStudio() {
     const src = presentRef.current
     if (target.id) {
       const verId = uid('ver')
-      saveDoc(target.id, {
+      const ok = saveDoc(target.id, {
         layers: [],
         hidden: {},
         designName: designNameRef.current,
@@ -1671,6 +1671,13 @@ export function DesignStudio() {
         activeVersionId: verId,
         updatedAt: Date.now(),
       })
+      // If the move can't be written (storage full), don't navigate away and silently drop the work —
+      // keep the user on the intact source and tell them.
+      if (!ok) {
+        toast(`Storage is full — couldn’t move the design onto ${target.name}. Export or remove heavy images/versions, then try again.`, 'info')
+        setGarmentSwitchTarget(null)
+        return
+      }
     }
     setGarmentSwitchTarget(null)
     doSelectGarment(target)

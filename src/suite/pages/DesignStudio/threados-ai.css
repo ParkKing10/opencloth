@@ -228,6 +228,7 @@
 .tai-card__style { font-size: 11.5px; color: var(--s-text-3); font-weight: 600; }
 .tai-card__add { padding: 7px 12px; border-radius: 9px; border: none; background: var(--s-accent); color: var(--s-accent-ink, #14141a); font-size: 12.5px; font-weight: 700; cursor: pointer; transition: filter var(--s-dur); }
 .tai-card__add:hover { filter: brightness(1.06); }
+.tai-card__add:disabled { opacity: 0.5; cursor: default; filter: none; }
 
 /* Suggestions */
 .tai__suggest { margin-top: 16px; }

@@ -91,6 +91,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const [favs, setFavs] = useState<Concept[]>([])
   const [zoom, setZoom] = useState<Concept | null>(null)
   const [busyIdx, setBusyIdx] = useState<number | null>(null)
+  // Concept ids whose transparent cut-out is still processing — their Add/Apply buttons wait so a
+  // raw (opaque) image can never be placed on the garment before the background is removed.
+  const [finalizingIds, setFinalizingIds] = useState<Set<string>>(() => new Set())
   const [history, setHistory] = useState<string[]>(loadHistory)
   const [historyOpen, setHistoryOpen] = useState(false)
   // When THREADOS AI is opened without a committed intent (a bare "Ask THREADOS AI" click), ASK
@@ -124,19 +127,26 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       setGenerating(true)
       setConcepts([])
       setProgress(0)
+      setFinalizingIds(new Set())
 
       // Show the raw image the INSTANT it's generated, then swap to the transparent cut-out when
       // background removal finishes (and save the final asset). This is what makes results appear
       // fast — the user never waits on the extra transparency pass.
+      const clearFinalizing = (id: string) => setFinalizingIds((s) => { const n = new Set(s); n.delete(id); return n })
       const finalize = (conceptId: string, rawUrl: string, name: string, category: 'ai-graphic' | 'garment-edit') => {
-        void removeImageBackground(rawUrl, ctrl.signal).then((cut) => {
-          if (runIdRef.current !== myRun) return
-          const finalUrl = cut || rawUrl
-          if (finalUrl !== rawUrl) {
-            setConcepts((prev) => prev.map((c) => (c && c.id === conceptId ? { ...c, dataUrl: finalUrl } : c)))
-          }
-          if (userId) void saveGeneratedAsset({ userId, dataUrl: finalUrl, name, category })
-        })
+        setFinalizingIds((s) => new Set(s).add(conceptId))
+        removeImageBackground(rawUrl, ctrl.signal)
+          .then((cut) => {
+            if (runIdRef.current !== myRun) return
+            const finalUrl = cut || rawUrl
+            if (finalUrl !== rawUrl) {
+              // Swap the transparent cut-out into BOTH the grid and any favorite of this concept.
+              setConcepts((prev) => prev.map((c) => (c && c.id === conceptId ? { ...c, dataUrl: finalUrl } : c)))
+              setFavs((f) => f.map((x) => (x.id === conceptId ? { ...x, dataUrl: finalUrl } : x)))
+            }
+            if (userId) void saveGeneratedAsset({ userId, dataUrl: finalUrl, name, category })
+          })
+          .finally(() => clearFinalizing(conceptId))
       }
 
       // Edit-garment mode: transform the actual garment (add holes, wash, distress…). Requires a
@@ -307,6 +317,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setBusyIdx(null)
     setChoosing(false)
     setHistoryOpen(false)
+    setFinalizingIds(new Set())
     setReferences([]) // reference images must not leak into (and silently steer) the next session
   }, [open])
 
@@ -326,6 +337,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setMode(m)
     modeRef.current = m
     setConcepts([])
+    setReferences([]) // references are mode-specific (graphic style vs garment example) — don't leak
     if (prompt.trim()) void run(prompt, true)
   }
   const applySuggestion = (add: string) => {
@@ -351,7 +363,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           const rawUrl = urls[0]
           const fresh = liveConcept(old.prompt, rawUrl, (old.seed + 0x51ed270b) >>> 0)
           rekey(fresh) // show the raw result immediately
-          void removeImageBackground(rawUrl, abortRef.current?.signal).then((cut) => {
+          setFinalizingIds((s) => new Set(s).add(fresh.id))
+          removeImageBackground(rawUrl, abortRef.current?.signal).then((cut) => {
             if (runIdRef.current !== myRun) return
             const finalUrl = cut || rawUrl
             if (finalUrl !== rawUrl) {
@@ -359,12 +372,15 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               setFavs((f) => f.map((x) => (x.id === fresh.id ? { ...x, dataUrl: finalUrl } : x)))
             }
             if (userId) void saveGeneratedAsset({ userId, dataUrl: finalUrl, name: `${old.prompt.slice(0, 36)} (v2)`, category: mode === 'garment' ? 'garment-edit' : 'ai-graphic' })
-          })
+          }).finally(() => setFinalizingIds((s) => { const n = new Set(s); n.delete(fresh.id); return n }))
         }
       } catch (err) {
         if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : 'Could not regenerate that one.', 'info')
       } finally {
-        if (runIdRef.current === myRun) setBusyIdx(null)
+        // Always release the busy slot (scoped to this card so it never stomps a newer regenerate).
+        // A superseding run() aborts our request but never sets busyIdx, so gating this on runId used
+        // to leave the spinner — and every regenerate button — stuck for the rest of the session.
+        setBusyIdx((cur) => (cur === idx ? null : cur))
       }
       return
     }
@@ -571,9 +587,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 <div className="tai-card__foot">
                   <span className="tai-card__style">{mode === 'garment' ? 'Edited garment' : c.styleLabel}</span>
                   {mode === 'garment' && onApplyGarment ? (
-                    <button type="button" className="tai-card__add" onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>Apply to Garment</button>
+                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>{finalizingIds.has(c.id) ? 'Preparing…' : 'Apply to Garment'}</button>
                   ) : (
-                    <button type="button" className="tai-card__add" onClick={() => add(c)}>Add to Canvas</button>
+                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => add(c)}>{finalizingIds.has(c.id) ? 'Preparing…' : 'Add to Canvas'}</button>
                   )}
                 </div>
               </article>
@@ -623,7 +639,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               <span>{zoom.prompt} · {zoom.styleLabel}</span>
               <div>
                 <button type="button" className="tai__ghost" onClick={() => download(zoom)}>Download</button>
-                <button type="button" className="tai-card__add" onClick={() => add(zoom)}>Add to Canvas</button>
+                <button type="button" className="tai-card__add" disabled={finalizingIds.has(zoom.id)} onClick={() => add(zoom)}>{finalizingIds.has(zoom.id) ? 'Preparing…' : 'Add to Canvas'}</button>
               </div>
             </div>
           </div>

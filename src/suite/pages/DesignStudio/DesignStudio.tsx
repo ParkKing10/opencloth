@@ -444,6 +444,7 @@ export function DesignStudio() {
   const [activeVersionId, setActiveVersionId] = useState('')
   const versionsRef = useRef<DesignVersion[]>([])
   const activeVersionIdRef = useRef('')
+  const lastQuotaWarnRef = useRef(0)
   useEffect(() => {
     versionsRef.current = versions
   }, [versions])
@@ -527,17 +528,20 @@ export function DesignStudio() {
       regionLocked: s.regionLocked,
       regionTransforms: s.regionTransforms,
     })
-    const versionDocs = versionsRef.current.length
+    const hasVersions = versionsRef.current.length > 0
+    const versionDocs = hasVersions
       ? versionsRef.current.map((v) => snapToVersionDoc(v, v.id === activeVersionIdRef.current ? snap : v.snapshot))
       : undefined
-    saveDoc(gid, {
-      layers: snap.layers,
-      hidden: snap.hidden,
-      regionHidden: snap.regionHidden,
-      regionFills: snap.regionFills,
-      regionNames: snap.regionNames,
-      regionLocked: snap.regionLocked,
-      regionTransforms: snap.regionTransforms,
+    // When versions exist they are the source of truth; keep the top-level layers/hidden EMPTY (not a
+    // duplicate of the active version) so image payloads aren't stored twice — halving quota pressure.
+    const ok = saveDoc(gid, {
+      layers: hasVersions ? [] : snap.layers,
+      hidden: hasVersions ? {} : snap.hidden,
+      regionHidden: hasVersions ? undefined : snap.regionHidden,
+      regionFills: hasVersions ? undefined : snap.regionFills,
+      regionNames: hasVersions ? undefined : snap.regionNames,
+      regionLocked: hasVersions ? undefined : snap.regionLocked,
+      regionTransforms: hasVersions ? undefined : snap.regionTransforms,
       designName: name ?? designNameRef.current,
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
@@ -547,7 +551,16 @@ export function DesignStudio() {
       activeVersionId: activeVersionIdRef.current || undefined,
       updatedAt: Date.now(),
     })
-  }, [])
+    // A silent drop would lose work while the UI still says "Saved" — surface it honestly instead.
+    if (!ok) {
+      setSaveState('unsaved')
+      const now = Date.now()
+      if (now - lastQuotaWarnRef.current > 15_000) {
+        lastQuotaWarnRef.current = now
+        toast('Storage is full — recent changes may not be saved. Export your work, or remove heavy images/versions.', 'info')
+      }
+    }
+  }, [toast])
 
   /**
    * Patch the user product specs and persist immediately (design is never blocked by specs).
@@ -583,20 +596,25 @@ export function DesignStudio() {
    */
   const commit = useCallback(
     (next: Snapshot) => {
+      // Read carried-over region overrides from the SAME source the insert helpers use for layers
+      // (presentRef), so a commit that fires in the tick after a version switch — before the state
+      // re-render — can never pair the just-loaded version's layers with the previous version's
+      // region overrides.
+      const base = presentRef.current
       const merged: Snapshot = {
-        regionHidden: present.regionHidden,
-        regionFills: present.regionFills,
-        regionNames: present.regionNames,
-        regionLocked: present.regionLocked,
-        regionTransforms: present.regionTransforms,
+        regionHidden: base.regionHidden,
+        regionFills: base.regionFills,
+        regionNames: base.regionNames,
+        regionLocked: base.regionLocked,
+        regionTransforms: base.regionTransforms,
         ...next,
       }
-      setPast((prev) => [...prev, present])
+      setPast((prev) => [...prev, base])
       setPresent(merged)
       setFuture([])
       saveCurrentDoc(merged)
     },
-    [present, saveCurrentDoc],
+    [saveCurrentDoc],
   )
 
   // ---- Versions / boards: multiple editable variations of the same garment in one file ----
@@ -634,7 +652,13 @@ export function DesignStudio() {
   const addVersion = useCallback(() => {
     const synced = syncActiveVersion(presentRef.current)
     const newId = uid('ver')
-    const name = `Version ${synced.length + 1}`
+    // Number from the highest existing "Version N", not the array length, so labels don't collide
+    // after a middle version is deleted.
+    const nextNum = synced.reduce((m, v) => {
+      const n = /^Version (\d+)$/.exec(v.name)
+      return n ? Math.max(m, Number(n[1])) : m
+    }, 0) + 1
+    const name = `Version ${nextNum}`
     const copy = cloneSnapshot(presentRef.current)
     const next = [...synced, { id: newId, name, snapshot: copy }]
     versionsRef.current = next

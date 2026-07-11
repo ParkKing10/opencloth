@@ -3,9 +3,11 @@
  *
  * A Design belongs to a garment blank: opening a garment loads its saved document
  * (layers + visibility + name), or starts a fresh empty one. Documents are stored in
- * localStorage keyed by garment id so a page reload always restores the latest work —
- * no data loss. (Cross-device sync via Supabase is a later enhancement; the design
- * metadata row already syncs, this stores the editable canvas itself.)
+ * localStorage keyed by garment id so a page reload restores your work. localStorage has a
+ * ~5 MB per-origin budget, so a very heavy design (many placed images across several versions)
+ * CAN exceed it — `saveDoc` returns false in that case and the editor surfaces it honestly instead
+ * of pretending the save succeeded. (Cross-device sync + large-image offloading via Supabase is the
+ * eventual fix; the design metadata row already syncs, this stores the editable canvas itself.)
  */
 import type { Layer } from './LayersPanel'
 
@@ -97,12 +99,14 @@ export function loadDoc(garmentId: string): DesignDoc | null {
   }
 }
 
-/** Persist a garment's document. Silently drops on quota overflow (many large images). */
-export function saveDoc(garmentId: string, doc: DesignDoc): void {
+/** Persist a garment's document. Returns false on quota overflow so callers can warn the user
+ *  instead of silently losing work (never throws — the app stays responsive). */
+export function saveDoc(garmentId: string, doc: DesignDoc): boolean {
   try {
     localStorage.setItem(DOC_PREFIX + garmentId, JSON.stringify(doc))
+    return true
   } catch {
-    /* quota exceeded — keep the app responsive rather than throwing */
+    return false
   }
 }
 

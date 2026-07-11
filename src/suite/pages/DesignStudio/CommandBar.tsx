@@ -13,18 +13,18 @@ export type StudioMode = 'beginner' | 'pro'
 const GENERATION_EXAMPLES = ['Chrome tribal star', 'Vintage skull with roses', 'Graffiti butterfly']
 
 type Props = {
-  mode: StudioMode
-  onModeChange: (m: StudioMode) => void
   readiness: Readiness
   interpret: (text: string) => Proposal | null
   onApply: (p: Proposal) => void
   onFix: (checkId: string) => void
   /** Open THREADOS AI — 'graphic' to design an artwork, 'garment' to edit the garment itself. */
   onGenerate: (prompt: string, mode: AiMode) => void
+  /** Open the Connect App panel (draw on iPad, live on the desktop canvas). */
+  onConnectApp: () => void
 }
 
 /** The permanent AI command bar at the top of the editor. */
-export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, onFix, onGenerate }: Props) {
+export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, onConnectApp }: Props) {
   const [input, setInput] = useState('')
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [missNote, setMissNote] = useState(false)
@@ -111,25 +111,21 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
       </div>
 
       <div className="cb__right">
-        <div className="cb__mode" role="tablist" aria-label="Editor mode">
-          {(['beginner', 'pro'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="tab"
-              aria-selected={mode === m}
-              className={`cb__mode-btn${mode === m ? ' is-active' : ''}`}
-              onClick={() => onModeChange(m)}
-              title={
-                m === 'beginner'
-                  ? 'Beginner — the visual essentials, production detail one click away'
-                  : 'Pro — every production field expanded'
-              }
-            >
-              {m === 'beginner' ? 'Beginner' : 'Pro'}
-            </button>
-          ))}
-        </div>
+        <button
+          type="button"
+          className="cb__connect"
+          onClick={onConnectApp}
+          title="Draw on your iPad with Apple Pencil — live on this canvas"
+        >
+          <span className="cb__connect-glow" aria-hidden />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="7" y="2.5" width="10" height="19" rx="2" />
+            <circle cx="12" cy="18.4" r="0.9" fill="currentColor" stroke="none" />
+            <path d="M9.6 6.6c1.5-1.2 3.3-1.2 4.8 0M11 9c.7-.5 1.3-.5 2 0" />
+          </svg>
+          Connect App
+          <span className="cb__connect-badge">NEW</span>
+        </button>
 
         <div className="cb__pill-wrap" ref={pillRef}>
           <button

@@ -58,6 +58,7 @@ import { conceptName, type Concept } from '../../ai/conceptEngine'
 import { CreativeDirector } from './CreativeDirector'
 import { buildDirector, type DirectorSuggestion } from './directorModel'
 import { CampaignModal } from './CampaignModal'
+import { ConnectAppDialog } from './ConnectAppDialog'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo } from './designDoc'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
@@ -427,7 +428,9 @@ export function DesignStudio() {
   const [showCatalogHint, setShowCatalogHint] = useState(false)
 
   // Beginner vs Pro presentation, and the manufacturing config that drives readiness.
-  const [mode, setMode] = useState<StudioMode>('beginner')
+  // Pro is the default and only mode now — every production field is always expanded.
+  const mode: StudioMode = 'pro'
+  const [connectOpen, setConnectOpen] = useState(false)
   const [config, setConfig] = useState<StudioConfig>(INITIAL_CONFIG)
 
   // Brand Memory: load the kit once, record real choices, flush debounced.
@@ -2270,19 +2273,18 @@ export function DesignStudio() {
         </div>
       </header>
 
-      {/* ---- AI command bar (mode toggle + live readiness) ---- */}
+      {/* ---- AI command bar (Connect App + live readiness) ---- */}
       <CommandBar
-        mode={mode}
-        onModeChange={setMode}
         readiness={readiness}
         interpret={interpret}
         onApply={applyProposal}
         onFix={fixCheck}
-        onGenerate={(prompt, mode) => {
+        onGenerate={(prompt, m) => {
           setAiPrompt(prompt)
-          setAiMode(mode)
+          setAiMode(m)
           setAiOpen(true)
         }}
+        onConnectApp={() => setConnectOpen(true)}
       />
 
       {/* ---- Body ---- */}
@@ -2669,6 +2671,7 @@ export function DesignStudio() {
         }}
       />
       <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
+      <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
       {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && (
         <CreativeDirector
           suggestions={director.suggestions}

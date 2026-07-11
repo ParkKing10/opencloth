@@ -10,7 +10,6 @@ import { StudioRegionLayer, labelToViewId } from './StudioRegionLayer'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import type { Layer } from './LayersPanel'
 import type { CanvasObject, ShapeGeom, ShapeKind } from './objectModel'
-import { ConnectAppDialog } from './ConnectAppDialog'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import teeImg from '../../../assets/cards/tee.png'
 import './canvas.css'
@@ -260,7 +259,6 @@ export function StudioCanvas({
   // Drawing (Rectangle / Ellipse): drag a box on the canvas to create a real vector object.
   const createRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null)
   const [createBox, setCreateBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
-  const [connectOpen, setConnectOpen] = useState(false)
   const isDrawTool = DRAW_TOOLS.has(tool)
 
   // Single entry point for view changes keeps refs and state in lockstep.
@@ -635,16 +633,6 @@ export function StudioCanvas({
               })}
             </div>
           ))}
-          <span className="ds-toolrail__spacer" />
-          <button
-            type="button"
-            className="ds-tool ds-tool--connect"
-            aria-label="Connect the THREADOS iPad app"
-            title="Connect the THREADOS iPad app — draw with Apple Pencil"
-            onClick={() => setConnectOpen(true)}
-          >
-            <ToolGlyph tool="connect" />
-          </button>
           <input
             ref={fileInputRef}
             type="file"
@@ -820,7 +808,6 @@ export function StudioCanvas({
             </div>
           </div>
         ))}
-      <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
     </main>
   )
 }
@@ -855,8 +842,6 @@ function ToolGlyph({ tool, small }: { tool: string; small?: boolean }) {
     brush: <><path d="M15.5 4.5l4 4-8 8-4-4 8-8Z" /><path d="M7.5 12.5 4 20l7.5-3.5" /></>,
     // garment builder (add component)
     build: <><rect x="4" y="4" width="16" height="16" rx="2.4" /><path d="M12 8.5v7M8.5 12h7" /></>,
-    // connect: tablet + signal arcs
-    connect: <><rect x="7" y="2.5" width="10" height="19" rx="2" /><circle cx="12" cy="18.4" r="0.9" fill="currentColor" stroke="none" /><path d="M9.6 6.6c1.5-1.2 3.3-1.2 4.8 0M11 9c.7-.5 1.3-.5 2 0" /></>,
   }
   return <svg {...base}>{glyphs[tool] ?? glyphs.move}</svg>
 }

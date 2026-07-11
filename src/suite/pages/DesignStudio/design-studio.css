@@ -695,19 +695,6 @@
   background: var(--s-accent);
   box-shadow: 0 0 0 2px var(--s-panel);
 }
-.ds-toolrail__spacer {
-  height: 1px;
-  margin: 6px 6px 2px;
-  background: var(--s-line);
-}
-.ds-tool--connect {
-  color: var(--s-accent-2) !important;
-  background: var(--s-accent-soft) !important;
-}
-.ds-tool--connect:hover {
-  filter: brightness(1.08);
-}
-
 /* Draw tools: crosshair cursor, and objects don't intercept the press (draw anywhere). */
 .cv-viewport--draw {
   cursor: crosshair;

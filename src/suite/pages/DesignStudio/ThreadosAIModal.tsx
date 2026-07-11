@@ -90,6 +90,10 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const [busyIdx, setBusyIdx] = useState<number | null>(null)
   const [history, setHistory] = useState<string[]>(loadHistory)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // When THREADOS AI is opened without a committed intent (a bare "Ask THREADOS AI" click), ASK
+  // first with a big, unmissable choice — Design a graphic vs. Edit the garment — instead of relying
+  // on the small header toggle a user would never notice.
+  const [choosing, setChoosing] = useState(false)
   const [references, setReferences] = useState<string[]>([])
   const [live] = useState(() => hasImageAi())
   const inputRef = useRef<HTMLInputElement>(null)
@@ -224,10 +228,14 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setMode(initialMode)
     modeRef.current = initialMode
     setPrompt(initialPrompt)
-    // Opened empty (from a bare "Ask THREADOS AI" click): don't generate — focus the field so the
-    // user picks Design vs Edit Garment above and types their idea.
-    if (initialPrompt.trim()) void run(initialPrompt, true)
-    else inputRef.current?.focus()
+    // With a real prompt the intent is already known (a chip, or a routed command) — generate.
+    // Opened empty → ASK first: show the big Design/Edit-Garment chooser, don't generate yet.
+    if (initialPrompt.trim()) {
+      setChoosing(false)
+      void run(initialPrompt, true)
+    } else {
+      setChoosing(true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt, initialMode])
 
@@ -254,11 +262,20 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setZoom(null)
     setFavs([])
     setBusyIdx(null)
+    setChoosing(false)
   }, [open])
 
   if (!open) return null
 
   const submit = () => run(prompt, true)
+  // Commit the upfront choice: set the mode, leave the ask, and focus the prompt so the user types next.
+  const pickMode = (m: AiMode) => {
+    setMode(m)
+    modeRef.current = m
+    setConcepts([])
+    setChoosing(false)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
   const switchMode = (m: AiMode) => {
     if (m === mode) return
     setMode(m)
@@ -344,15 +361,49 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
             <IcoSparkle width="18" height="18" />
             THREADOS AI
           </span>
-          <div className="tai__modes" role="tablist" aria-label="AI mode">
-            <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>Graphic</button>
-            <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit Garment</button>
-          </div>
-          <button type="button" className="tai__x" aria-label="Close" onClick={onClose}>
+          {!choosing && (
+            <div className="tai__modes" role="tablist" aria-label="AI mode">
+              <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>Graphic</button>
+              <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit Garment</button>
+            </div>
+          )}
+          <button type="button" className={`tai__x${choosing ? ' tai__x--solo' : ''}`} aria-label="Close" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
 
+        {choosing ? (
+          <div className="tai-chooser">
+            <div className="tai-chooser__head">
+              <b>What do you want to create?</b>
+              <span>THREADOS AI works two ways — pick one to begin.</span>
+            </div>
+            <div className="tai-chooser__cards">
+              <button type="button" className="tai-choice tai-choice--graphic" onClick={() => pickMode('graphic')}>
+                <span className="tai-choice__icon" aria-hidden>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2.5l1.7 4.8 4.8 1.7-4.8 1.7L12 15.5l-1.7-4.8L5.5 9l4.8-1.7z" />
+                    <path d="M18.5 15l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" />
+                  </svg>
+                </span>
+                <b>Design a Graphic</b>
+                <small>Artwork, logos &amp; prints to place on your garment — generated on a clean transparent background, ready to drop onto the canvas.</small>
+                <span className="tai-choice__go">Start designing →</span>
+              </button>
+              <button type="button" className="tai-choice tai-choice--garment" onClick={() => pickMode('garment')}>
+                <span className="tai-choice__icon" aria-hidden>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
+                  </svg>
+                </span>
+                <b>Edit the Garment</b>
+                <small>Transform the actual piece — rips, holes, acid &amp; bleach washes, distressing, colour. THREADOS edits your real garment, not a graphic.</small>
+                <span className="tai-choice__go">Start editing →</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+        <>
         {/* Prompt row */}
         <div className="tai__prompt">
           <IcoSparkle width="16" height="16" />
@@ -421,10 +472,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           {!generating && concepts.length === 0 ? (
             <div className="tai-empty">
               <IcoSparkle width="26" height="26" />
-              <b>What should we make?</b>
+              <b>{mode === 'garment' ? 'Edit your garment' : 'Design a graphic'}</b>
               <span>
-                Choose <em onClick={() => switchMode('graphic')}>Design</em> for artwork, or{' '}
-                <em onClick={() => switchMode('garment')}>Edit Garment</em> to transform the piece — then describe it above and hit Generate.
+                {mode === 'garment'
+                  ? 'Describe the change above — “add crazy holes”, “acid wash”, “oversized fit” — and hit Generate.'
+                  : 'Describe your graphic above — “chrome tribal star”, “vintage skull with roses” — and hit Generate.'}
               </span>
             </div>
           ) : (
@@ -501,6 +553,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         )}
 
         <p className="tai__note">{engineNote}</p>
+        </>
+        )}
       </div>
 
       {zoom && (

@@ -122,6 +122,58 @@
 .tai-empty em { font-style: normal; font-weight: 700; color: var(--s-accent-2); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .tai-empty em:hover { color: var(--s-accent); }
 
+/* Upfront mode chooser — the big, unmissable "Design or Edit Garment?" ask shown on empty entry. */
+.tai__x--solo { margin-left: auto; }
+
+.tai-chooser { display: flex; flex-direction: column; gap: 20px; padding: 26px 8px 12px; animation: tai-fade var(--s-dur); }
+.tai-chooser__head { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.tai-chooser__head b { font-size: 21px; letter-spacing: -0.01em; color: var(--s-text); }
+.tai-chooser__head span { font-size: 13.5px; color: var(--s-text-3); }
+.tai-chooser__cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .tai-chooser__cards { grid-template-columns: 1fr; } }
+
+.tai-choice {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 210px;
+  padding: 22px 20px 20px;
+  border-radius: 18px;
+  border: 1.5px solid var(--s-border);
+  background: linear-gradient(180deg, var(--s-panel-2), var(--s-panel));
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--s-dur), transform var(--s-dur), box-shadow var(--s-dur), background var(--s-dur);
+}
+.tai-choice:hover, .tai-choice:focus-visible {
+  border-color: var(--s-accent);
+  transform: translateY(-3px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34), 0 0 0 3px color-mix(in oklab, var(--s-accent) 22%, transparent);
+  outline: none;
+}
+.tai-choice__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--s-accent) 16%, var(--s-inset));
+  color: var(--s-accent-2);
+  transition: background var(--s-dur), color var(--s-dur);
+}
+.tai-choice:hover .tai-choice__icon { background: var(--s-accent); color: var(--s-accent-ink, #14141a); }
+.tai-choice > b { font-size: 17px; color: var(--s-text); }
+.tai-choice > small { font-size: 12.5px; line-height: 1.55; color: var(--s-text-3); }
+.tai-choice__go { margin-top: auto; font-size: 12.5px; font-weight: 700; color: var(--s-accent-2); transition: color var(--s-dur); }
+.tai-choice:hover .tai-choice__go { color: var(--s-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tai-chooser { animation: none; }
+  .tai-choice:hover, .tai-choice:focus-visible { transform: none; }
+}
+
 .tai-checker {
   background-color: #f4f4f4;
   background-image:

@@ -31,15 +31,6 @@ export const IcoDesign = (p: P) => (
   </svg>
 )
 
-export const IcoPattern = (p: P) => (
-  <svg {...s} {...p}>
-    <circle cx="6" cy="6" r="2.4" />
-    <circle cx="6" cy="18" r="2.4" />
-    <path d="M8.2 7.6 20 19M8.2 16.4 20 5" />
-    <path d="M18.5 4.5 20 5l-.5 1.5M18.5 19.5 20 19l-.5-1.5" />
-  </svg>
-)
-
 export const IcoAI = (p: P) => (
   <svg {...s} {...p}>
     <path d="M12 3.2 13.4 8 18.2 9.4 13.4 10.8 12 15.6 10.6 10.8 5.8 9.4 10.6 8 12 3.2Z" />

@@ -4,44 +4,6 @@
  * these three are crisp technical illustrations drawn as inline SVG.
  */
 
-/** Pattern Studio — a hoodie rendered as a CAD wireframe mesh. */
-export function PatternWireframe() {
-  return (
-    <svg viewBox="0 0 240 300" fill="none" className="feat-art__svg" aria-hidden="true">
-      <g stroke="currentColor" strokeWidth="1" strokeLinejoin="round" strokeLinecap="round">
-        {/* silhouette */}
-        <path
-          d="M120 40c-14 0-26 5-33 12l-40 26c-6 4-8 11-5 18l10 22 20-11v135c0 6 5 11 11 11h74c6 0 11-5 11-11V107l20 11 10-22c3-7 1-14-5-18l-40-26c-7-7-19-12-33-12Z"
-          opacity="0.85"
-        />
-        {/* hood */}
-        <path d="M96 46c4 14 12 22 24 22s20-8 24-22" opacity="0.7" />
-        <path d="M120 40v20" opacity="0.5" />
-        {/* wireframe verticals */}
-        <g opacity="0.32">
-          <path d="M97 70v182M143 70v182M84 78v170M156 78v170M72 96v150M168 96v150" />
-        </g>
-        {/* wireframe horizontals (contour rings) */}
-        <g opacity="0.32">
-          <path d="M70 108q50 16 100 0M68 140q52 18 104 0M67 172q53 18 106 0M67 204q53 16 106 0M68 236q52 14 104 0" />
-        </g>
-        {/* pocket + cuffs */}
-        <path d="M92 196h56M96 258h48" opacity="0.5" />
-        <rect x="70" y="238" width="24" height="14" rx="3" opacity="0.4" />
-        <rect x="146" y="238" width="24" height="14" rx="3" opacity="0.4" />
-        {/* node dots */}
-        <g fill="currentColor" stroke="none" opacity="0.55">
-          <circle cx="97" cy="108" r="1.6" />
-          <circle cx="143" cy="108" r="1.6" />
-          <circle cx="120" cy="140" r="1.6" />
-          <circle cx="97" cy="204" r="1.6" />
-          <circle cx="143" cy="204" r="1.6" />
-        </g>
-      </g>
-    </svg>
-  )
-}
-
 /** Tech Pack — flat spec sketches on a light document sheet. */
 export function TechPackFlats() {
   return (

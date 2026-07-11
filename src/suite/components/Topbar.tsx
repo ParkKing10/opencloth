@@ -9,7 +9,7 @@ import './topbar.css'
 
 const SEARCH_ROUTES: { keywords: string[]; to: string; label: string }[] = [
   { keywords: ['design', 'studio', 'editor'], to: '/suite/design', label: 'Design Studio' },
-  { keywords: ['pattern', 'cad', 'seam'], to: '/suite/pattern', label: 'Pattern Studio' },
+  { keywords: ['shop', 'buy', 'garment', 'coins'], to: '/suite/shop', label: 'Garment Shop' },
   { keywords: ['ai', 'generate'], to: '/suite/ai', label: 'AI Designer' },
   { keywords: ['tech', 'pack', 'spec'], to: '/suite/tech-packs', label: 'Tech Packs' },
   { keywords: ['manufacturer', 'factory', 'supplier'], to: '/suite/manufacturers', label: 'Manufacturers' },

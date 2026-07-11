@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { IcoArrowRight, IcoPlus } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS } from '../../components/ui/Garments'
-import { PatternWireframe, TechPackFlats, GlobePins } from './FeatureArt'
+import { TechPackFlats, GlobePins } from './FeatureArt'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { relativeTime } from '../../data/utils'
@@ -9,7 +9,7 @@ import teeImg from '../../../assets/cards/tee.png'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import './dashboard.css'
 
-type ArtKind = 'tee' | 'hoodie' | 'pattern' | 'techpack' | 'globe'
+type ArtKind = 'tee' | 'hoodie' | 'techpack' | 'globe'
 type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
 
 type Feature = {
@@ -32,14 +32,6 @@ const FEATURES: Feature[] = [
     tint: 'violet',
     art: 'tee',
     primary: true,
-  },
-  {
-    title: 'Pattern Studio',
-    desc: 'Edit patterns, seams and every detail of your garment.',
-    cta: 'Edit Patterns',
-    to: '/suite/pattern',
-    tint: 'slate',
-    art: 'pattern',
   },
   {
     title: 'AI Designer',
@@ -74,8 +66,6 @@ function FeatureArt({ art }: { art: ArtKind }) {
       return <img className="feat-art__img" src={teeImg} alt="" loading="lazy" />
     case 'hoodie':
       return <img className="feat-art__img" src={hoodieImg} alt="" loading="lazy" />
-    case 'pattern':
-      return <PatternWireframe />
     case 'techpack':
       return <TechPackFlats />
     case 'globe':

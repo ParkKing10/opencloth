@@ -4,6 +4,7 @@
  * Layer, so the Layers panel, undo/redo and selection all work for free.
  */
 import type { Layer } from './LayersPanel'
+import { ELEMENT_MARKS } from './elementsCatalog'
 
 export type CanvasObjectType = 'text' | 'image' | 'graphic' | 'shape' | 'path'
 
@@ -89,8 +90,13 @@ const nid = (p: string) => `${p}-${Date.now().toString(36)}${(seq++).toString(36
 
 export const FONT_OPTIONS = ['Inter', 'Space Grotesk', 'Archivo', 'Georgia', 'Courier New'] as const
 
-/** Built-in starter graphics — id → inline SVG (drawn with currentColor). */
+/**
+ * Built-in marks — id → inline SVG (drawn with currentColor). The original starter graphics live
+ * here; the richer Elements library (ELEMENT_MARKS) is merged in so both the Graphics and Elements
+ * panels resolve every name through this single map (also used by the canvas renderer).
+ */
 export const GRAPHIC_MARKS: Record<string, string> = {
+  ...ELEMENT_MARKS,
   'Box Logo': '<rect x="8" y="24" width="84" height="52" rx="10" fill="none" stroke="currentColor" stroke-width="6"/><text x="50" y="60" font-family="Archivo, Arial" font-size="34" font-weight="800" fill="currentColor" text-anchor="middle">T</text>',
   Star: '<path d="M50 8 61 38 93 38 67 58 77 90 50 70 23 90 33 58 7 38 39 38Z" fill="currentColor"/>',
   Flame: '<path d="M50 8c8 16-4 22-4 34 0-8-8-10-8-10-6 10-14 16-14 30a26 26 0 0 0 52 0c0-18-14-26-22-44Z" fill="currentColor"/>',

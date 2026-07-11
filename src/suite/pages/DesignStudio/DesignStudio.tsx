@@ -73,7 +73,7 @@ import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
-import { MaterialsPanel } from './MaterialsPanel'
+import { ElementsPanel } from './ElementsPanel'
 import { InspirationPanel } from './InspirationPanel'
 import {
   INITIAL_CONFIG,
@@ -93,7 +93,7 @@ import './design-studio.css'
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
 /** The Library — six human categories, every one opens a real panel. */
-const RAIL = ['Garments', 'Graphics', 'Materials', 'Brand Kit', 'Assets', 'Inspiration']
+const RAIL = ['Garments', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -2370,16 +2370,7 @@ export function DesignStudio() {
             />
           )}
           {rail === 'Graphics' && <GraphicsPanel onAdd={(name) => addGraphicObject(name)} />}
-          {rail === 'Materials' && (
-            <MaterialsPanel
-              onApply={(m) => {
-                setField('details', 'd-fabric', m.fabric)
-                setField('details', 'd-weight', m.weight)
-                setField('detailsAdvanced', 'da-composition', m.composition)
-                toast(`${m.fabric} applied — specs updated everywhere.`, 'success')
-              }}
-            />
-          )}
+          {rail === 'Elements' && <ElementsPanel onAdd={addGraphicObject} />}
           {rail === 'Garments' && (
             <>
           <div className="ds-left__scroll">
@@ -2736,10 +2727,13 @@ function RailIcon({ name }: { name: string }) {
       )
     case 'Graphics':
       return <IcoDesign {...common} />
-    case 'Materials':
+    case 'Elements':
       return (
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-          <path d="M4 7c2.7-2 5.3-2 8 0s5.3 2 8 0M4 12c2.7-2 5.3-2 8 0s5.3 2 8 0M4 17c2.7-2 5.3-2 8 0s5.3 2 8 0" />
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+          <rect x="3.5" y="3.5" width="7" height="7" rx="1.4" />
+          <circle cx="17" cy="7" r="3.6" />
+          <path d="M7 13.5 10.8 20.5H3.2Z" />
+          <path d="M17 13.2 20.4 16.6 17 20 13.6 16.6Z" />
         </svg>
       )
     case 'Brand Kit':

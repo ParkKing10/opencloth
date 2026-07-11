@@ -95,6 +95,25 @@
   color: var(--s-text);
 }
 
+/* ---------- Elements library (grouped) ---------- */
+.lib-group + .lib-group {
+  margin-top: 16px;
+}
+.lib-group__title {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.lib-el__svg {
+  width: 40px;
+  height: 40px;
+  color: inherit;
+  overflow: visible;
+}
+
 /* ---------- Materials list ---------- */
 .lib-mats {
   display: flex;

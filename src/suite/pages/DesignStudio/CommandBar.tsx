@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { IcoSparkle } from '../../components/ui/Icons'
 import type { Readiness } from '../../export/readiness'
 import { type Proposal } from './studioModel'
-import { describesGraphic } from '../../ai/promptParse'
+import { describesGraphic, describesGarmentEdit } from '../../ai/promptParse'
+import type { AiMode } from './ThreadosAIModal'
 import { ReadinessPanel } from './ReadinessPanel'
 import './smart-studio.css'
 
@@ -18,8 +19,8 @@ type Props = {
   interpret: (text: string) => Proposal | null
   onApply: (p: Proposal) => void
   onFix: (checkId: string) => void
-  /** Open THREADOS AI to generate a graphic from a described idea (non-edit prompts route here). */
-  onGenerate: (prompt: string) => void
+  /** Open THREADOS AI — 'graphic' to design an artwork, 'garment' to edit the garment itself. */
+  onGenerate: (prompt: string, mode: AiMode) => void
 }
 
 /** The permanent AI command bar at the top of the editor. */
@@ -50,10 +51,15 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
   function submit() {
     const text = input.trim()
     if (!text) return
-    // A described graphic subject ("chrome tribal star", "vintage skull with roses") generates.
-    // Otherwise an edit command ("make it oversized", "add a vintage wash") stays inline as a
-    // Proposal. describesGraphic() ignores prompts that open with an edit verb, so "vintage" alone
-    // never hijacks a generation prompt.
+    // Priority: (1) a garment/fabric edit ("mach die Jacke mit Löchern") edits the garment itself;
+    // (2) a described graphic subject generates artwork; (3) a known studio command stays inline as
+    // a Proposal; (4) anything else generates a graphic.
+    if (describesGarmentEdit(text)) {
+      setProposal(null)
+      setMissNote(false)
+      onGenerate(text, 'garment')
+      return
+    }
     if (!describesGraphic(text)) {
       const p = interpret(text)
       if (p) {
@@ -64,7 +70,7 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
     }
     setProposal(null)
     setMissNote(false)
-    onGenerate(text)
+    onGenerate(text, 'graphic')
   }
 
   function apply() {
@@ -94,7 +100,7 @@ export function CommandBar({ mode, onModeChange, readiness, interpret, onApply, 
         />
         <div className="cb__chips">
           {GENERATION_EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="cb__chip" onClick={() => onGenerate(ex)}>
+            <button key={ex} type="button" className="cb__chip" onClick={() => onGenerate(ex, 'graphic')}>
               {ex}
             </button>
           ))}

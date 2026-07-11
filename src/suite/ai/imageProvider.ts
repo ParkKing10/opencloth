@@ -117,6 +117,21 @@ export function graphicPrompt(idea: string): string {
   )
 }
 
+/**
+ * Engineer a GARMENT-EDIT prompt — apply the requested change to the SAME garment in the reference
+ * image (e.g. "add crazy holes", "distress it", "make it acid-washed") without turning it into a
+ * different piece. Product-shot framing, no model.
+ */
+export function garmentEditPrompt(intent: string): string {
+  return (
+    `Edit the exact garment shown in the reference image: ${intent.trim()}. ` +
+    `Keep the SAME garment type, silhouette, cut and any existing prints/logos — only apply the requested change ` +
+    `to the fabric realistically (rips, washes, textures, colour, distressing, etc.). ` +
+    `Product flat-lay / ghost-mannequin shot isolated on a fully transparent background, no person, no mannequin, ` +
+    `high detail, realistic fabric, even studio lighting.`
+  )
+}
+
 export const IMAGE_QUALITY_BY_TIER: Record<'fast' | 'high' | 'ultra', ImageQuality> = {
   fast: 'low',
   high: 'medium',

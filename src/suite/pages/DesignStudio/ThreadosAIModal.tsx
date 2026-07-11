@@ -4,10 +4,13 @@ import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
 import { generateConcepts, regenerateConcept, isLiveConceptAi, liveConcept, type Concept } from '../../ai/conceptEngine'
-import { generateImages, graphicPrompt, hasImageAi } from '../../ai/imageProvider'
+import { generateImages, graphicPrompt, garmentEditPrompt, hasImageAi } from '../../ai/imageProvider'
 import { blobToDataUrl } from '../../assets/assetThumb'
+import { captureDesignPng } from '../../export/real/capture'
 import { hashSeed } from '../../ai/rng'
 import './threados-ai.css'
+
+export type AiMode = 'graphic' | 'garment'
 
 /** Creative follow-ups the engine can honestly deliver: each re-generates with the added intent. */
 const SUGGESTIONS: { label: string; add: string }[] = [
@@ -20,6 +23,18 @@ const SUGGESTIONS: { label: string; add: string }[] = [
   { label: 'More aggressive', add: 'aggressive sharp' },
   { label: 'Cleaner', add: 'clean minimal' },
   { label: 'More luxurious', add: 'luxury premium' },
+]
+
+/** Garment-edit follow-ups — each appends a real fabric transformation to the prompt. */
+const GARMENT_SUGGESTIONS: { label: string; add: string }[] = [
+  { label: 'Distressed', add: 'heavily distressed and ripped' },
+  { label: 'Add holes', add: 'with crazy holes all over' },
+  { label: 'Acid wash', add: 'acid-washed' },
+  { label: 'Bleached', add: 'bleach-splattered' },
+  { label: 'Vintage faded', add: 'vintage faded' },
+  { label: 'Oversized', add: 'oversized boxy fit' },
+  { label: 'Cropped', add: 'cropped' },
+  { label: 'Patchwork', add: 'patchwork panels' },
 ]
 
 const HISTORY_KEY = 'threados-ai-history-v1'
@@ -47,8 +62,11 @@ function pushHistory(prompt: string): string[] {
 type Props = {
   open: boolean
   initialPrompt: string
+  initialMode?: AiMode
   onClose: () => void
   onAddToCanvas: (concept: Concept) => void
+  /** Apply an edited garment image as the new garment backdrop (Edit Garment mode). */
+  onApplyGarment?: (dataUrl: string) => void
 }
 
 /**
@@ -56,8 +74,13 @@ type Props = {
  * keep steering with suggestions, then Add to Canvas. Honest about the engine: on-device vector
  * synthesis today (isLiveConceptAi() === false), same UI when a diffusion model connects later.
  */
-export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }: Props) {
+export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', onClose, onAddToCanvas, onApplyGarment }: Props) {
   const toast = useToast()
+  const [mode, setMode] = useState<AiMode>(initialMode)
+  const modeRef = useRef<AiMode>(initialMode)
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
   const [prompt, setPrompt] = useState(initialPrompt)
   const [concepts, setConcepts] = useState<Concept[]>([])
   const [generating, setGenerating] = useState(false)
@@ -94,21 +117,91 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
       setConcepts([])
       setProgress(0)
 
-      // Real generation with OpenAI gpt-image-1 when a key is configured.
-      if (hasImageAi()) {
+      // Edit-garment mode: transform the actual garment (add holes, wash, distress…). Requires a
+      // real image model — there is no honest on-device way to repaint a garment, and we won't fake it.
+      if (modeRef.current === 'garment') {
+        if (!hasImageAi()) {
+          toast('Editing the garment needs a real image model. Add your OpenAI API key in Settings → AI.', 'info')
+          setGenerating(false)
+          return
+        }
+        let garmentPng: string
         try {
-          const urls = await generateImages(graphicPrompt(clean), { n: 3, references: refsRef.current, size: '1024x1024', quality: 'high', background: 'transparent', signal: ctrl.signal })
-          if (runIdRef.current !== myRun) return
-          setConcepts(urls.map((u, i) => liveConcept(clean, u, (base + i * 0x9e3779b1) >>> 0)))
-          setProgress(3)
+          const blob = await captureDesignPng({ scope: 'garment', background: 'white', scale: 2 })
+          garmentPng = await blobToDataUrl(blob)
+        } catch {
+          if (runIdRef.current === myRun) {
+            toast('Could not render the garment to edit — open a garment first.', 'info')
+            setGenerating(false)
+          }
+          return
+        }
+        let okG = false
+        let errG: unknown = null
+        await Promise.all(
+          [0, 1, 2].map(async (i) => {
+            const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
+            try {
+              const urls = await generateImages(garmentEditPrompt(clean), { n: 1, references: [garmentPng], size: '1024x1536', quality: 'medium', background: 'transparent', signal })
+              if (runIdRef.current !== myRun) return
+              if (urls[0]) {
+                okG = true
+                setConcepts((prev) => {
+                  const next = prev.slice()
+                  next[i] = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
+                  return next
+                })
+                setProgress((p) => p + 1)
+              }
+            } catch (err) {
+              if (!errG) errG = err
+            }
+          }),
+        )
+        if (runIdRef.current !== myRun) return
+        setGenerating(false)
+        if (okG) setHistory(pushHistory(clean))
+        else toast(errG instanceof Error ? errG.message : 'Garment edit failed.', 'info')
+        return
+      }
+
+      // Real generation with OpenAI gpt-image-1 when a key is configured. Fire THREE independent
+      // single-image requests so results stream in one-by-one (not one slow batch), a single
+      // failure never kills the others, and a 90s timeout guarantees it can't hang forever.
+      if (hasImageAi()) {
+        let anyOk = false
+        let firstErr: unknown = null
+        await Promise.all(
+          [0, 1, 2].map(async (i) => {
+            const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(90_000)])
+            try {
+              const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', background: 'transparent', signal })
+              if (runIdRef.current !== myRun) return
+              if (urls[0]) {
+                anyOk = true
+                setConcepts((prev) => {
+                  const next = prev.slice()
+                  next[i] = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
+                  return next
+                })
+                setProgress((p) => p + 1)
+              }
+            } catch (err) {
+              if (!firstErr) firstErr = err
+            }
+          }),
+        )
+        if (runIdRef.current !== myRun) return
+        if (anyOk) {
           setGenerating(false)
           setHistory(pushHistory(clean))
           return
-        } catch (err) {
-          if (runIdRef.current !== myRun) return
-          toast(err instanceof Error ? err.message : 'Image generation failed — showing vector previews instead.', 'info')
-          // fall through to the on-device engine so the user still gets something usable
         }
+        const msg = firstErr instanceof DOMException && firstErr.name === 'TimeoutError'
+          ? 'OpenAI took too long to respond. Try again, or lower the quality.'
+          : firstErr instanceof Error ? firstErr.message : 'Image generation failed — showing vector previews instead.'
+        toast(msg, 'info')
+        // fall through to the on-device engine so the user still gets something usable
       }
 
       // On-device vector concepts (no key, or the live call failed) — revealed as they compose.
@@ -125,13 +218,15 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
     [toast],
   )
 
-  // Generate whenever the modal opens with a prompt, or the incoming prompt changes.
+  // Generate whenever the modal opens with a prompt, or the incoming prompt/mode changes.
   useEffect(() => {
     if (!open) return
+    setMode(initialMode)
+    modeRef.current = initialMode
     setPrompt(initialPrompt)
     void run(initialPrompt, true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, initialPrompt])
+  }, [open, initialPrompt, initialMode])
 
   useEffect(() => {
     if (!open) return
@@ -161,6 +256,13 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
   if (!open) return null
 
   const submit = () => run(prompt, true)
+  const switchMode = (m: AiMode) => {
+    if (m === mode) return
+    setMode(m)
+    modeRef.current = m
+    setConcepts([])
+    if (prompt.trim()) void run(prompt, true)
+  }
   const applySuggestion = (add: string) => {
     const next = `${prompt.trim()} ${add}`.replace(/\s+/g, ' ').trim()
     setPrompt(next)
@@ -219,9 +321,15 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
     setReferences((prev) => [...prev, dataUrl].slice(0, 3))
   }
 
-  const engineNote = isLiveConceptAi()
-    ? 'Generating with OpenAI gpt-image-1 · transparent PNGs. Upload a reference image to guide the look.'
-    : 'On-device vector previews. Add your OpenAI API key in Settings → AI to generate photoreal images — same workflow.'
+  const suggestions = mode === 'garment' ? GARMENT_SUGGESTIONS : SUGGESTIONS
+  const engineNote =
+    mode === 'garment'
+      ? isLiveConceptAi()
+        ? 'Editing your garment with OpenAI gpt-image-1 — the same piece, transformed. Apply one to update the design.'
+        : 'Garment editing needs a real image model. Add your OpenAI API key in Settings → AI — THREADOS won’t fake it.'
+      : isLiveConceptAi()
+        ? 'Generating with OpenAI gpt-image-1 · transparent PNGs. Upload a reference image to guide the look.'
+        : 'On-device vector previews. Add your OpenAI API key in Settings → AI to generate photoreal images — same workflow.'
 
   return createPortal(
     <div className="suite">
@@ -233,6 +341,10 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
             <IcoSparkle width="18" height="18" />
             THREADOS AI
           </span>
+          <div className="tai__modes" role="tablist" aria-label="AI mode">
+            <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>Graphic</button>
+            <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit Garment</button>
+          </div>
           <button type="button" className="tai__x" aria-label="Close" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
@@ -245,13 +357,13 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
             ref={inputRef}
             className="tai__input"
             value={prompt}
-            placeholder="Describe your graphic — “chrome tribal star”, “vintage skull with roses”…"
+            placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
             aria-label="Design prompt"
           />
           <div className="tai__prompt-actions">
-            {live && (
+            {live && mode === 'graphic' && (
               <>
                 <button type="button" className="tai__ghost" title="Upload a reference image to guide the result" onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
                   + Reference
@@ -274,7 +386,7 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
               )}
             </div>
             <button type="button" className="tai__go" onClick={submit} disabled={!prompt.trim() || generating}>
-              {generating ? (live ? 'Generating…' : `Composing ${progress}/3…`) : 'Generate'}
+              {generating ? (live ? `Generating… ${progress}/3` : `Composing ${progress}/3…`) : 'Generate'}
             </button>
           </div>
         </div>
@@ -328,8 +440,12 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
                   </div>
                 </div>
                 <div className="tai-card__foot">
-                  <span className="tai-card__style">{c.styleLabel}</span>
-                  <button type="button" className="tai-card__add" onClick={() => add(c)}>Add to Canvas</button>
+                  <span className="tai-card__style">{mode === 'garment' ? 'Edited garment' : c.styleLabel}</span>
+                  {mode === 'garment' && onApplyGarment ? (
+                    <button type="button" className="tai-card__add" onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>Apply to Garment</button>
+                  ) : (
+                    <button type="button" className="tai-card__add" onClick={() => add(c)}>Add to Canvas</button>
+                  )}
                 </div>
               </article>
             )
@@ -340,7 +456,7 @@ export function ThreadosAIModal({ open, initialPrompt, onClose, onAddToCanvas }:
         <div className="tai__suggest">
           <span className="tai__suggest-label">Keep creating</span>
           <div className="tai__chips">
-            {SUGGESTIONS.map((s) => (
+            {suggestions.map((s) => (
               <button key={s.label} type="button" className="tai__chip" disabled={generating} onClick={() => applySuggestion(s.add)}>
                 {s.label}
               </button>

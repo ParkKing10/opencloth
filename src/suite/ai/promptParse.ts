@@ -106,3 +106,18 @@ export function describesGraphic(prompt: string): boolean {
   if (EDIT_VERB.test(text)) return false
   return parsePrompt(text).motif !== 'emblem'
 }
+
+// Garment nouns (EN + DE, streetwear) and fabric-destruction words that signal "edit the garment".
+const GARMENT_NOUNS = ['garment', 'jacket', 'jacke', 'hoodie', 'hoody', 'sweater', 'pullover', 'shirt', 'tee', 'tshirt', 'pants', 'hose', 'trousers', 'jeans', 'dress', 'kleid', 'skirt', 'rock', 'coat', 'mantel', 'klamotte', 'klamotten', 'cardigan', 'vest', 'parka', 'blazer', 'trui']
+const FABRIC_EDITS = ['hole', 'holes', 'loch', 'löcher', 'rip', 'ripped', 'distress', 'distressed', 'washed', 'acid', 'bleach', 'bleached', 'faded', 'patchwork', 'dyed', 'frayed', 'shredded', 'stonewash']
+
+/**
+ * Should this prompt EDIT the garment itself (add holes, wash, distress) rather than make a graphic?
+ * True when it references a garment or a fabric transformation. The modal also lets the user toggle,
+ * so this only picks the initial mode.
+ */
+export function describesGarmentEdit(prompt: string): boolean {
+  const text = prompt.toLowerCase().trim()
+  if (!text) return false
+  return GARMENT_NOUNS.some((w) => wordIn(text, w)) || FABRIC_EDITS.some((w) => wordIn(text, w))
+}

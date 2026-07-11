@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { generateConcepts, regenerateConcept, conceptName, buildConceptSvg, isLiveConceptAi } from './conceptEngine'
-import { parsePrompt, describesGraphic } from './promptParse'
+import { parsePrompt, describesGraphic, describesGarmentEdit } from './promptParse'
 import { MOTIFS, buildMotif } from './motifs'
 import { makeRng } from './rng'
 
@@ -51,6 +51,16 @@ describe('describesGraphic — command bar routing', () => {
     expect(describesGraphic('add a vintage wash')).toBe(false)
     expect(describesGraphic('move the logo to the left chest')).toBe(false)
     expect(describesGraphic('')).toBe(false)
+  })
+
+  it('routes garment/fabric edits to Edit-Garment mode', () => {
+    expect(describesGarmentEdit('mach die jacke mit crazy löchern')).toBe(true)
+    expect(describesGarmentEdit('add crazy holes')).toBe(true)
+    expect(describesGarmentEdit('acid wash the hoodie')).toBe(true)
+    expect(describesGarmentEdit('distressed and ripped')).toBe(true)
+    // Pure graphic prompts and generic commands are NOT garment edits.
+    expect(describesGarmentEdit('chrome tribal star')).toBe(false)
+    expect(describesGarmentEdit('vintage skull with roses')).toBe(false)
   })
 })
 

@@ -55,6 +55,8 @@ export type DesignDoc = {
   collectionId?: string
   specs?: ProductSpecs
   projectInfo?: ProjectInfo
+  /** AI-edited garment image (data URL) that overrides the garment backdrop, when applied. */
+  garmentEdit?: string
   updatedAt: number
 }
 

@@ -30,7 +30,11 @@
 @keyframes tai-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes tai-rise { from { opacity: 0; transform: translate(-50%, calc(-50% + 14px)) } to { opacity: 1; transform: translate(-50%, -50%) } }
 
-.tai__head { display: flex; align-items: center; justify-content: space-between; }
+.tai__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tai__modes { margin-left: auto; display: inline-flex; padding: 3px; border-radius: 10px; background: var(--s-inset); border: 1px solid var(--s-border); }
+.tai__mode { padding: 6px 14px; border-radius: 8px; border: none; background: transparent; color: var(--s-text-3); font-size: 12.5px; font-weight: 600; cursor: pointer; transition: color var(--s-dur), background var(--s-dur); }
+.tai__mode:hover { color: var(--s-text); }
+.tai__mode.is-active { background: var(--s-accent); color: var(--s-accent-ink, #14141a); }
 .tai__title { display: inline-flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; letter-spacing: 0.01em; color: var(--s-text); }
 .tai__title svg { color: var(--s-accent); }
 .tai__x { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--s-border); background: transparent; color: var(--s-text-2); cursor: pointer; transition: color var(--s-dur), border-color var(--s-dur); }

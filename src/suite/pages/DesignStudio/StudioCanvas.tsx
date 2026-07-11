@@ -129,6 +129,8 @@ type Props = {
   garmentViews?: GarmentViews
   /** The imported garment's real preview (from the Garment Library) — wins over the kind photo. */
   garmentImage?: string
+  /** An AI-edited garment image (Edit Garment mode) — when set it replaces the backdrop entirely. */
+  garmentOverride?: string | null
   /** Per-view backdrops (keyed by view label, e.g. 'Front'/'Back') — the view tabs switch the
    *  stage AND the strip thumbnails between REAL views instead of sharing one preview. */
   garmentSvgByView?: Record<string, string> | null
@@ -174,6 +176,7 @@ export function StudioCanvas({
   garmentKind,
   garmentViews = EMPTY_VIEWS,
   garmentImage,
+  garmentOverride,
   garmentSvg,
   garmentSvgByView,
   designName: designNameProp,
@@ -711,7 +714,9 @@ export function StudioCanvas({
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
           >
             <div className="ds-garment-3d" ref={stageRef}>
-              {garmentSvgByView?.[activeView] || garmentSvg ? (
+              {garmentOverride ? (
+                <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI edit`} draggable={false} />
+              ) : garmentSvgByView?.[activeView] || garmentSvg ? (
                 <div
                   className="ds-garment-vector"
                   role="img"

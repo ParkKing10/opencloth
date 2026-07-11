@@ -53,7 +53,7 @@ import { ContextMenu, type MenuItem } from './ContextMenu'
 import { CommandPalette, type Command } from './CommandPalette'
 import { NewDesignWizard, type WizardResult } from './NewDesignWizard'
 import { SessionStartDialog } from './SessionStartDialog'
-import { ThreadosAIModal } from './ThreadosAIModal'
+import { ThreadosAIModal, type AiMode } from './ThreadosAIModal'
 import { conceptName, type Concept } from '../../ai/conceptEngine'
 import { CreativeDirector } from './CreativeDirector'
 import { buildDirector, type DirectorSuggestion } from './directorModel'
@@ -247,9 +247,12 @@ export function DesignStudio() {
   // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
-  // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt).
+  // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
   const [aiOpen, setAiOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
+  const [aiMode, setAiMode] = useState<AiMode>('graphic')
+  // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
+  const [garmentEditUrl, setGarmentEditUrl] = useState<string | null>(null)
   // Creative Director — proactive, real suggestions after a graphic lands.
   const [director, setDirector] = useState<{ objectId: string; suggestions: DirectorSuggestion[] } | null>(null)
   // Campaign Generator — the finished garment → on-model campaign photography.
@@ -468,6 +471,8 @@ export function DesignStudio() {
   const loadedGarmentRef = useRef<string | null>(null)
   const designNameRef = useRef('Hoodie')
   const collectionIdRef = useRef<string | undefined>(undefined)
+  // AI garment-edit backdrop, kept in a ref so autosave preserves it across unrelated edits.
+  const garmentEditRef = useRef<string | null>(null)
   const specsRef = useRef<ProductSpecs>({})
   const projectInfoRef = useRef<ProjectInfo>({})
 
@@ -491,6 +496,7 @@ export function DesignStudio() {
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
       projectInfo: projectInfoRef.current,
+      garmentEdit: garmentEditRef.current ?? undefined,
       updatedAt: Date.now(),
     })
   }, [])
@@ -1360,6 +1366,9 @@ export function DesignStudio() {
     const loadedInfo = doc?.projectInfo ?? {}
     setProjectInfo(loadedInfo)
     projectInfoRef.current = loadedInfo
+    // Restore (or clear) any AI garment-edit backdrop for this garment.
+    setGarmentEditUrl(doc?.garmentEdit ?? null)
+    garmentEditRef.current = doc?.garmentEdit ?? null
     setSelectedIds([])
     saveLastGarment(gid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2269,8 +2278,9 @@ export function DesignStudio() {
         interpret={interpret}
         onApply={applyProposal}
         onFix={fixCheck}
-        onGenerate={(prompt) => {
+        onGenerate={(prompt, mode) => {
           setAiPrompt(prompt)
+          setAiMode(mode)
           setAiOpen(true)
         }}
       />
@@ -2534,6 +2544,7 @@ export function DesignStudio() {
             garmentKind={activeGarment.kind}
             garmentViews={activeGarment.views}
             garmentImage={garmentDisplayUrl || activeGarment.thumbUrl}
+            garmentOverride={garmentEditUrl}
             garmentSvg={studioBackdropSvg ?? (bridgeGarment ? bridgeSvg : garmentSvg)}
             garmentSvgByView={studioBackdropByView}
             designName={designName}
@@ -2647,8 +2658,15 @@ export function DesignStudio() {
       <ThreadosAIModal
         open={aiOpen}
         initialPrompt={aiPrompt}
+        initialMode={aiMode}
         onClose={() => setAiOpen(false)}
         onAddToCanvas={addGeneratedConcept}
+        onApplyGarment={(dataUrl) => {
+          setGarmentEditUrl(dataUrl)
+          garmentEditRef.current = dataUrl
+          saveCurrentDoc(presentRef.current)
+          toast('Garment updated with your AI edit.', 'success')
+        }}
       />
       <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
       {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && (

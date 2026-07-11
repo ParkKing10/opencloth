@@ -1455,10 +1455,14 @@ export function DesignStudio() {
   // garment the active garment (its flat as the backdrop, design keyed to its id), skip the picker.
   const bridgedRef = useRef(false)
   useEffect(() => {
-    if (bridgedRef.current) return
+    if (bridgedRef.current || catalog.length === 0) return
     const gid = searchParams.get('garment')
     const gname = searchParams.get('name')
     if (!gid) return
+    const h = loadHistory(gid)
+    const catalogG = catalog.find((x) => x.id === gid)
+    // Neither an editable garment nor a catalog entry → let the normal restore/gate handle it.
+    if (!h && !catalogG) return
     bridgedRef.current = true
     restoredRef.current = true // the injected garment wins over last-opened restore
     try {
@@ -1467,8 +1471,11 @@ export function DesignStudio() {
       /* ignore */
     }
     setWizardOpen(false)
-    const h = loadHistory(gid)
-    if (!h) return
+    // A catalog garment (e.g. a Recent Design on a built-in blank) opens straight to that garment.
+    if (!h) {
+      if (catalogG) setActiveName(catalogG.name)
+      return
+    }
     const eg = currentGarment(h)
     setBridgeSvg(garmentThumbnailSvg(eg))
     setStudioGarment(eg)
@@ -1481,7 +1488,7 @@ export function DesignStudio() {
       category: undefined,
       views: { front: true, back: true, combinedFrontBack: false, side: false, details: false, has3D: false },
     })
-  }, [searchParams])
+  }, [searchParams, catalog])
 
   // Open a garment → load its saved document (or start empty). Resets undo history so each
   // garment is its own editing session; never carries one garment's layers onto another.

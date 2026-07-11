@@ -162,7 +162,7 @@ export function Dashboard() {
                       className="design"
                       key={d.id}
                       title={`Open ${d.name} in the Design Studio`}
-                      onClick={() => navigate('/suite/design')}
+                      onClick={() => navigate(`/suite/design?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)}
                     >
                       <div className={`design__preview${thumb ? ' design__preview--img' : ''}`}>
                         {thumb ? (

@@ -296,12 +296,35 @@ function ObjectContent({
     )
   }
   const flip = `scale(${obj.flipH ? -1 : 1}, ${obj.flipV ? -1 : 1})`
+  if (obj.type === 'shape' || obj.type === 'path') {
+    return <VectorContent obj={obj} flip={flip} />
+  }
   if (obj.type === 'image' && obj.src) {
     return <img className="co-img" src={obj.src} alt="" draggable={false} style={{ transform: flip }} />
   }
   // graphic
   return (
     <svg className="co-gfx" viewBox="0 0 100 100" style={{ color: obj.color, transform: flip }} dangerouslySetInnerHTML={{ __html: GRAPHIC_MARKS[obj.glyph ?? ''] ?? GRAPHIC_MARKS['Box Logo'] }} />
+  )
+}
+
+/** Vector primitives (rectangle / ellipse / path), drawn in a local 0..100 × 0..(100·aspect) viewBox. */
+function VectorContent({ obj, flip }: { obj: CanvasObject; flip: string }) {
+  const aspect = obj.aspect && obj.aspect > 0 ? obj.aspect : 1
+  const vbH = 100 * aspect
+  const sw = Math.max(0, obj.strokeWidth ?? 0)
+  const fill = obj.fill && obj.fill !== 'none' ? obj.fill : 'none'
+  const stroke = obj.stroke && obj.stroke !== 'none' ? obj.stroke : 'none'
+  return (
+    <svg className="co-shape" viewBox={`0 0 100 ${vbH}`} style={{ transform: flip }} preserveAspectRatio="none">
+      {obj.type === 'shape' && obj.shape === 'ellipse' ? (
+        <ellipse cx={50} cy={vbH / 2} rx={Math.max(0.5, 50 - sw / 2)} ry={Math.max(0.5, vbH / 2 - sw / 2)} fill={fill} stroke={stroke} strokeWidth={sw} />
+      ) : obj.type === 'shape' ? (
+        <rect x={sw / 2} y={sw / 2} width={Math.max(0.5, 100 - sw)} height={Math.max(0.5, vbH - sw)} rx={Math.max(0, obj.cornerRadius ?? 0)} fill={fill} stroke={stroke} strokeWidth={sw} />
+      ) : (
+        <path d={obj.d ?? ''} fill={obj.closed ? fill : 'none'} stroke={stroke} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
   )
 }
 

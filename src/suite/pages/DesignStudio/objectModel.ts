@@ -5,7 +5,10 @@
  */
 import type { Layer } from './LayersPanel'
 
-export type CanvasObjectType = 'text' | 'image' | 'graphic'
+export type CanvasObjectType = 'text' | 'image' | 'graphic' | 'shape' | 'path'
+
+/** Vector primitives drawn with the shape tools. */
+export type ShapeKind = 'rect' | 'ellipse'
 
 /** Transform + content, in normalized print-area coordinates (0..1, center-based). */
 export type CanvasObject = {
@@ -32,6 +35,23 @@ export type CanvasObject = {
   /** Mirror the object horizontally / vertically (images + graphics). */
   flipH?: boolean
   flipV?: boolean
+  // vector (shape / path) — rendered as SVG in a local 0..100 × 0..(100·aspect) viewBox
+  /** Height ÷ width ratio; the object box scales height from `width` so it stays crisp at any zoom. */
+  aspect?: number
+  /** Which primitive a `shape` object draws. */
+  shape?: ShapeKind
+  /** Fill colour, or 'none' for outline-only. */
+  fill?: string
+  /** Stroke colour, or 'none' for no outline. */
+  stroke?: string
+  /** Stroke width, in local viewBox units. */
+  strokeWidth?: number
+  /** Corner radius for rectangles, in local viewBox units. */
+  cornerRadius?: number
+  /** Path data (`path` objects) in the object's local viewBox. */
+  d?: string
+  /** A closed path fills; an open one is stroked only. */
+  closed?: boolean
 }
 
 let seq = 0
@@ -78,6 +98,35 @@ export function makeGraphicLayer(glyph: string): Layer {
     name: glyph,
     type: 'Graphic',
     obj: { type: 'graphic', x: 0.5, y: 0.44, width: 0.4, rotation: 0, opacity: 1, glyph, color: '#1A1A20' },
+  }
+}
+
+/** Geometry produced by drag-to-create: object centre + span, in print-area fractions. */
+export type ShapeGeom = { x: number; y: number; width: number; aspect: number }
+
+const SHAPE_FILL = '#d1f94f' // lime accent — a filled shape is the useful default on a garment
+const SHAPE_LABEL: Record<ShapeKind, string> = { rect: 'Rectangle', ellipse: 'Ellipse' }
+
+/** Create a vector shape layer (rectangle / ellipse) from drag geometry. */
+export function makeShapeLayer(shape: ShapeKind, g: ShapeGeom): Layer {
+  return {
+    id: nid('shp'),
+    name: SHAPE_LABEL[shape],
+    type: 'Shape',
+    obj: {
+      type: 'shape',
+      shape,
+      x: g.x,
+      y: g.y,
+      width: g.width,
+      aspect: g.aspect,
+      rotation: 0,
+      opacity: 1,
+      fill: SHAPE_FILL,
+      stroke: 'none',
+      strokeWidth: 0,
+      cornerRadius: 0,
+    },
   }
 }
 

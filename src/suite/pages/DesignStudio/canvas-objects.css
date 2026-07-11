@@ -61,6 +61,13 @@
   display: block;
   pointer-events: none;
 }
+.co-shape {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
 
 /* print-zone overlays (optional) */
 .co-zone {

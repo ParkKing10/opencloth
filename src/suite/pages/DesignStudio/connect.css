@@ -1,0 +1,184 @@
+/* Connect App dialog — the iPad workflow explainer. cn- prefix, scoped to .suite tokens. */
+
+.cn-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 460;
+  background: rgba(4, 4, 8, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: cn-fade var(--s-dur) var(--s-ease);
+}
+
+.cn-panel {
+  position: fixed;
+  z-index: 461;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 40px));
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 22px 24px 20px;
+  border-radius: 20px;
+  border: 1px solid var(--s-border);
+  background: var(--s-panel);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.5);
+  animation: cn-rise var(--s-dur-slow) var(--s-ease);
+}
+
+@keyframes cn-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes cn-rise {
+  from { opacity: 0; transform: translate(-50%, calc(-50% + 12px)); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+.cn-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.cn-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--s-accent);
+}
+.cn-soon {
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--s-accent) 18%, transparent);
+  color: var(--s-accent);
+}
+.cn-x {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--s-border);
+  background: transparent;
+  color: var(--s-text-2);
+  cursor: pointer;
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
+}
+.cn-x:hover {
+  color: var(--s-text);
+  border-color: var(--s-border-strong);
+}
+
+.cn-title {
+  margin-top: 14px;
+  font-size: clamp(21px, 3vw, 27px);
+  font-weight: 680;
+  letter-spacing: -0.02em;
+  line-height: 1.14;
+  color: var(--s-text);
+}
+.cn-sub {
+  margin-top: 9px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--s-text-2);
+}
+
+.cn-stage {
+  margin: 18px 0 6px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--s-border);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--s-accent) 8%, var(--s-inset)), var(--s-inset));
+}
+.cn-illo {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.cn-screen { fill: none; stroke: var(--s-text-3); stroke-width: 2; }
+.cn-muted { fill: color-mix(in oklab, var(--s-text-3) 55%, transparent); }
+.cn-accent-fill { fill: var(--s-accent); }
+.cn-link { stroke: var(--s-accent); stroke-width: 2; stroke-dasharray: 5 5; }
+.cn-pulse { fill: var(--s-accent); animation: cn-travel 2.4s var(--s-ease) infinite; }
+.cn-stroke-demo { fill: none; stroke: var(--s-accent); stroke-width: 3; stroke-linecap: round; }
+.cn-pencil .cn-muted { stroke: var(--s-text-3); stroke-width: 2; }
+
+@keyframes cn-travel {
+  0% { transform: translateX(0); opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { transform: translateX(68px); opacity: 0; }
+}
+
+.cn-steps {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 480px) {
+  .cn-steps { grid-template-columns: 1fr; }
+}
+.cn-step {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+}
+.cn-step__n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--s-accent) 16%, transparent);
+  color: var(--s-accent);
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.cn-step__body { display: flex; flex-direction: column; gap: 2px; }
+.cn-step__body b { font-size: 13.5px; font-weight: 640; color: var(--s-text); }
+.cn-step__body small { font-size: 12px; line-height: 1.4; color: var(--s-text-3); }
+
+.cn-foot {
+  margin-top: 20px;
+  padding-top: 15px;
+  border-top: 1px solid var(--s-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.cn-note {
+  font-size: 12px;
+  color: var(--s-text-3);
+  max-width: 60%;
+}
+.cn-cta {
+  flex: none;
+  padding: 10px 20px;
+  border-radius: 11px;
+  border: none;
+  background: var(--s-accent);
+  color: var(--s-accent-ink, #14141a);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter var(--s-dur) var(--s-ease), transform 120ms var(--s-ease);
+}
+.cn-cta:hover { filter: brightness(1.06); }
+.cn-cta:active { transform: translateY(1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cn-panel, .cn-scrim { animation: none; }
+  .cn-pulse { animation: none; opacity: 1; }
+}

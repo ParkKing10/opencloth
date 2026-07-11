@@ -218,13 +218,6 @@
   display: block;
 }
 
-/* Add-text / add-image tools in the left rail */
-.ds-toolrail__add {
-  color: var(--s-accent) !important;
-}
-.ds-toolrail__add:hover {
-  background: var(--s-accent-soft) !important;
-}
 .ds-toolrail__sep {
   height: 1px;
   margin: 4px 6px;

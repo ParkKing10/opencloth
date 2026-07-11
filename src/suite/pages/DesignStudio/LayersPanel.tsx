@@ -16,6 +16,28 @@ function LayerThumb({ obj }: { obj: CanvasObject }) {
       </span>
     )
   }
+  if (obj.type === 'shape' || obj.type === 'path') {
+    const aspect = obj.aspect && obj.aspect > 0 ? obj.aspect : 1
+    const vbH = 100 * aspect
+    const fill = obj.fill && obj.fill !== 'none' ? obj.fill : 'none'
+    const rawStroke = obj.stroke && obj.stroke !== 'none' ? obj.stroke : 'none'
+    // Outline-only shapes need a visible stroke in the thumb, so fall back to the row colour.
+    const stroke = rawStroke === 'none' && fill === 'none' ? 'currentColor' : rawStroke
+    const sw = Math.max(obj.strokeWidth ?? 0, fill === 'none' ? 5 : 0)
+    return (
+      <span className="lp-row__thumb">
+        <svg viewBox={`0 0 100 ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%' }}>
+          {obj.type === 'path' ? (
+            <path d={obj.d ?? ''} fill={obj.closed ? fill : 'none'} stroke={stroke === 'none' ? 'currentColor' : stroke} strokeWidth={Math.max(5, obj.strokeWidth ?? 0)} strokeLinecap="round" />
+          ) : obj.shape === 'ellipse' ? (
+            <ellipse cx={50} cy={vbH / 2} rx={Math.max(1, 50 - sw / 2)} ry={Math.max(1, vbH / 2 - sw / 2)} fill={fill} stroke={stroke} strokeWidth={sw} />
+          ) : (
+            <rect x={sw / 2} y={sw / 2} width={Math.max(1, 100 - sw)} height={Math.max(1, vbH - sw)} rx={obj.cornerRadius ?? 0} fill={fill} stroke={stroke} strokeWidth={sw} />
+          )}
+        </svg>
+      </span>
+    )
+  }
   // text (or a graphic with no mark): show the first glyph on a chip
   const ch = (obj.text?.trim()?.[0] ?? 'T').toUpperCase()
   return (

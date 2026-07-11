@@ -15,7 +15,7 @@ type Props = {
   onArrange?: (op: 'front' | 'back' | 'forward' | 'backward') => void
 }
 
-const TYPE_LABEL: Record<string, string> = { text: 'Text', image: 'Image', graphic: 'Graphic' }
+const TYPE_LABEL: Record<string, string> = { text: 'Text', image: 'Image', graphic: 'Graphic', shape: 'Shape', path: 'Vector' }
 
 /** Inspector for a placed canvas object — content + transform, all live. */
 export function ObjectInspector({ layer, onChange, onDelete, onBack, onReplace, onArrange }: Props) {
@@ -112,6 +112,17 @@ export function ObjectInspector({ layer, onChange, onDelete, onBack, onReplace, 
               </button>
             </div>
           </div>
+        </>
+      )}
+
+      {(o.type === 'shape' || o.type === 'path') && (
+        <>
+          <PaintRow label="Fill" value={o.fill ?? 'none'} onChange={(v) => onChange({ fill: v })} />
+          <PaintRow label="Stroke" value={o.stroke ?? 'none'} onChange={(v) => onChange({ stroke: v })} />
+          <RangeRow label="Stroke width" min={0} max={24} step={0.5} value={o.strokeWidth ?? 0} onChange={(v) => onChange({ strokeWidth: v })} suffix="" />
+          {o.type === 'shape' && o.shape === 'rect' && (
+            <RangeRow label="Corner radius" min={0} max={50} step={1} value={o.cornerRadius ?? 0} onChange={(v) => onChange({ cornerRadius: v })} suffix="" />
+          )}
         </>
       )}
 
@@ -259,6 +270,40 @@ function ColorRow({ value, onChange }: { value: string; onChange: (v: string) =>
         ))}
         <label className="oi__swatch oi__swatch--custom" title="Custom color">
           <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
+          +
+        </label>
+      </div>
+    </div>
+  )
+}
+
+/** Fill/stroke picker — like ColorRow but with a "None" option for vector paint. */
+function PaintRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const isNone = !value || value === 'none'
+  return (
+    <div className="oi__field">
+      <span>{label}</span>
+      <div className="oi__swatches">
+        <button
+          type="button"
+          className={`oi__swatch oi__swatch--none${isNone ? ' is-active' : ''}`}
+          title="None"
+          aria-label={`${label}: none`}
+          aria-pressed={isNone}
+          onClick={() => onChange('none')}
+        />
+        {COLOR_PRESETS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            className={`oi__swatch${!isNone && value.toLowerCase() === c.value.toLowerCase() ? ' is-active' : ''}`}
+            style={{ background: c.swatch }}
+            title={c.hint}
+            onClick={() => onChange(c.value)}
+          />
+        ))}
+        <label className="oi__swatch oi__swatch--custom" title="Custom color">
+          <input type="color" value={isNone ? '#000000' : value} onChange={(e) => onChange(e.target.value)} />
           +
         </label>
       </div>

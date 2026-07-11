@@ -146,6 +146,12 @@
   opacity: 0;
   cursor: pointer;
 }
+/* "None" paint — a white chip with a red no-entry diagonal. */
+.oi__swatch--none {
+  background:
+    linear-gradient(to top right, transparent calc(50% - 1.2px), #e5484d calc(50% - 1.2px), #e5484d calc(50% + 1.2px), transparent calc(50% + 1.2px)),
+    var(--s-surface, #fff);
+}
 
 .oi__range {
   display: flex;

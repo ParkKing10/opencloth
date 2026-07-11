@@ -38,9 +38,12 @@ import { ObjectInspector } from './ObjectInspector'
 import {
   makeGraphicLayer,
   makeImageLayer,
+  makeShapeLayer,
   makeTextLayer,
   patchObject,
   type CanvasObject,
+  type ShapeGeom,
+  type ShapeKind,
 } from './objectModel'
 import { type PropField } from './GarmentInspector'
 import { GarmentInfoPanel } from './GarmentInfoPanel'
@@ -562,6 +565,19 @@ export function DesignStudio() {
       commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([l.id])
       toast(`${glyph} added.`, 'success')
+    },
+    [commit, toast],
+  )
+
+  // Drawing tools (Rectangle / Ellipse): the canvas hands back the drawn geometry; we mint a real
+  // vector object that lands on its own layer — so undo, selection, save, export and the inspector
+  // all work for it exactly like text or images, with no special-casing.
+  const addShapeObject = useCallback(
+    (shape: ShapeKind, geom: ShapeGeom) => {
+      const l = makeShapeLayer(shape, geom)
+      commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+      setSelectedIds([l.id])
+      toast(`${shape === 'rect' ? 'Rectangle' : 'Ellipse'} added — set its fill, stroke and corners in the inspector.`, 'success')
     },
     [commit, toast],
   )
@@ -2462,6 +2478,7 @@ export function DesignStudio() {
             onEditText={editObjectText}
             onAddText={addTextObject}
             onAddImage={addImageObject}
+            onCreateObject={addShapeObject}
             regionGarment={displayGarment}
             selectedRegionId={regionSel}
             onSelectRegion={(id) => (id ? selectRegion(id) : setRegionSel(null))}

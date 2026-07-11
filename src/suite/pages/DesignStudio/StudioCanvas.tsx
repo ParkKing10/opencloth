@@ -9,7 +9,8 @@ import { CanvasObjects, type Overlays } from './CanvasObjects'
 import { StudioRegionLayer, labelToViewId } from './StudioRegionLayer'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import type { Layer } from './LayersPanel'
-import type { CanvasObject } from './objectModel'
+import type { CanvasObject, ShapeGeom, ShapeKind } from './objectModel'
+import { ConnectAppDialog } from './ConnectAppDialog'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import teeImg from '../../../assets/cards/tee.png'
 import './canvas.css'
@@ -17,12 +18,56 @@ import './canvas.css'
 /** Photoreal garment backdrops where we have them; glyph fallback otherwise. */
 const GARMENT_PHOTO: Partial<Record<GarmentKind, string>> = { hoodie: hoodieImg, tee: teeImg }
 
-// Only the tools that actually do something. Selection/move is the default; pan (also Space)
-// grabs the canvas. Rotation/resize happen via a selected object's own handles — no separate tool.
-const TOOLS: { id: string; label: string }[] = [
-  { id: 'move', label: 'Select & move' },
-  { id: 'pan', label: 'Pan canvas (or hold Space)' },
+type ToolDef = { id: string; label: string; hint: string; key?: string; soon?: boolean; note?: string; action?: 'text' | 'image' }
+type ToolGroup = { name: string; tools: ToolDef[] }
+
+// The professional tool palette, grouped by workflow. A working tool either switches the active
+// canvas tool or fires an insert action; a "soon" tool is visible but clearly not yet functional —
+// never dead UI: clicking one explains exactly what is coming. Rectangle/Ellipse draw REAL vector
+// objects that behave like every other Studio object (layers, undo, selection, save, export…).
+const TOOL_GROUPS: ToolGroup[] = [
+  {
+    name: 'Select',
+    tools: [
+      { id: 'move', label: 'Select', hint: 'Select & move — V', key: 'v' },
+      { id: 'pan', label: 'Pan', hint: 'Pan the canvas (or hold Space) — H', key: 'h' },
+    ],
+  },
+  {
+    name: 'Vector',
+    tools: [
+      { id: 'rect', label: 'Rectangle', hint: 'Rectangle — drag on the garment · R', key: 'r' },
+      { id: 'ellipse', label: 'Ellipse', hint: 'Ellipse — drag on the garment · O', key: 'o' },
+      { id: 'pen', label: 'Pen', hint: 'Pen — bézier paths & anchor points', soon: true, note: 'The Pen tool — bézier curves, anchor-point editing, boolean & pathfinder ops — is coming soon. Rectangle and Ellipse already draw real, fully-editable vector objects.' },
+    ],
+  },
+  {
+    name: 'Content',
+    tools: [
+      { id: 'text', label: 'Text', hint: 'Add text — T', key: 't', action: 'text' },
+      { id: 'image', label: 'Image', hint: 'Add an image or file', action: 'image' },
+    ],
+  },
+  {
+    name: 'Paint',
+    tools: [
+      { id: 'brush', label: 'Brush', hint: 'Paint — pencil, marker, fabric & texture brushes', soon: true, note: 'Painting — pencil, brush, marker, airbrush, fabric, denim & leather brushes, with pressure & tilt — is coming soon. It ships with the THREADOS iPad app; see Connect App.' },
+    ],
+  },
+  {
+    name: 'Build',
+    tools: [
+      { id: 'build', label: 'Build', hint: 'Garment builder — pockets, hoods, collars, zips', soon: true, note: 'Garment building — add pocket, hood, collar, zipper, ribbing, waistband; duplicate & mirror panels with smart symmetry — is coming soon.' },
+    ],
+  },
 ]
+
+/** Tools that change the canvas pointer behaviour (vs. one-shot insert actions). */
+const CANVAS_TOOLS = new Set(['move', 'pan', 'rect', 'ellipse'])
+/** Tools that draw a new vector object by dragging a box on the canvas. */
+const DRAW_TOOLS = new Set(['rect', 'ellipse'])
+/** Smallest drag (px) that counts as a deliberate box; a mere click makes a default-sized shape. */
+const CREATE_MIN_DRAG = 6
 
 const ALIGN_TOOLS: { edge: 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'; label: string }[] = [
   { edge: 'left', label: 'Align left edges' },
@@ -107,6 +152,8 @@ type Props = {
   onEditText?: (id: string, text: string) => void
   onAddText?: () => void
   onAddImage?: (file: File) => void
+  /** Draw a new vector object from a drag on the canvas (Rectangle / Ellipse tools). */
+  onCreateObject?: (shape: ShapeKind, geom: ShapeGeom) => void
   // ---- editable garment regions (select + move parts directly on the garment) ----
   /** The garment with its region tree + overrides (displayGarment). When present, its parts are
    *  selectable + draggable on the canvas via a transparent hit-layer over the backdrop. */
@@ -142,6 +189,7 @@ export function StudioCanvas({
   onEditText,
   onAddText,
   onAddImage,
+  onCreateObject,
   regionGarment,
   selectedRegionId,
   onSelectRegion,
@@ -206,6 +254,11 @@ export function StudioCanvas({
   // Marquee (rubber-band) selection: drag on empty canvas to select every object it encloses.
   const marqueeRef = useRef<{ pointerId: number; startX: number; startY: number; shift: boolean; moved: boolean } | null>(null)
   const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  // Drawing (Rectangle / Ellipse): drag a box on the canvas to create a real vector object.
+  const createRef = useRef<{ pointerId: number; startX: number; startY: number } | null>(null)
+  const [createBox, setCreateBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  const [connectOpen, setConnectOpen] = useState(false)
+  const isDrawTool = DRAW_TOOLS.has(tool)
 
   // Single entry point for view changes keeps refs and state in lockstep.
   function applyView(nextZoom: number, nextPan: Pan) {
@@ -270,6 +323,21 @@ export function StudioCanvas({
     }
   }, [])
 
+  // Tool keyboard shortcuts (Illustrator/Figma-style single keys), ignored while typing or when a
+  // modifier is held (so ⌘-shortcuts elsewhere are untouched).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
+      const def = TOOL_GROUPS.flatMap((g) => g.tools).find((t) => t.key === e.key.toLowerCase())
+      if (!def) return
+      e.preventDefault()
+      if (def.action === 'text') onAddText?.()
+      else if (CANVAS_TOOLS.has(def.id)) setTool(def.id)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onAddText])
+
   // Reap the interaction-settle timer on unmount.
   useEffect(() => {
     return () => {
@@ -312,6 +380,17 @@ export function StudioCanvas({
 
   function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
     const panIntent = e.button === 1 || (e.button === 0 && (tool === 'pan' || spaceHeld))
+    // Draw tools (Rectangle / Ellipse): a left press begins a create-drag. While a draw tool is
+    // active, objects don't intercept the press (see cv-viewport--draw), so you can draw anywhere.
+    if (e.button === 0 && !panIntent && isDrawTool && onCreateObject) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        /* capture is best-effort */
+      }
+      createRef.current = { pointerId: e.pointerId, startX: e.clientX, startY: e.clientY }
+      return
+    }
     // Empty-canvas left press (objects/regions stopPropagation their own presses): start a marquee.
     // A plain click that never moves past the threshold still deselects (handled on pointer-up).
     if (e.button === 0 && !panIntent && onMarqueeSelect) {
@@ -340,6 +419,18 @@ export function StudioCanvas({
   const MARQUEE_THRESHOLD = 4
 
   function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    const cr = createRef.current
+    if (cr && e.pointerId === cr.pointerId) {
+      const vp = viewportRef.current?.getBoundingClientRect()
+      if (!vp) return
+      setCreateBox({
+        left: Math.min(cr.startX, e.clientX) - vp.left,
+        top: Math.min(cr.startY, e.clientY) - vp.top,
+        width: Math.abs(e.clientX - cr.startX),
+        height: Math.abs(e.clientY - cr.startY),
+      })
+      return
+    }
     const mq = marqueeRef.current
     if (mq && e.pointerId === mq.pointerId) {
       const dx = e.clientX - mq.startX
@@ -364,7 +455,41 @@ export function StudioCanvas({
     })
   }
 
+  /** Map the drawn box to print-area fractions and create the vector object, then re-arm Select. */
+  function finishCreate(cr: { startX: number; startY: number }, endX: number, endY: number) {
+    if (!onCreateObject || !DRAW_TOOLS.has(tool)) return
+    const cb = worldRef.current?.querySelector('.co-box')?.getBoundingClientRect()
+    if (!cb || cb.width < 1 || cb.height < 1) return
+    let wpx = Math.abs(endX - cr.startX)
+    let hpx = Math.abs(endY - cr.startY)
+    let cx = (cr.startX + endX) / 2
+    let cy = (cr.startY + endY) / 2
+    // A mere click (no real drag) → a sensible default-sized shape centred on the click.
+    if (wpx < CREATE_MIN_DRAG && hpx < CREATE_MIN_DRAG) {
+      wpx = cb.width * 0.28
+      hpx = wpx
+      cx = cr.startX
+      cy = cr.startY
+    }
+    const unit = (v: number) => Math.max(0, Math.min(1, v))
+    onCreateObject(tool as ShapeKind, {
+      x: unit((cx - cb.left) / cb.width),
+      y: unit((cy - cb.top) / cb.height),
+      width: wpx / cb.width,
+      aspect: hpx / wpx,
+    })
+    setTool('move') // re-arm Select so the new object can be manipulated immediately
+  }
+
   function endPan(e: ReactPointerEvent<HTMLDivElement>) {
+    const cr = createRef.current
+    if (cr && e.pointerId === cr.pointerId) {
+      createRef.current = null
+      setCreateBox(null)
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+      finishCreate(cr, e.clientX, e.clientY)
+      return
+    }
     const mq = marqueeRef.current
     if (mq && e.pointerId === mq.pointerId) {
       marqueeRef.current = null
@@ -396,6 +521,23 @@ export function StudioCanvas({
     dragRef.current = null
     setIsPanning(false)
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  /** Click a palette tool: soon → explain, actions → insert, canvas tools → arm. Never dead UI. */
+  function onToolClick(t: ToolDef) {
+    if (t.soon) {
+      toast(t.note ?? 'This tool is coming soon.', 'info')
+      return
+    }
+    if (t.action === 'text') {
+      onAddText?.()
+      return
+    }
+    if (t.action === 'image') {
+      fileInputRef.current?.click()
+      return
+    }
+    if (CANVAS_TOOLS.has(t.id)) setTool(t.id)
   }
 
   // Double-clicking empty canvas (not the garment) fits the view.
@@ -467,60 +609,55 @@ export function StudioCanvas({
 
       {/* Stage */}
       <div className="ds-stage">
-        <div className="ds-toolrail">
-          {onAddText && (
-            <button type="button" className="ds-toolrail__add" aria-label="Add text" title="Add text" onClick={onAddText}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <path d="M5 7V5h14v2M12 5v14M9 19h6" />
-              </svg>
-            </button>
-          )}
-          {onAddImage && (
-            <>
-              <button
-                type="button"
-                className="ds-toolrail__add"
-                aria-label="Add image"
-                title="Add image or file"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
-                  <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
-                  <circle cx="9" cy="10" r="1.8" />
-                  <path d="M4 17l5-4 4 3 3-2 4 3" />
-                </svg>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/svg+xml,image/webp,image/jpeg"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) onAddImage(f)
-                  e.target.value = ''
-                }}
-              />
-            </>
-          )}
-          {(onAddText || onAddImage) && <span className="ds-toolrail__sep" />}
-          {TOOLS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={tool === t.id ? 'is-active' : ''}
-              aria-label={t.label}
-              title={t.label}
-              onClick={() => setTool(t.id)}
-            >
-              <ToolGlyph tool={t.id} />
-            </button>
+        <div className="ds-toolrail" role="toolbar" aria-label="Studio tools" aria-orientation="vertical">
+          {TOOL_GROUPS.map((group, gi) => (
+            <div className="ds-toolrail__group" key={group.name} role="group" aria-label={group.name}>
+              {gi > 0 && <span className="ds-toolrail__sep" aria-hidden />}
+              {group.tools.map((t) => {
+                const active = CANVAS_TOOLS.has(t.id) && tool === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`ds-tool${active ? ' is-active' : ''}${t.soon ? ' is-soon' : ''}`}
+                    aria-label={t.soon ? `${t.label} (coming soon)` : t.label}
+                    aria-pressed={active}
+                    title={t.soon ? `${t.hint} · Coming soon` : t.hint}
+                    onClick={() => onToolClick(t)}
+                  >
+                    <ToolGlyph tool={t.id} />
+                    {t.soon && <span className="ds-tool__soon" aria-hidden />}
+                  </button>
+                )
+              })}
+            </div>
           ))}
+          <span className="ds-toolrail__spacer" />
+          <button
+            type="button"
+            className="ds-tool ds-tool--connect"
+            aria-label="Connect the THREADOS iPad app"
+            title="Connect the THREADOS iPad app — draw with Apple Pencil"
+            onClick={() => setConnectOpen(true)}
+          >
+            <ToolGlyph tool="connect" />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/svg+xml,image/webp,image/jpeg"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) onAddImage?.(f)
+              e.target.value = ''
+            }}
+          />
         </div>
 
         <div
           ref={viewportRef}
-          className={`ds-viewport cv-viewport${tool === 'pan' || spaceHeld ? ' cv-viewport--pan' : ''}${isPanning ? ' cv-viewport--panning' : ''}`}
+          className={`ds-viewport cv-viewport${tool === 'pan' || spaceHeld ? ' cv-viewport--pan' : ''}${isPanning ? ' cv-viewport--panning' : ''}${isDrawTool ? ' cv-viewport--draw' : ''}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={endPan}
@@ -539,6 +676,13 @@ export function StudioCanvas({
               className="cv-marquee"
               aria-hidden="true"
               style={{ left: marquee.left, top: marquee.top, width: marquee.width, height: marquee.height }}
+            />
+          )}
+          {createBox && (
+            <div
+              className="cv-create"
+              aria-hidden="true"
+              style={{ left: createBox.left, top: createBox.top, width: createBox.width, height: createBox.height }}
             />
           )}
           {objectSelectionCount >= 2 && onAlign && (
@@ -671,6 +815,7 @@ export function StudioCanvas({
             </div>
           </div>
         ))}
+      <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
     </main>
   )
 }
@@ -692,6 +837,21 @@ function ToolGlyph({ tool, small }: { tool: string; small?: boolean }) {
     move: <path d="M5 3l14 7-6 2-2 6L5 3Z" />,
     // hand (pan)
     pan: <path d="M8 12V6a1.5 1.5 0 0 1 3 0v5m0-1V5a1.5 1.5 0 0 1 3 0v6m0-1V6.5a1.5 1.5 0 0 1 3 0V14a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2.2L5 15a1.6 1.6 0 0 1 2.6-1.8L8.5 14" />,
+    // vector primitives
+    rect: <rect x="4" y="6" width="16" height="12" rx="1.6" />,
+    ellipse: <ellipse cx="12" cy="12" rx="8.5" ry="6.5" />,
+    // pen nib
+    pen: <><path d="M5 19l1.7-5.4 7.6-7.6a1.8 1.8 0 0 1 2.6 0l1.5 1.5a1.8 1.8 0 0 1 0 2.6l-7.6 7.6L5 19Z" /><path d="M13.2 7.8l3 3" /><path d="M5 19l3.2-3.2" /></>,
+    // add text
+    text: <path d="M5 7V5h14v2M12 5v14M9 19h6" />,
+    // image
+    image: <><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="M4 17l5-4 4 3 3-2 4 3" /></>,
+    // paintbrush
+    brush: <><path d="M15.5 4.5l4 4-8 8-4-4 8-8Z" /><path d="M7.5 12.5 4 20l7.5-3.5" /></>,
+    // garment builder (add component)
+    build: <><rect x="4" y="4" width="16" height="16" rx="2.4" /><path d="M12 8.5v7M8.5 12h7" /></>,
+    // connect: tablet + signal arcs
+    connect: <><rect x="7" y="2.5" width="10" height="19" rx="2" /><circle cx="12" cy="18.4" r="0.9" fill="currentColor" stroke="none" /><path d="M9.6 6.6c1.5-1.2 3.3-1.2 4.8 0M11 9c.7-.5 1.3-.5 2 0" /></>,
   }
   return <svg {...base}>{glyphs[tool] ?? glyphs.move}</svg>
 }

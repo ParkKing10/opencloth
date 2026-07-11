@@ -667,6 +667,63 @@
   color: var(--s-accent-2);
   background: var(--s-accent-soft);
 }
+/* Grouped, workflow-organised palette. */
+.ds-toolrail__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ds-tool {
+  position: relative;
+}
+/* "Coming soon" tools stay visible but read as not-yet — dimmed with an accent corner dot.
+   The tooltip and the toast on click carry the actual "Coming soon" words. Never dead UI. */
+.ds-tool.is-soon {
+  opacity: 0.5;
+}
+.ds-tool.is-soon:hover {
+  opacity: 0.8;
+  background: var(--s-panel-2);
+}
+.ds-tool__soon {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-accent);
+  box-shadow: 0 0 0 2px var(--s-panel);
+}
+.ds-toolrail__spacer {
+  height: 1px;
+  margin: 6px 6px 2px;
+  background: var(--s-line);
+}
+.ds-tool--connect {
+  color: var(--s-accent-2) !important;
+  background: var(--s-accent-soft) !important;
+}
+.ds-tool--connect:hover {
+  filter: brightness(1.08);
+}
+
+/* Draw tools: crosshair cursor, and objects don't intercept the press (draw anywhere). */
+.cv-viewport--draw {
+  cursor: crosshair;
+}
+.cv-viewport--draw .co-obj {
+  pointer-events: none;
+}
+/* The shape being drawn (rubber-band preview). */
+.cv-create {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border: 1.5px solid var(--s-accent, #d1f94f);
+  background: color-mix(in oklab, var(--s-accent, #d1f94f) 14%, transparent);
+  border-radius: 2px;
+}
 
 .ds-viewport {
   position: relative;

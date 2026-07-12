@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { IcoArrowRight, IcoPlus } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS } from '../../components/ui/Garments'
-import { TechPackFlats, GlobePins } from './FeatureArt'
+import { TechPackFlats, GlobePins, ShopArt } from './FeatureArt'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { relativeTime } from '../../data/utils'
@@ -72,18 +72,11 @@ function FeatureArt({ art }: { art: ArtKind }) {
     case 'globe':
       return <GlobePins />
     case 'shop':
-      return (
-        <svg className="feat-art__glyph" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M12 16h6l4 26h22l5-18H20" />
-          <circle cx="26" cy="50" r="3" />
-          <circle cx="42" cy="50" r="3" />
-          <path d="M40 24v-4a6 6 0 0 0-12 0v4" />
-        </svg>
-      )
+      return <ShopArt />
   }
 }
 
-const RECENT_LIMIT = 5
+const RECENT_LIMIT = 12
 
 export function Dashboard() {
   const navigate = useNavigate()
@@ -182,7 +175,12 @@ export function Dashboard() {
                       </div>
                       <div className="design__meta">
                         <span className="design__name">{d.name}</span>
-                        <span className="design__mod">Modified {relativeTime(d.updatedAt)}</span>
+                        <span className="design__mod">
+                          <Glyph width="13" height="13" />
+                          <span className="design__type">{d.kind}</span>
+                          <span className="design__dot">·</span>
+                          <span>{relativeTime(d.updatedAt)}</span>
+                        </span>
                       </div>
                     </article>
                   )

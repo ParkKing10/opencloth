@@ -66,6 +66,29 @@ export function TechPackFlats() {
   )
 }
 
+/** Garment Shop — a shopping bag holding a garment, with a coin. */
+export function ShopArt() {
+  return (
+    <svg viewBox="0 0 240 300" fill="none" className="feat-art__svg" aria-hidden="true">
+      <g transform="translate(120 150)">
+        <g stroke="currentColor" strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round">
+          {/* bag */}
+          <path d="M-58 -28 h116 l9 106 a12 12 0 0 1 -12 13 h-110 a12 12 0 0 1 -12 -13 Z" />
+          <path d="M-32 -28 v-8 a32 32 0 0 1 64 0 v8" opacity="0.72" />
+          {/* garment inside */}
+          <path d="M-20 10 l9 -8 a13 13 0 0 0 22 0 l9 8 -8 11 -6 -4 v25 h-12 v-25 l-6 4Z" opacity="0.8" />
+        </g>
+        {/* coin */}
+        <g transform="translate(50 -44)">
+          <circle cx="0" cy="7" r="15" fill="var(--s-accent, #d1f94f)" opacity="0.55" />
+          <circle cx="0" cy="0" r="15" fill="var(--s-accent, #d1f94f)" />
+          <path d="M-5 0 h10 M0 -5 v10" stroke="#14141a" strokeWidth="1.8" strokeLinecap="round" opacity="0.65" />
+        </g>
+      </g>
+    </svg>
+  )
+}
+
 /** Manufacturer Hub — a wireframe globe with location pins. */
 export function GlobePins() {
   return (

@@ -1433,3 +1433,48 @@ select.ds-save__input {
   padding: 1px 5px;
   border-radius: 5px;
 }
+
+/* Unsaved-changes guard dialog */
+.ds-leave {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+}
+.ds-leave__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 4, 8, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.ds-leave__card {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid var(--s-border, var(--s-line));
+  background: var(--s-panel);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.55);
+}
+.ds-leave__card b {
+  font-size: 16px;
+  color: var(--s-text);
+}
+.ds-leave__card span {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--s-text-3);
+}
+.ds-leave__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}

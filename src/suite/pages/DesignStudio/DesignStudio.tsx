@@ -2107,6 +2107,67 @@ export function DesignStudio() {
     [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections, captureThumb],
   )
 
+  // ---- Unsaved-changes guard --------------------------------------------------------------------
+  // Leaving the Studio (the logo → workspace, the browser Back button, or a refresh/close) must ask
+  // for an explicit Save or Discard decision while there are unsaved edits. The studio also autosaves,
+  // so work is never lost — this is the deliberate "commit or discard before you leave" gate.
+  const [pendingLeave, setPendingLeave] = useState<string | null>(null) // a path, or 'back'
+  const dirty = saveState === 'unsaved'
+  const dirtyRef = useRef(dirty)
+  useEffect(() => {
+    dirtyRef.current = dirty
+  }, [dirty])
+
+  // Browser refresh / tab close → native "leave site?" prompt while dirty.
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [])
+
+  // Browser Back button → intercept via a history sentinel. Dirty: re-arm + open the dialog; clean:
+  // leave to the workspace. (react-router 6 BrowserRouter has no useBlocker, hence the manual trap.)
+  useEffect(() => {
+    window.history.pushState(null, '', window.location.href)
+    const onPop = () => {
+      if (dirtyRef.current) {
+        window.history.pushState(null, '', window.location.href)
+        setPendingLeave('back')
+      } else {
+        navigate('/suite')
+      }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Guarded in-app navigation (used by the logo → workspace).
+  const guardedNavigate = useCallback(
+    (to: string) => {
+      if (dirtyRef.current) setPendingLeave(to)
+      else navigate(to)
+    },
+    [navigate],
+  )
+
+  const leaveNow = useCallback(() => {
+    const to = pendingLeave
+    setPendingLeave(null)
+    if (to && to !== 'back') navigate(to)
+    else navigate('/suite')
+  }, [pendingLeave, navigate])
+
+  const saveAndLeave = useCallback(() => {
+    saveCurrentDoc(presentRef.current)
+    persistDesign(designNameRef.current, collectionIdRef.current, false)
+    leaveNow()
+  }, [saveCurrentDoc, persistDesign, leaveNow])
+
   /**
    * Confirm from the Save dialog. Creates the collection (if new) AND saves the design in a
    * SINGLE mutate, so reconcile inserts the collection before the design references it —
@@ -2363,7 +2424,7 @@ export function DesignStudio() {
       {/* ---- Editor top bar ---- */}
       <header className="ds-top">
         <div className="ds-top__left">
-          <button className="ds-logo" type="button" onClick={() => navigate('/suite')}>
+          <button className="ds-logo" type="button" onClick={() => guardedNavigate('/suite')}>
             <span className="ds-logo__mark">
               <svg viewBox="0 0 32 32" width="17" height="17">
                 <path d="M5 6h22v5h-8v15h-6V11H5V6Z" fill="currentColor" />
@@ -2961,6 +3022,22 @@ export function DesignStudio() {
         onClose={() => setSaveOpen(false)}
         onSave={confirmSave}
       />
+
+      {/* Unsaved-changes guard — shown when leaving the Studio with edits that weren't explicitly saved */}
+      {pendingLeave && (
+        <div className="ds-leave" role="dialog" aria-modal="true" aria-labelledby="ds-leave-title">
+          <div className="ds-leave__scrim" onClick={() => setPendingLeave(null)} />
+          <div className="ds-leave__card">
+            <b id="ds-leave-title">Save before leaving?</b>
+            <span>You have unsaved changes. Save this design to your collection, or leave without saving? (Your canvas autosaves, so it’ll still be here next time.)</span>
+            <div className="ds-leave__actions">
+              <button type="button" className="s-btn" onClick={() => setPendingLeave(null)}>Cancel</button>
+              <button type="button" className="s-btn s-btn--ghost" onClick={leaveNow}>Leave without saving</button>
+              <button type="button" className="s-btn s-btn--accent" onClick={saveAndLeave}>Save &amp; leave</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Right-click context menu */}
       {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} items={ctxMenu.items} onClose={() => setCtxMenu(null)} />}

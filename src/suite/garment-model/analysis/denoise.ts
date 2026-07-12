@@ -21,15 +21,30 @@ function iou(a: Bounds, b: Bounds): number {
 
 export function denoiseGraph(graph: VectorGraph): VectorGraph {
   const gArea = Math.max(1, boundsArea(graph.bounds))
+  const gMax = Math.max(graph.bounds.w, graph.bounds.h, 1)
   let paths = graph.paths
 
   // 1. Drop a full-artboard background rectangle (page fill / bounding box).
   paths = paths.filter((p) => boundsArea(p.bounds) / gArea < 0.9)
 
+  // 1.5 Drop a maker's stamp / brand watermark sitting in the bottom margin, BELOW the garment. Real
+  //     Illustrator flats often carry a small logo under the silhouettes; it is never a garment part.
+  //     Identify the garment body (the big silhouette paths), then remove small shapes lying entirely
+  //     beneath it. Conservative: only strips small shapes clearly separated below the garment.
+  const bodyPaths = paths.filter((p) => Math.max(p.bounds.w, p.bounds.h) >= gMax * 0.3)
+  if (bodyPaths.length) {
+    const bodyBottom = Math.max(...bodyPaths.map((p) => p.bounds.minY + p.bounds.h))
+    const tol = graph.bounds.h * 0.01
+    paths = paths.filter((p) => {
+      const small = Math.max(p.bounds.w, p.bounds.h) < gMax * 0.15
+      const belowBody = p.bounds.minY >= bodyBottom - tol
+      return !(small && belowBody)
+    })
+  }
+
   // 2. Drop micro slivers — a real sliver (text/hatching fragment) is tiny in BOTH dimensions.
   //    A thin LINE (a seam, small in one dimension only) is a real construction line — keep it.
   //    A small ROUND shape (a button/eyelet) is real too — keep it down to a lower floor.
-  const gMax = Math.max(graph.bounds.w, graph.bounds.h, 1)
   paths = paths.filter((p) => {
     const maxDim = Math.max(p.bounds.w, p.bounds.h)
     const minDim = Math.min(p.bounds.w, p.bounds.h)

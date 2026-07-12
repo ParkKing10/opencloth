@@ -204,6 +204,35 @@ export function garmentEditPrompt(intent: string): string {
   )
 }
 
+/** Fields the neck-label creator collects. All optional — the prompt uses whatever is filled in. */
+export type NeckLabelFields = {
+  brand?: string
+  style?: string
+  size?: string
+  composition?: string
+  care?: string
+  country?: string
+  extra?: string
+}
+
+/** Engineer a NECK-LABEL prompt — a clothing neck/care tag rendered as flat, print-ready label art. */
+export function neckLabelPrompt(f: NeckLabelFields): string {
+  const parts = [
+    f.brand ? `brand name "${f.brand.trim()}"` : '',
+    f.size ? `size ${f.size.trim()}` : '',
+    f.composition ? `composition ${f.composition.trim()}` : '',
+    f.care ? `care instructions: ${f.care.trim()}` : '',
+    f.country ? `made in ${f.country.trim()}` : '',
+  ].filter(Boolean).join(', ')
+  const style = f.style ? `${f.style.trim()} style` : 'clean minimal style'
+  return (
+    `A garment neck label / woven clothing care tag design, ${style}. ` +
+    `Show: ${parts || 'a brand name'}. ${f.extra ? f.extra.trim() + '. ' : ''}` +
+    `Flat vector label artwork, centered and isolated on a plain transparent background, crisp clean ` +
+    `typography and standard laundry care symbols, print-ready, no mockup, no garment, no person, no hands.`
+  )
+}
+
 export const IMAGE_QUALITY_BY_TIER: Record<'fast' | 'high' | 'ultra', ImageQuality> = {
   fast: 'low',
   high: 'medium',

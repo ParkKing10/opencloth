@@ -918,6 +918,20 @@
   color: var(--s-text-3);
   text-align: center;
 }
+/* Neck Label tile — a dashed "create" state until a label exists. */
+.ds-flat--label .ds-flat__art {
+  border-style: dashed;
+  background: var(--s-inset, #f4f4f6);
+}
+.ds-flat--label.has-label .ds-flat__art {
+  border-style: solid;
+}
+.ds-flat__add {
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--s-accent-2, var(--s-accent));
+}
 
 .ds-sizechart {
   overflow: auto;

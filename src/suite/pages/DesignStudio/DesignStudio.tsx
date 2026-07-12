@@ -63,6 +63,7 @@ import { CampaignModal } from './CampaignModal'
 import { ConnectAppDialog } from './ConnectAppDialog'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
 import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo, type DesignVersionDoc } from './designDoc'
+import { NeckLabelModal } from './NeckLabelModal'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
 import { loadHistory } from '../../garment-model/garmentDocumentStore'
 import { currentGarment } from '../../garment-model/garmentRevision'
@@ -270,6 +271,10 @@ export function DesignStudio() {
   const [aiMode, setAiMode] = useState<AiMode>('graphic')
   // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
   const [garmentEditUrl, setGarmentEditUrl] = useState<string | null>(null)
+  // Neck Label — the garment's AI-generated woven care/brand tag (persists in the doc as a 3rd view).
+  const [neckLabelOpen, setNeckLabelOpen] = useState(false)
+  const [neckLabel, setNeckLabel] = useState<string | null>(null)
+  const neckLabelRef = useRef<string | null>(null)
   // Creative Director — proactive, real suggestions after a graphic lands.
   const [director, setDirector] = useState<{ objectId: string; suggestions: DirectorSuggestion[] } | null>(null)
   // Campaign Generator — the finished garment → on-model campaign photography.
@@ -550,6 +555,7 @@ export function DesignStudio() {
       specs: specsRef.current,
       projectInfo: projectInfoRef.current,
       garmentEdit: garmentEditRef.current ?? undefined,
+      neckLabel: neckLabelRef.current ?? undefined,
       versions: versionDocs,
       activeVersionId: activeVersionIdRef.current || undefined,
       updatedAt: Date.now(),
@@ -564,6 +570,15 @@ export function DesignStudio() {
       }
     }
   }, [toast])
+
+  // Apply a generated neck label to the garment — persists in the doc, marks the design dirty.
+  const applyNeckLabel = useCallback((dataUrl: string) => {
+    setNeckLabel(dataUrl)
+    neckLabelRef.current = dataUrl
+    saveCurrentDoc(presentRef.current)
+    setSaveState('unsaved')
+    toast('Neck label added to the garment.', 'success')
+  }, [saveCurrentDoc, toast])
 
   /**
    * Patch the user product specs and persist immediately (design is never blocked by specs).
@@ -1555,6 +1570,9 @@ export function DesignStudio() {
     // Restore (or clear) any AI garment-edit backdrop for this garment.
     setGarmentEditUrl(doc?.garmentEdit ?? null)
     garmentEditRef.current = doc?.garmentEdit ?? null
+    // Restore (or clear) the neck label for this garment.
+    setNeckLabel(doc?.neckLabel ?? null)
+    neckLabelRef.current = doc?.neckLabel ?? null
     setSelectedIds([])
     saveLastGarment(gid)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2847,6 +2865,8 @@ export function DesignStudio() {
             garmentViews={activeGarment.views}
             garmentImage={garmentDisplayUrl || activeGarment.thumbUrl}
             garmentOverride={garmentEditUrl}
+            neckLabel={neckLabel}
+            onNeckLabel={() => setNeckLabelOpen(true)}
             garmentSvg={studioBackdropSvg ?? (bridgeGarment ? bridgeSvg : garmentSvg)}
             garmentSvgByView={studioBackdropByView}
             designName={designName}
@@ -3022,6 +3042,9 @@ export function DesignStudio() {
         onClose={() => setSaveOpen(false)}
         onSave={confirmSave}
       />
+
+      {/* Neck Label creator — AI-generated woven care/brand tag, applied as the garment's third view */}
+      <NeckLabelModal open={neckLabelOpen} onClose={() => setNeckLabelOpen(false)} onApply={applyNeckLabel} />
 
       {/* Unsaved-changes guard — shown when leaving the Studio with edits that weren't explicitly saved */}
       {pendingLeave && (

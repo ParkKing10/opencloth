@@ -125,6 +125,10 @@ type Props = {
   garmentImage?: string
   /** An AI-edited garment image (Edit Garment mode) — when set it replaces the backdrop entirely. */
   garmentOverride?: string | null
+  /** The garment's neck label (data URL), shown as a third tile in Garment Views. */
+  neckLabel?: string | null
+  /** Open the neck-label creator. When set, a "Neck Label" tile appears in Garment Views. */
+  onNeckLabel?: () => void
   /** Per-view backdrops (keyed by view label, e.g. 'Front'/'Back') — the view tabs switch the
    *  stage AND the strip thumbnails between REAL views instead of sharing one preview. */
   garmentSvgByView?: Record<string, string> | null
@@ -175,6 +179,8 @@ export function StudioCanvas({
   garmentOverride,
   garmentSvg,
   garmentSvgByView,
+  neckLabel,
+  onNeckLabel,
   designName: designNameProp,
   onRenameDesign,
   saveState,
@@ -802,6 +808,23 @@ export function StudioCanvas({
                   <span>{v}</span>
                 </button>
               ))}
+              {onNeckLabel && (
+                <button
+                  className={`ds-flat ds-flat--label${neckLabel ? ' has-label' : ''}`}
+                  type="button"
+                  title={neckLabel ? 'Edit the neck label' : 'Create a neck label with AI'}
+                  onClick={onNeckLabel}
+                >
+                  <div className="ds-flat__art">
+                    {neckLabel ? (
+                      <img className="ds-flat__img" src={neckLabel} alt="Neck label" draggable={false} />
+                    ) : (
+                      <span className="ds-flat__add" aria-hidden="true">+</span>
+                    )}
+                  </div>
+                  <span>Neck Label</span>
+                </button>
+              )}
             </div>
           </div>
         ))}

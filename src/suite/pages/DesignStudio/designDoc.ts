@@ -76,6 +76,8 @@ export type DesignDoc = {
   projectInfo?: ProjectInfo
   /** AI-edited garment image (data URL) that overrides the garment backdrop, when applied. */
   garmentEdit?: string
+  /** AI-generated neck label (data URL) — the garment's woven care/brand tag, shown as a third view. */
+  neckLabel?: string
   /** Multiple versions/boards of this design. When present, `layers`/`hidden` above mirror the
    *  active version (kept for backward-compatible loading by older code paths). */
   versions?: DesignVersionDoc[]

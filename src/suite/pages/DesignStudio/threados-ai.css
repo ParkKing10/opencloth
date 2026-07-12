@@ -92,23 +92,40 @@
 /* Drag-and-drop overlay — fixed to the modal's rect (mirrors .tai geometry) so it always covers the
    dialog regardless of internal scroll; pointer-events:none lets the drop land on .tai beneath it. */
 .tai__drop {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: min(1080px, 94vw);
-  max-height: min(92vh, 900px);
-  height: 100%;
+  position: absolute;
+  inset: 0;
   z-index: 472;
   pointer-events: none;
   display: grid;
   place-items: center;
   padding: 14px;
-  border-radius: 22px;
+  border-radius: inherit;
   background: color-mix(in oklab, var(--s-panel) 78%, transparent);
   backdrop-filter: blur(2px);
   animation: tai-fade var(--s-dur) var(--s-ease);
 }
+
+/* ---- Right-docked side panel (non-blocking) ---- */
+.tai--panel {
+  left: auto;
+  right: 12px;
+  top: 12px;
+  bottom: 12px;
+  transform: none;
+  width: min(440px, 96vw);
+  max-height: none;
+  border-radius: 18px;
+  animation: tai-slide var(--s-dur-slow) var(--s-ease);
+}
+@keyframes tai-slide {
+  from { opacity: 0; transform: translateX(34px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+/* Reflow the wide layouts into the narrow panel. */
+.tai--panel .tai-chooser__cards { grid-template-columns: 1fr; }
+.tai--panel .tai__grid { grid-template-columns: 1fr; }
+.tai--panel .tai__prompt { flex-wrap: wrap; }
+.tai--panel .tai__prompt-actions { flex-wrap: wrap; }
 .tai__drop-card {
   display: flex;
   flex-direction: column;

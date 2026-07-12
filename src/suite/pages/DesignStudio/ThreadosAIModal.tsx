@@ -280,28 +280,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
+      // Non-modal side panel: Escape closes (or exits zoom). Focus is NOT trapped — the canvas stays
+      // reachable so you can keep working while the panel is open.
       if (e.key === 'Escape') {
         if (zoom) setZoom(null)
         else onClose()
-        return
-      }
-      // Trap Tab within the dialog so focus can't wander behind the scrim (aria-modal contract).
-      if (e.key === 'Tab' && !zoom) {
-        const root = document.querySelector('.tai')
-        if (!root) return
-        const nodes = Array.from(root.querySelectorAll<HTMLElement>('button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])'))
-          .filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null)
-        if (nodes.length === 0) return
-        const first = nodes[0]
-        const last = nodes[nodes.length - 1]
-        const active = document.activeElement as HTMLElement | null
-        if (e.shiftKey && (active === first || !root.contains(active))) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault()
-          first.focus()
-        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -470,11 +453,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
 
   return createPortal(
     <div className="suite">
-      <div className="tai-scrim" onClick={onClose} />
+      {/* No blocking scrim — THREADOS AI is a right-docked side panel so the canvas stays usable while
+          it's open (AI generation can take a moment; you can keep working meanwhile). */}
       <div
-        className="tai"
+        className="tai tai--panel"
         role="dialog"
-        aria-modal="true"
         aria-labelledby="tai-title"
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}

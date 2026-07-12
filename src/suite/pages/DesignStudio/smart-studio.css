@@ -83,11 +83,34 @@
   cursor: default;
 }
 
+/* Compact AI button — replaces the wide prompt bar; opens THREADOS AI as a side panel. */
+.cb__ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: var(--s-r-pill);
+  border: 0;
+  background: var(--s-accent);
+  color: var(--s-accent-ink, #14141a);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease), box-shadow var(--s-dur) var(--s-ease);
+}
+.cb__ai svg { color: var(--s-accent-ink, #14141a); }
+.cb__ai:hover {
+  background: var(--s-accent-2, var(--s-accent));
+  box-shadow: 0 8px 24px -8px var(--s-accent-glow, rgba(209, 249, 79, 0.5));
+}
+
 .cb__right {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
+  margin-left: auto;
 }
 /* Connect App — the headline "draw on your iPad" feature, highlighted where the mode toggle was. */
 .cb__connect {

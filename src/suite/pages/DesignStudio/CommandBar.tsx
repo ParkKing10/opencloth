@@ -2,20 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { IcoSparkle } from '../../components/ui/Icons'
 import type { Readiness } from '../../export/readiness'
 import { type Proposal } from './studioModel'
-import { describesGraphic, describesGarmentEdit } from '../../ai/promptParse'
 import type { AiMode } from './ThreadosAIModal'
 import { ReadinessPanel } from './ReadinessPanel'
 import './smart-studio.css'
 
 export type StudioMode = 'beginner' | 'pro'
 
-/** Imagination-first prompts — describe a graphic and THREADOS AI generates it. */
-const GENERATION_EXAMPLES = ['Chrome tribal star', 'Vintage skull with roses', 'Graffiti butterfly']
-
 type Props = {
   readiness: Readiness
-  interpret: (text: string) => Proposal | null
-  onApply: (p: Proposal) => void
+  /** Kept for API compatibility — the inline command bar is now a single button that opens the panel. */
+  interpret?: (text: string) => Proposal | null
+  onApply?: (p: Proposal) => void
   onFix: (checkId: string) => void
   /** Open THREADOS AI — 'graphic' to design an artwork, 'garment' to edit the garment itself. */
   onGenerate: (prompt: string, mode: AiMode) => void
@@ -23,21 +20,11 @@ type Props = {
   onConnectApp: () => void
 }
 
-/** The permanent AI command bar at the top of the editor. */
-export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, onConnectApp }: Props) {
-  const [input, setInput] = useState('')
-  const [proposal, setProposal] = useState<Proposal | null>(null)
-  const [missNote, setMissNote] = useState(false)
+/** The compact AI command bar. A single button opens THREADOS AI as a side panel, so the top of the
+ *  editor stays clean and the canvas keeps its room. */
+export function CommandBar({ readiness, onFix, onGenerate, onConnectApp }: Props) {
   const [panelOpen, setPanelOpen] = useState(false)
   const pillRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  /** Customize = refine the command: keep the text, close the card, put the cursor back. */
-  function customize() {
-    setProposal(null)
-    inputRef.current?.focus()
-    inputRef.current?.select()
-  }
 
   useEffect(() => {
     if (!panelOpen) return
@@ -48,69 +35,14 @@ export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, o
     return () => document.removeEventListener('mousedown', onDown)
   }, [panelOpen])
 
-  function submit() {
-    const text = input.trim()
-    setProposal(null)
-    setMissNote(false)
-    // Empty prompt → still open THREADOS AI so you can pick Design vs Edit Garment and type there.
-    // The button is never dead. Then:
-    // (1) a garment/fabric edit ("mach die Jacke mit Löchern") opens straight into Edit Garment;
-    // (2) a known studio command ("make it oversized") stays inline as a quick, free Proposal;
-    // (3) anything else opens THREADOS AI in Design mode — the modal's toggle is always there to switch.
-    if (!text) {
-      onGenerate('', 'graphic')
-      return
-    }
-    if (describesGarmentEdit(text)) {
-      onGenerate(text, 'garment')
-      return
-    }
-    if (!describesGraphic(text)) {
-      const p = interpret(text)
-      if (p) {
-        setProposal(p)
-        return
-      }
-    }
-    onGenerate(text, 'graphic')
-  }
-
-  function apply() {
-    if (!proposal) return
-    onApply(proposal)
-    setProposal(null)
-    setInput('')
-    setMissNote(false)
-  }
-
   const tone = readiness.score >= 90 ? 'good' : readiness.score >= 70 ? 'warn' : 'low'
 
   return (
     <div className="cb">
-      <div className="cb__main">
-        <span className="cb__spark" aria-hidden>
-          <IcoSparkle width="16" height="16" />
-        </span>
-        <input
-          ref={inputRef}
-          className="cb__input"
-          placeholder="Describe a graphic — “chrome tribal star” — or an edit — “make it oversized”…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          aria-label="AI command"
-        />
-        <div className="cb__chips">
-          {GENERATION_EXAMPLES.map((ex) => (
-            <button key={ex} type="button" className="cb__chip" onClick={() => onGenerate(ex, 'graphic')}>
-              {ex}
-            </button>
-          ))}
-        </div>
-        <button className="cb__go" type="button" onClick={submit} title="Open THREADOS AI — choose Design or Edit Garment">
-          Ask THREADOS AI
-        </button>
-      </div>
+      <button className="cb__ai" type="button" onClick={() => onGenerate('', 'graphic')} title="Open THREADOS AI — design a graphic or edit the garment">
+        <IcoSparkle width="16" height="16" />
+        Ask THREADOS AI
+      </button>
 
       <div className="cb__right">
         <button
@@ -153,43 +85,6 @@ export function CommandBar({ readiness, interpret, onApply, onFix, onGenerate, o
           )}
         </div>
       </div>
-
-      {proposal && (
-        <div className="cb-proposal">
-          <span className="cb-proposal__spark" aria-hidden>
-            <IcoSparkle width="15" height="15" />
-          </span>
-          <div className="cb-proposal__text">
-            <span className="cb-proposal__eyebrow">Proposed change</span>
-            <b>{proposal.title}</b>
-            <small>{proposal.detail}</small>
-          </div>
-          <div className="cb-proposal__actions">
-            <button type="button" className="cb-proposal__dismiss" onClick={() => setProposal(null)}>
-              Dismiss
-            </button>
-            <button type="button" className="cb-proposal__customize" onClick={customize} title="Refine the command text">
-              Customize
-            </button>
-            <button type="button" className="cb-proposal__apply" onClick={apply}>
-              Apply
-            </button>
-          </div>
-        </div>
-      )}
-      {missNote && !proposal && (
-        <div className="cb-proposal cb-proposal--miss">
-          <div className="cb-proposal__text">
-            <small>
-              I couldn’t map that to a change yet. Try “make it oversized”, “add a vintage wash”, “move the logo to the left
-              chest”, “use embroidery”, or “make it premium”.
-            </small>
-          </div>
-          <button type="button" className="cb-proposal__dismiss" onClick={() => setMissNote(false)}>
-            Got it
-          </button>
-        </div>
-      )}
     </div>
   )
 }

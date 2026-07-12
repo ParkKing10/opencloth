@@ -10,12 +10,7 @@ import { StudioRegionLayer, labelToViewId } from './StudioRegionLayer'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import type { Layer } from './LayersPanel'
 import type { CanvasObject, ShapeGeom, ShapeKind } from './objectModel'
-import hoodieImg from '../../../assets/cards/hoodie.png'
-import teeImg from '../../../assets/cards/tee.png'
 import './canvas.css'
-
-/** Photoreal garment backdrops where we have them; glyph fallback otherwise. */
-const GARMENT_PHOTO: Partial<Record<GarmentKind, string>> = { hoodie: hoodieImg, tee: teeImg }
 
 type ToolDef = { id: string; label: string; hint: string; key?: string; soon?: boolean; note?: string; action?: 'text' | 'image' }
 type ToolGroup = { name: string; tools: ToolDef[] }
@@ -717,8 +712,6 @@ export function StudioCanvas({
                 />
               ) : garmentImage ? (
                 <img className="ds-garment-photo" src={garmentImage} alt={garmentName} draggable={false} />
-              ) : GARMENT_PHOTO[garmentKind] ? (
-                <img className="ds-garment-photo" src={GARMENT_PHOTO[garmentKind]} alt={garmentName} draggable={false} />
               ) : (
                 <Glyph width="340" height="340" />
               )}

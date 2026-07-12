@@ -42,6 +42,36 @@ function toPng(canvas: HTMLCanvasElement): Promise<Blob> {
   })
 }
 
+/**
+ * Erase a maker's stamp / brand mark sitting BELOW the garment in a rendered preview — the raster twin
+ * of the vector denoise step, so thumbnails never show the stamp either. Finds the garment's main
+ * inked band and clears anything in a separate band beneath it (the gap + the stamp). No-op when
+ * there's no clearly separated bottom band.
+ */
+function stripBottomStamp(canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  const { data } = ctx.getImageData(0, 0, THUMB_W, THUMB_H)
+  const rowInk = new Array<number>(THUMB_H).fill(0)
+  for (let y = 0; y < THUMB_H; y++) {
+    let n = 0
+    const row = y * THUMB_W * 4
+    for (let x = 0; x < THUMB_W; x++) if (data[row + x * 4 + 3] > 30) n++ // opaque pixel = content
+    rowInk[y] = n
+  }
+  const minInk = Math.max(2, Math.round(THUMB_W * 0.012))
+  const bands: Array<{ s: number; e: number }> = []
+  let s = -1
+  for (let y = 0; y < THUMB_H; y++) {
+    if (rowInk[y] >= minInk) { if (s < 0) s = y }
+    else if (s >= 0) { bands.push({ s, e: y - 1 }); s = -1 }
+  }
+  if (s >= 0) bands.push({ s, e: THUMB_H - 1 })
+  if (bands.length < 2) return // nothing clearly separated below the garment
+  const main = bands.reduce((a, b) => (b.e - b.s > a.e - a.s ? b : a))
+  if (main.e < THUMB_H - 1) ctx.clearRect(0, main.e + 1, THUMB_W, THUMB_H - main.e - 1)
+}
+
 const CATEGORY_TINT: Record<GarmentCategoryId, string> = {
   hoodie: '#6366f1',
   tee: '#0ea5e9',
@@ -100,6 +130,7 @@ async function fromRaster(blob: Blob): Promise<Blob> {
   const fit = containFit(bmp.width, bmp.height)
   ctx.drawImage(bmp, fit.dx, fit.dy, fit.dw, fit.dh)
   bmp.close()
+  stripBottomStamp(canvas)
   return toPng(canvas)
 }
 
@@ -117,6 +148,7 @@ function fromSvg(blob: Blob): Promise<Blob> {
         const fit = containFit(sw, sh)
         ctx.drawImage(img, fit.dx, fit.dy, fit.dw, fit.dh)
         URL.revokeObjectURL(url)
+        stripBottomStamp(canvas)
         toPng(canvas).then(resolve, reject)
       } catch (err) {
         URL.revokeObjectURL(url)
@@ -164,6 +196,7 @@ async function fromPdf(blob: Blob): Promise<Blob> {
   const ctx = canvas.getContext('2d')!
   const fit = containFit(render.width, render.height)
   ctx.drawImage(render, fit.dx, fit.dy, fit.dw, fit.dh)
+  stripBottomStamp(canvas)
   return toPng(canvas)
 }
 

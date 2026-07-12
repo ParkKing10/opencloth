@@ -10,7 +10,7 @@ import teeImg from '../../../assets/cards/tee.png'
 import hoodieImg from '../../../assets/cards/hoodie.png'
 import './dashboard.css'
 
-type ArtKind = 'tee' | 'hoodie' | 'techpack' | 'globe'
+type ArtKind = 'tee' | 'hoodie' | 'techpack' | 'globe' | 'shop'
 type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
 
 type Feature = {
@@ -44,12 +44,12 @@ const FEATURES: Feature[] = [
     isNew: true,
   },
   {
-    title: 'Tech Pack',
-    desc: 'Create professional tech packs ready for manufacturing.',
-    cta: 'Create Tech Pack',
-    to: '/suite/tech-packs',
+    title: 'Garment Shop',
+    desc: 'Buy premium editable garments with coins and design on them.',
+    cta: 'Open Shop',
+    to: '/suite/shop',
     tint: 'teal',
-    art: 'techpack',
+    art: 'shop',
   },
   {
     title: 'Manufacturer Hub',
@@ -71,6 +71,15 @@ function FeatureArt({ art }: { art: ArtKind }) {
       return <TechPackFlats />
     case 'globe':
       return <GlobePins />
+    case 'shop':
+      return (
+        <svg className="feat-art__glyph" viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12 16h6l4 26h22l5-18H20" />
+          <circle cx="26" cy="50" r="3" />
+          <circle cx="42" cy="50" r="3" />
+          <path d="M40 24v-4a6 6 0 0 0-12 0v4" />
+        </svg>
+      )
   }
 }
 

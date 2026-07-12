@@ -99,6 +99,19 @@
 .feat:hover .feat-art__img {
   transform: scale(1.05);
 }
+.feat-art__glyph {
+  position: absolute;
+  right: 14%;
+  bottom: 12%;
+  width: 44%;
+  height: 44%;
+  color: color-mix(in oklab, var(--s-accent, #d1f94f) 70%, #ffffff);
+  opacity: 0.85;
+  transition: transform var(--s-dur-slow) var(--s-ease);
+}
+.feat:hover .feat-art__glyph {
+  transform: scale(1.06);
+}
 .feat-art__svg {
   position: absolute;
   left: 50%;

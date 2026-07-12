@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../components/ui/Toast'
-import { CATEGORIES } from '../types'
-import type { DetectedGarment, GarmentCategoryId, ImportProgress } from '../types'
+import { categoryLabel } from '../types'
+import type { DetectedGarment, GarmentCategory, GarmentCategoryId, ImportProgress } from '../types'
 import { archiveKind } from '../import/extract'
 import { prettyName, viewsSummary } from '../import/detect'
 import { runImport } from '../import/pipeline'
-import { publishGarments } from '../garmentClient'
+import { publishGarments, listCategories, createCategory } from '../garmentClient'
 import { IcoCoins } from '../../components/ui/Icons'
 
-type Phase = 'idle' | 'processing' | 'review' | 'publishing'
+// The upload flow starts by choosing the category the whole pack lands in ('category'), then the
+// drop/detect/review/publish steps run with every detected garment pre-set to that category.
+type Phase = 'category' | 'idle' | 'processing' | 'review' | 'publishing'
 
 type Props = {
   open: boolean
@@ -19,12 +21,17 @@ type Props = {
 export function ImportDialog({ open, onClose, onPublished }: Props) {
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
-  const [phase, setPhase] = useState<Phase>('idle')
+  const [phase, setPhase] = useState<Phase>('category')
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [detected, setDetected] = useState<DetectedGarment[]>([])
   const [error, setError] = useState<string | null>(null)
   const [sourceName, setSourceName] = useState('')
   const [dragging, setDragging] = useState(false)
+  // Category-first: pick (or create) the category the whole pack lands in before dropping files.
+  const [categories, setCategories] = useState<GarmentCategory[]>([])
+  const [chosenCategory, setChosenCategory] = useState<GarmentCategoryId | null>(null)
+  const [newCat, setNewCat] = useState('')
+  const [creatingCat, setCreatingCat] = useState(false)
 
   const revokeAll = useCallback((list: DetectedGarment[]) => {
     for (const d of list) URL.revokeObjectURL(d.previewUrl)
@@ -33,15 +40,25 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
   // clean up object URLs on unmount
   useEffect(() => () => revokeAll(detected), [detected, revokeAll])
 
+  // On open: start at the category step and load the pickable categories (defaults + custom).
+  useEffect(() => {
+    if (!open) return
+    setPhase('category')
+    setChosenCategory(null)
+    void listCategories().then(setCategories)
+  }, [open])
+
   if (!open) return null
 
   const reset = () => {
     revokeAll(detected)
-    setPhase('idle')
+    setPhase('category')
     setProgress(null)
     setDetected([])
     setError(null)
     setSourceName('')
+    setChosenCategory(null)
+    setNewCat('')
   }
 
   const close = () => {
@@ -61,7 +78,8 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
     setPhase('processing')
     try {
       const result = await runImport(file, setProgress)
-      setDetected(result)
+      // Category-first: the whole pack lands in the category the admin chose up front.
+      setDetected(chosenCategory ? result.map((d) => ({ ...d, category: chosenCategory })) : result)
       setPhase('review')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Import failed.')
@@ -78,6 +96,29 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
 
   const updateItem = (tempId: string, patch: Partial<DetectedGarment>) =>
     setDetected((list) => list.map((d) => (d.tempId === tempId ? { ...d, ...patch } : d)))
+
+  // Pick an existing category and advance to the drop step.
+  const pickCategory = (id: GarmentCategoryId) => {
+    setChosenCategory(id)
+    setError(null)
+    setPhase('idle')
+  }
+
+  // Create a custom category (persists it), then select it.
+  async function createAndPick() {
+    const name = newCat.trim()
+    if (!name || creatingCat) return
+    setCreatingCat(true)
+    const r = await createCategory(name)
+    setCreatingCat(false)
+    if (!r.ok) {
+      toast(r.error, 'default')
+      return
+    }
+    setCategories((list) => (list.some((c) => c.id === r.value.id) ? list : [...list, r.value]))
+    setNewCat('')
+    pickCategory(r.value.id)
+  }
 
   const includedCount = detected.filter((d) => d.include).length
 
@@ -106,12 +147,42 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
         <header className="gl-imp__head">
           <div>
             <h2>Import garment pack</h2>
-            <p>Upload one .zip or .rar — THREADOS extracts, groups and previews every garment automatically.</p>
+            <p>
+              {phase === 'category'
+                ? 'First, choose the category this whole pack lands in — pick one or create your own.'
+                : 'Drop one .zip or .rar — THREADOS extracts, groups and previews every garment automatically.'}
+            </p>
           </div>
           <button className="gl-modal__close" type="button" onClick={close} aria-label="Close">
             ×
           </button>
         </header>
+
+        {phase === 'category' && (
+          <div className="gl-imp__cats">
+            <div className="gl-imp__cats-grid">
+              {categories.map((c) => (
+                <button key={c.id} type="button" className="gl-imp__cat-chip" onClick={() => pickCategory(c.id)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <div className="gl-imp__cat-new">
+              <input
+                className="gl-imp__cat-input"
+                type="text"
+                placeholder="Create a new category… (e.g. Streetwear)"
+                value={newCat}
+                onChange={(e) => setNewCat(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void createAndPick() }}
+                aria-label="New category name"
+              />
+              <button className="s-btn s-btn--accent" type="button" onClick={() => void createAndPick()} disabled={!newCat.trim() || creatingCat}>
+                {creatingCat ? 'Creating…' : 'Create & use'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {(phase === 'idle' || phase === 'processing') && (
           <div
@@ -143,9 +214,13 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
               </div>
             ) : (
               <>
+                <div className="gl-imp__chosen">
+                  <span>Category: <strong>{chosenCategory ? categoryLabel(chosenCategory) : '—'}</strong></span>
+                  <button type="button" className="gl-imp__change" onClick={() => setPhase('category')}>Change</button>
+                </div>
                 <div className="gl-imp__drop-icon">⤓</div>
-                <strong>Drop a garment pack here</strong>
-                <span>or</span>
+                <strong>Drop the garment folder here</strong>
+                <span>every garment in it goes into “{chosenCategory ? categoryLabel(chosenCategory) : '—'}”</span>
                 <button className="s-btn s-btn--accent" type="button" onClick={() => inputRef.current?.click()}>
                   Choose archive
                 </button>
@@ -192,7 +267,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                         onChange={(e) => updateItem(d.tempId, { category: e.target.value as GarmentCategoryId })}
                         aria-label="Category"
                       >
-                        {CATEGORIES.map((c) => (
+                        {categories.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.label}
                           </option>

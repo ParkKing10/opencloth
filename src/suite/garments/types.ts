@@ -5,7 +5,16 @@
  * are Representations (PRD-2 Principle B).
  */
 
-export type GarmentCategoryId =
+/**
+ * A garment category id. Historically a fixed union; now an open string so admins can create their
+ * OWN categories at upload time (persisted in the garment_categories table). The known ids below are
+ * the built-in defaults — every consumer resolves display names via categoryLabel(), which falls back
+ * to a prettified id for any custom category.
+ */
+export type GarmentCategoryId = string
+
+/** The built-in category ids — the defaults always offered, plus type-safe references in code. */
+export type KnownCategoryId =
   | 'hoodie'
   | 'tee'
   | 'sweatshirt'
@@ -42,7 +51,32 @@ export const CATEGORIES: readonly GarmentCategory[] = [
 ]
 
 const LABEL_BY_ID = new Map(CATEGORIES.map((c) => [c.id, c.label]))
-export const categoryLabel = (id: GarmentCategoryId): string => LABEL_BY_ID.get(id) ?? 'Other'
+
+/** Prettify a category id for display ("street-wear" → "Street Wear"). */
+export function titleCaseCategory(id: string): string {
+  return id.replace(/[-_]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim() || 'Other'
+}
+
+/** A known category keeps its curated label; a custom one is prettified from its id. */
+export const categoryLabel = (id: GarmentCategoryId): string => LABEL_BY_ID.get(id) ?? titleCaseCategory(id)
+
+/** Slugify a human category name into a stable id ("Street Wear" → "street-wear"). */
+export function toCategoryId(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/[\s_]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'other'
+  )
+}
+
+/** Whether an id is one of the built-in defaults (vs. an admin-created custom category). */
+const KNOWN_IDS = new Set(CATEGORIES.map((c) => c.id))
+export const isKnownCategory = (id: string): boolean => KNOWN_IDS.has(id)
 
 export type RepresentationKind = 'master' | 'preview' | 'thumbnail' | 'source' | 'export' | 'combined_front_back' | 'model3d'
 

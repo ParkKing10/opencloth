@@ -10,13 +10,14 @@ import type {
   DetectedGarment,
   ExtractedFile,
   Garment,
+  GarmentCategory,
   GarmentCategoryId,
   GarmentRepresentation,
   GarmentResult,
   GarmentViews,
   RepresentationKind,
 } from './types'
-import { EMPTY_VIEWS } from './types'
+import { CATEGORIES, EMPTY_VIEWS, isKnownCategory, titleCaseCategory, toCategoryId } from './types'
 import { classifyExt, pickPreviewSource } from './import/detect'
 import { generatePreview } from './import/preview'
 import { builtinGarments, builtinGarmentDisplaySvg, isBuiltinGarmentId } from './builtinGarments'
@@ -25,6 +26,7 @@ import { loadTracedGarments, tracedGarmentSvgUrl, isTracedGarmentId } from './tr
 const SUPA = isSupabaseConfigured ? supabase : null
 const BUCKET = 'garments'
 const LOCAL_KEY = 'threados-garments-v1'
+const LOCAL_CATS_KEY = 'threados-garment-categories-v1'
 
 /**
  * When false, the catalog is composed EXCLUSIVELY of admin-uploaded garments — the built-in template
@@ -288,6 +290,9 @@ export async function publishGarments(
     const userId = await currentUserId()
     if (!userId) return { published: [], failed: [{ name: meta.packName, error: 'Sign in as an admin to publish.' }] }
 
+    // Guarantee every referenced category row exists (custom categories) before the FK insert.
+    for (const cat of Array.from(new Set(included.map((d) => d.category)))) await ensureCategory(cat)
+
     const fileCount = included.reduce((n, d) => n + d.files.length, 0)
     const { data: pack } = await SUPA.from('garment_packs')
       .insert({
@@ -477,6 +482,77 @@ export async function deleteAllUploadedGarments(): Promise<GarmentResult<{ delet
   const deleted = readLocal().length
   writeLocal([])
   return { ok: true, value: { deleted } }
+}
+
+// ---------- categories ----------
+function readLocalCats(): GarmentCategory[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_CATS_KEY)
+    return raw ? (JSON.parse(raw) as GarmentCategory[]) : []
+  } catch {
+    return []
+  }
+}
+function writeLocalCats(list: GarmentCategory[]): void {
+  try {
+    localStorage.setItem(LOCAL_CATS_KEY, JSON.stringify(list))
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Built-in defaults first (by sort), then any custom categories, deduped by id. */
+function mergeCategories(extra: GarmentCategory[]): GarmentCategory[] {
+  const byId = new Map<string, GarmentCategory>()
+  for (const c of CATEGORIES) byId.set(c.id, c)
+  for (const c of extra) if (!byId.has(c.id)) byId.set(c.id, c)
+  return [...byId.values()].sort((a, b) => a.sort - b.sort || a.label.localeCompare(b.label))
+}
+
+/** Every category the admin can pick from: built-in defaults + custom ones created before. */
+export async function listCategories(): Promise<GarmentCategory[]> {
+  if (SUPA) {
+    const { data } = await SUPA.from('garment_categories').select('*').order('sort', { ascending: true })
+    const rows = ((data as Row[] | null) ?? []).map((r) => ({
+      id: str(r.id),
+      label: str(r.label) || titleCaseCategory(str(r.id)),
+      sort: num(r.sort, 50),
+    }))
+    return mergeCategories(rows)
+  }
+  return mergeCategories(readLocalCats())
+}
+
+/**
+ * Create (or reuse) a custom category so garments can reference it (FK) and it shows in the chips.
+ * A name matching a built-in returns that built-in unchanged.
+ */
+export async function createCategory(label: string): Promise<GarmentResult<GarmentCategory>> {
+  const clean = label.trim()
+  if (!clean) return { ok: false, error: 'Enter a category name.' }
+  const id = toCategoryId(clean)
+  if (isKnownCategory(id)) {
+    const known = CATEGORIES.find((c) => c.id === id)
+    return { ok: true, value: known ?? { id, label: clean, sort: 50 } }
+  }
+  const cat: GarmentCategory = { id, label: clean, sort: 50 }
+  if (SUPA) {
+    const { error } = await SUPA.from('garment_categories').upsert({ id, label: clean, sort: 50 }, { onConflict: 'id' })
+    if (error) return { ok: false, error: error.message }
+    return { ok: true, value: cat }
+  }
+  const list = readLocalCats()
+  if (!list.some((c) => c.id === id)) {
+    list.push(cat)
+    writeLocalCats(list)
+  }
+  return { ok: true, value: cat }
+}
+
+/** Guarantee a category row exists before a garment references it (FK safety on publish). */
+async function ensureCategory(id: string): Promise<void> {
+  if (!SUPA || isKnownCategory(id)) return
+  await SUPA.from('garment_categories').upsert({ id, label: titleCaseCategory(id), sort: 50 }, { onConflict: 'id' })
 }
 
 /**

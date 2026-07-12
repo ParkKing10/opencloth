@@ -17,11 +17,17 @@ export function GarmentCatalog({ garments, loading, admin, onOpen, onDelete }: P
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
 
-  // only offer category chips that actually have garments
+  // Only offer category chips that actually have garments — built-in categories first (in their
+  // curated order), then any admin-created custom categories present, each with its label.
   const presentCategories = useMemo(() => {
     const counts = new Map<GarmentCategoryId, number>()
     for (const g of garments) counts.set(g.category, (counts.get(g.category) ?? 0) + 1)
-    return CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ ...c, count: counts.get(c.id) ?? 0 }))
+    const known = CATEGORIES.filter((c) => counts.has(c.id)).map((c) => ({ id: c.id, label: c.label, count: counts.get(c.id) ?? 0 }))
+    const knownIds = new Set(CATEGORIES.map((c) => c.id))
+    const custom = [...counts.keys()]
+      .filter((id) => !knownIds.has(id))
+      .map((id) => ({ id, label: categoryLabel(id), count: counts.get(id) ?? 0 }))
+    return [...known, ...custom]
   }, [garments])
 
   const filtered = useMemo(() => {

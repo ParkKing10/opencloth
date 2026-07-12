@@ -4,7 +4,7 @@ import { useGarments } from '../../garments/useGarments'
 import { GarmentCatalog } from '../../garments/ui/GarmentCatalog'
 import { GarmentDetail } from '../../garments/ui/GarmentDetail'
 import { ImportDialog } from '../../garments/ui/ImportDialog'
-import { deleteGarment, regenerateThumbnail } from '../../garments/garmentClient'
+import { deleteGarment, deleteAllUploadedGarments, regenerateThumbnail } from '../../garments/garmentClient'
 import type { Garment } from '../../garments/types'
 import '../../garments/garments.css'
 
@@ -15,6 +15,25 @@ export function AdminGarments() {
   const [opened, setOpened] = useState<Garment | null>(null)
   // Regenerate all thumbnails (e.g. after the preview-priority rules changed).
   const [regen, setRegen] = useState<{ done: number; total: number } | null>(null)
+  const [wiping, setWiping] = useState(false)
+
+  // Delete EVERY uploaded garment — the "start fresh before re-uploading" action. Two-step confirm
+  // (destructive + irreversible: it also removes the storage files), then a hard refresh.
+  async function deleteAll() {
+    const n = garments.length
+    if (n === 0 || wiping) return
+    if (!window.confirm(`Delete ALL ${n} uploaded garment${n === 1 ? '' : 's'}? This permanently removes them and their files. This cannot be undone.`)) return
+    if (!window.confirm(`Really delete all ${n}? Type-check: this wipes the whole uploaded catalog.`)) return
+    setWiping(true)
+    const r = await deleteAllUploadedGarments()
+    setWiping(false)
+    if (r.ok) {
+      toast(`Deleted ${r.value.deleted} garment${r.value.deleted === 1 ? '' : 's'}. Upload your own to rebuild the catalog.`, 'success')
+      void refresh()
+    } else {
+      toast(r.error, 'default')
+    }
+  }
 
   async function onDelete(g: Garment) {
     if (!window.confirm(`Delete "${g.name}"? This permanently removes its files.`)) return
@@ -56,6 +75,15 @@ export function AdminGarments() {
           </p>
         </div>
         <div className="gl-page-head__actions">
+          <button
+            className="s-btn s-btn--danger"
+            type="button"
+            onClick={deleteAll}
+            disabled={wiping || loading || garments.length === 0}
+            title="Permanently delete every uploaded garment and its files"
+          >
+            {wiping ? 'Deleting…' : 'Delete all'}
+          </button>
           <button
             className="s-btn"
             type="button"

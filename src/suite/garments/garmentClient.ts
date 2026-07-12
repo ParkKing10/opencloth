@@ -26,6 +26,14 @@ const SUPA = isSupabaseConfigured ? supabase : null
 const BUCKET = 'garments'
 const LOCAL_KEY = 'threados-garments-v1'
 
+/**
+ * When false, the catalog is composed EXCLUSIVELY of admin-uploaded garments — the built-in template
+ * catalog and the traced base library are hidden everywhere (Library, Studio picker, Shop). This is
+ * the "work only with my own uploaded templates" mode. Flip to true to restore the base library.
+ * (getGarment/loadGarmentDisplay still resolve built-in/traced ids so any old references keep working.)
+ */
+const INCLUDE_BASE_LIBRARY = false
+
 type Row = Record<string, unknown>
 const str = (v: unknown, f = ''): string => (v == null ? f : String(v))
 const num = (v: unknown, f = 0): number => (v == null ? f : Number(v))
@@ -133,6 +141,7 @@ function rowToGarment(r: Row, thumbUrl: string): Garment {
     thumbUrl,
     createdAt: Date.parse(str(r.created_at)) || Date.now(),
     views: toViews(r.views),
+    price: num(r.price),
   }
 }
 
@@ -141,13 +150,12 @@ function rowToGarment(r: Row, thumbUrl: string): Garment {
  * it's the platform's base library — followed by any admin-uploaded packs (Supabase or local).
  */
 export async function listGarments(): Promise<Garment[]> {
-  const builtin = builtinGarments()
-  const traced = await loadTracedGarments()
+  const base = INCLUDE_BASE_LIBRARY ? [...(await loadTracedGarments()), ...builtinGarments()] : []
   if (SUPA) {
     const { data, error } = await SUPA.from('garment_templates').select('*').order('created_at', { ascending: false })
     if (error || !data) {
       if (error) console.error('[garments] list:', error.message)
-      return [...traced, ...builtin]
+      return base
     }
     const paths = data.map((r) => str(r.thumb_path)).filter(Boolean)
     const { data: signed } = paths.length
@@ -155,13 +163,13 @@ export async function listGarments(): Promise<Garment[]> {
       : { data: [] as { path: string | null; signedUrl: string }[] }
     const urlByPath = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]))
     const uploaded = (data as Row[]).map((r) => rowToGarment(r, urlByPath.get(str(r.thumb_path)) ?? ''))
-    return [...uploaded, ...traced, ...builtin]
+    return [...uploaded, ...base]
   }
   const local = readLocal().map((g) => {
     const { thumbDataUrl, ...rest } = g
-    return { ...rest, thumbUrl: thumbDataUrl, views: rest.views ?? EMPTY_VIEWS }
+    return { ...rest, thumbUrl: thumbDataUrl, views: rest.views ?? EMPTY_VIEWS, price: rest.price ?? 0 }
   })
-  return [...local, ...traced, ...builtin]
+  return [...local, ...base]
 }
 
 /** Load one garment with its representations (signed URLs). Used by the detail view. */
@@ -192,7 +200,7 @@ export async function getGarment(id: string): Promise<Garment | null> {
   const local = readLocal().find((g) => g.id === id)
   if (!local) return null
   const { thumbDataUrl, ...rest } = local
-  return { ...rest, thumbUrl: thumbDataUrl, views: rest.views ?? EMPTY_VIEWS, representations: [] }
+  return { ...rest, thumbUrl: thumbDataUrl, views: rest.views ?? EMPTY_VIEWS, price: rest.price ?? 0, representations: [] }
 }
 
 /** Strip scripts / event handlers / js-hrefs so an admin-uploaded SVG can be inlined safely. */
@@ -341,6 +349,7 @@ export async function publishGarments(
             search_text: search,
             thumb_path: thumbPath,
             views: d.views,
+            price: Math.max(0, Math.round(d.price)),
           })
           .select('*')
           .single()
@@ -387,6 +396,7 @@ export async function publishGarments(
         tags: [],
         createdAt: Date.now(),
         views: d.views,
+        price: Math.max(0, Math.round(d.price)),
         thumbDataUrl,
       }
       existing.unshift(g)
@@ -434,6 +444,39 @@ export async function deleteGarment(id: string): Promise<GarmentResult<null>> {
   }
   writeLocal(readLocal().filter((g) => g.id !== id))
   return { ok: true, value: null }
+}
+
+/**
+ * Delete EVERY admin-uploaded garment (and its storage files) in one shot — the "start fresh"
+ * action. Built-in/traced base-library garments are code/asset-sourced and are never touched.
+ * Returns how many garments were removed.
+ */
+export async function deleteAllUploadedGarments(): Promise<GarmentResult<{ deleted: number }>> {
+  if (SUPA) {
+    const { data: rows, error: listErr } = await SUPA.from('garment_templates').select('id, thumb_path')
+    if (listErr) return { ok: false, error: listErr.message }
+    const ids = ((rows as Row[] | null) ?? []).map((r) => str(r.id)).filter(Boolean)
+    if (ids.length === 0) return { ok: true, value: { deleted: 0 } }
+
+    // Collect every storage object (representation files + thumbnails) before deleting the rows.
+    const { data: reps } = await SUPA.from('garment_representations').select('storage_path')
+    const paths = [
+      ...((reps as Row[] | null) ?? []).map((r) => str(r.storage_path)),
+      ...((rows as Row[]).map((r) => str(r.thumb_path))),
+    ].filter(Boolean)
+
+    // Delete the rows (garment_representations cascade via FK on delete cascade).
+    const { error: delErr } = await SUPA.from('garment_templates').delete().in('id', ids)
+    if (delErr) return { ok: false, error: delErr.message }
+    // Storage removal is best-effort in chunks (the API caps how many paths one call accepts).
+    for (let i = 0; i < paths.length; i += 100) {
+      await SUPA.storage.from(BUCKET).remove(paths.slice(i, i + 100))
+    }
+    return { ok: true, value: { deleted: ids.length } }
+  }
+  const deleted = readLocal().length
+  writeLocal([])
+  return { ok: true, value: { deleted } }
 }
 
 /**

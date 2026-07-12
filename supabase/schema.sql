@@ -328,6 +328,9 @@ create table if not exists public.garment_templates (
 -- Milestone 1.1: view metadata (added idempotently for existing installs).
 alter table public.garment_templates add column if not exists views jsonb not null default '{}';
 
+-- Shop pricing: coin price the admin sets per garment at upload (0 = not for sale / free).
+alter table public.garment_templates add column if not exists price integer not null default 0;
+
 -- Physical files of a garment (PRD-2 Principle B: representations).
 create table if not exists public.garment_representations (
   id           uuid primary key default gen_random_uuid(),

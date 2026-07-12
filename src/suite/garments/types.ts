@@ -99,6 +99,8 @@ export type Garment = {
   thumbUrl: string
   createdAt: number
   views: GarmentViews
+  /** Coin price in the Garment Shop, set by the admin at upload. 0 = not for sale / free. */
+  price: number
   representations?: GarmentRepresentation[]
 }
 
@@ -122,6 +124,8 @@ export type DetectedGarment = {
   tempId: string
   name: string
   category: GarmentCategoryId
+  /** Coin price the admin assigns before publishing (defaults to the category tier). */
+  price: number
   files: ExtractedFile[]
   /** Generated preview thumbnail (PNG blob). */
   previewBlob: Blob | null

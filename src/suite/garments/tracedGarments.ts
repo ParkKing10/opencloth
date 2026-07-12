@@ -32,6 +32,7 @@ export async function loadTracedGarments(): Promise<Garment[]> {
       thumbUrl: `/traced/${e.slug}.svg`,
       createdAt: 0,
       views: { front: false, back: false, combinedFrontBack: true, side: false, details: false, has3D: false },
+      price: 0,
     }))
     return cache
   } catch {

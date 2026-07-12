@@ -6,6 +6,7 @@ import { archiveKind } from '../import/extract'
 import { prettyName, viewsSummary } from '../import/detect'
 import { runImport } from '../import/pipeline'
 import { publishGarments } from '../garmentClient'
+import { IcoCoins } from '../../components/ui/Icons'
 
 type Phase = 'idle' | 'processing' | 'review' | 'publishing'
 
@@ -197,6 +198,17 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                           </option>
                         ))}
                       </select>
+                      <label className="gl-imp__price" title="Coin price in the Garment Shop (0 = free)">
+                        <IcoCoins width="13" height="13" />
+                        <input
+                          type="number"
+                          min={0}
+                          step={5}
+                          value={d.price}
+                          onChange={(e) => updateItem(d.tempId, { price: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
+                          aria-label="Coin price"
+                        />
+                      </label>
                       <span
                         className={`gl-imp__health gl-imp__health--${d.health.status}`}
                         title={d.health.issues.join(' · ') || 'Ready to publish'}

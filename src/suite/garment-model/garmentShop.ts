@@ -1,50 +1,53 @@
 /**
- * The Garment Shop — THREADOS's premium editable-garment library, priced in coins. Buying a garment
- * deducts the coins from the user (real, persisted balance) and files a fully-editable copy in the
- * user's My-Garments collection. Ownership is remembered per user so a garment is never bought twice.
+ * The Garment Shop — sells the admin's UPLOADED garments, priced in coins per garment. Buying turns
+ * the file-based catalog garment into a fully-editable garment (via the Analysis Engine), files it in
+ * the buyer's My-Garments, and deducts their real coin balance. Ownership is remembered per user so a
+ * garment is never bought twice.
  */
-import { GARMENT_TEMPLATES, type GarmentTemplate } from './garmentTemplates'
+import type { EditableGarment } from './editableGarment'
+import type { Garment } from '../garments/types'
+import { loadGarmentDisplay, getGarment } from '../garments/garmentClient'
+import { analyzeGarment } from './analysis/analyzeGarment'
+import { makeEmptyGarment } from './garmentGeneration'
 
-export type ShopItem = {
-  templateId: string
-  name: string
-  category: string
-  /** Price in coins. */
-  price: number
-  template: GarmentTemplate
+/**
+ * Turn a file-based catalog garment (an admin upload) into an editable garment the Design Studio can
+ * work on. Prefers the vector source (SVG/PDF → region analysis); falls back to a named blank garment
+ * so a purchase never dead-ends even for a raster-only upload.
+ */
+export async function buildEditableFromCatalog(garment: Garment): Promise<EditableGarment> {
+  const filename = `${garment.slug || garment.name || 'garment'}.svg`
+  try {
+    const disp = await loadGarmentDisplay(garment.id)
+    if (disp.svg) {
+      const { garment: editable } = await analyzeGarment({ text: disp.svg, filename }, { name: garment.name, category: garment.category })
+      return editable
+    }
+    // No inline SVG — try a vector/PDF representation's bytes.
+    const full = await getGarment(garment.id)
+    const rep = (full?.representations ?? []).find((r) => (r.format === 'svg' || r.format === 'pdf') && r.url)
+    if (rep?.url) {
+      const res = await fetch(rep.url)
+      if (res.ok) {
+        if (rep.format === 'svg') {
+          const { garment: editable } = await analyzeGarment({ text: await res.text(), filename }, { name: garment.name, category: garment.category })
+          return editable
+        }
+        const bytes = new Uint8Array(await res.arrayBuffer())
+        const { garment: editable } = await analyzeGarment({ bytes, filename: `${garment.slug || 'garment'}.pdf` }, { name: garment.name, category: garment.category })
+        return editable
+      }
+    }
+  } catch {
+    /* fall through to a blank editable so the buyer always gets something to design */
+  }
+  return makeEmptyGarment()
 }
-
-/** Coin price by category tier — richer garments cost more. Predictable, never random. */
-const TIER: Record<string, number> = {
-  Accessories: 15,
-  Jewellery: 15,
-  Tops: 30,
-  Bottoms: 30,
-  Dresses: 45,
-  'One-Piece': 45,
-  Outerwear: 60,
-  Coats: 80,
-}
-
-export function shopPrice(category: string): number {
-  return TIER[category] ?? 40
-}
-
-/** The full shop catalogue — every built-in template offered as a premium garment. */
-export const SHOP_ITEMS: ShopItem[] = GARMENT_TEMPLATES.map((t) => ({
-  templateId: t.id,
-  name: t.name,
-  category: t.category,
-  price: shopPrice(t.category),
-  template: t,
-}))
-
-export const SHOP_CATEGORIES = ['All', ...Array.from(new Set(SHOP_ITEMS.map((i) => i.category)))]
 
 // ---- Ownership (per user, local) — which shop garments the user already bought. ----
 const ownedKey = (userId: string) => `threados-shop-owned-${userId}`
 
-/** Map of templateId → the garment id it created in the user's library. */
+/** Map of catalog garmentId → the editable garment id it created in the user's library. */
 export function readOwned(userId: string): Record<string, string> {
   try {
     const raw = localStorage.getItem(ownedKey(userId))
@@ -54,10 +57,10 @@ export function readOwned(userId: string): Record<string, string> {
   }
 }
 
-export function markOwned(userId: string, templateId: string, garmentId: string): void {
+export function markOwned(userId: string, garmentId: string, editableId: string): void {
   try {
     const map = readOwned(userId)
-    map[templateId] = garmentId
+    map[garmentId] = editableId
     localStorage.setItem(ownedKey(userId), JSON.stringify(map))
   } catch {
     /* non-fatal — the garment still exists in the library */

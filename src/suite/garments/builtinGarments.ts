@@ -43,6 +43,7 @@ function toGarment(t: GarmentTemplate): Garment {
     thumbUrl: garmentThumbnailDataUrl(t.make()),
     createdAt: 0,
     views: { front: true, back: true, combinedFrontBack: false, side: false, details: false, has3D: false },
+    price: 0,
   }
 }
 

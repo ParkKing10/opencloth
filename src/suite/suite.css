@@ -132,6 +132,21 @@
   box-shadow: 0 8px 24px -8px var(--s-accent-glow);
 }
 
+.s-btn--danger {
+  background: transparent;
+  border-color: color-mix(in oklab, #f0616d 45%, var(--s-line));
+  color: #f0616d;
+}
+.s-btn--danger:hover {
+  background: #e5484d;
+  border-color: #e5484d;
+  color: #fff;
+}
+.s-btn--danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .s-btn--ghost {
   background: var(--s-panel-2);
   color: var(--s-text);

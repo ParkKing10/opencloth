@@ -488,6 +488,32 @@
   font-size: 11.5px;
   color: var(--s-text-3);
 }
+.gl-imp__price {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-accent, #d1f94f);
+}
+.gl-imp__price input {
+  width: 52px;
+  border: none;
+  background: transparent;
+  color: var(--s-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  outline: none;
+  -moz-appearance: textfield;
+}
+.gl-imp__price input::-webkit-outer-spin-button,
+.gl-imp__price input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
 .gl-imp__meta {
   gap: 8px;
   font-size: 11.5px;

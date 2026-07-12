@@ -6,6 +6,7 @@
 import { extractArchive } from './extract'
 import { groupIntoGarments, pickPreviewSource, detectViews, garmentHealth } from './detect'
 import { generatePreview } from './preview'
+import { defaultGarmentPrice } from '../pricing'
 import type { DetectedGarment, ImportProgress } from '../types'
 
 let counter = 0
@@ -35,6 +36,7 @@ export async function runImport(file: File, onProgress: (p: ImportProgress) => v
       tempId: tempId(),
       name: g.name,
       category: g.category,
+      price: defaultGarmentPrice(g.category),
       files: g.files,
       previewBlob,
       previewUrl: URL.createObjectURL(previewBlob),

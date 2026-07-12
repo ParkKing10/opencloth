@@ -1455,7 +1455,10 @@ export function DesignStudio() {
   // garment the active garment (its flat as the backdrop, design keyed to its id), skip the picker.
   const bridgedRef = useRef(false)
   useEffect(() => {
-    if (bridgedRef.current || catalog.length === 0) return
+    // NOTE: this must NOT gate on catalog.length — a purchased/opened garment comes from its saved
+    // history (loadHistory), not the built-in catalog. With the base library hidden the catalog is
+    // empty, so gating here used to drop the ?garment= entry and fall back to the default blank.
+    if (bridgedRef.current) return
     const gid = searchParams.get('garment')
     const gname = searchParams.get('name')
     if (!gid) return

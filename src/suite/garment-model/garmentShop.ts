@@ -21,9 +21,10 @@ async function editableFromDisplay(disp: Display, garment: Garment): Promise<Edi
       const { garment: editable } = await analyzeGarment({ text: disp.svg, filename }, { name: garment.name, category: garment.category })
       return editable
     }
-    // No inline SVG — try a vector/PDF representation's bytes.
+    // No inline SVG — analyse the master vector file. Illustrator .ai and .pdf are read as bytes
+    // (the .ai container is PDF-compatible — the same path the direct My-Garments import uses).
     const full = await getGarment(garment.id)
-    const rep = (full?.representations ?? []).find((r) => (r.format === 'svg' || r.format === 'pdf') && r.url)
+    const rep = (full?.representations ?? []).find((r) => (r.format === 'svg' || r.format === 'pdf' || r.format === 'ai') && r.url)
     if (rep?.url) {
       const res = await fetch(rep.url)
       if (res.ok) {
@@ -32,7 +33,7 @@ async function editableFromDisplay(disp: Display, garment: Garment): Promise<Edi
           return editable
         }
         const bytes = new Uint8Array(await res.arrayBuffer())
-        const { garment: editable } = await analyzeGarment({ bytes, filename: `${garment.slug || 'garment'}.pdf` }, { name: garment.name, category: garment.category })
+        const { garment: editable } = await analyzeGarment({ bytes, filename: `${garment.slug || 'garment'}.${rep.format}` }, { name: garment.name, category: garment.category })
         return editable
       }
     }
@@ -65,7 +66,12 @@ async function displayToDataUrl(disp: Display): Promise<string | null> {
  */
 export async function buildPurchase(garment: Garment): Promise<{ editable: EditableGarment; backdrop: string | null }> {
   const disp = await loadGarmentDisplay(garment.id)
-  const [editable, backdrop] = await Promise.all([editableFromDisplay(disp, garment), displayToDataUrl(disp)])
+  const editable = await editableFromDisplay(disp, garment)
+  // If the analysis produced a real editable region tree (e.g. from a .ai/.svg master), show THAT —
+  // it's recolourable and part-editable. Only when it's empty (raster with no vector) do we fall back
+  // to pinning the flat image as a Studio backdrop so the garment is at least visible.
+  const hasRegions = Object.keys(editable.regions ?? {}).length > 0
+  const backdrop = hasRegions ? null : await displayToDataUrl(disp)
   return { editable, backdrop }
 }
 

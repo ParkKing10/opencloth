@@ -101,6 +101,10 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   // on the small header toggle a user would never notice.
   const [choosing, setChoosing] = useState(false)
   const [references, setReferences] = useState<string[]>([])
+  // Drag-and-drop reference images: `dragging` drives the drop overlay; the depth counter keeps it
+  // stable as the pointer crosses child elements (dragenter/leave fire per element, not per modal).
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
   const [live] = useState(() => hasImageAi())
   const inputRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -319,6 +323,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setHistoryOpen(false)
     setFinalizingIds(new Set())
     setReferences([]) // reference images must not leak into (and silently steer) the next session
+    setDragging(false)
+    dragDepth.current = 0
   }, [open])
 
   if (!open) return null
@@ -405,14 +411,51 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     onAddToCanvas(c)
     onClose()
   }
-  const addReference = async (file: File | undefined) => {
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      toast('Please choose an image file to use as a reference.', 'info')
+  // Add one or many images as references (from the file picker OR a drag-and-drop), honoring the
+  // 3-image cap. Non-images are ignored with a nudge; an overflow drop fills the remaining slots.
+  const addReferenceFiles = async (files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith('image/'))
+    if (images.length === 0) {
+      if (files.length > 0) toast('Please use image files as a reference.', 'info')
       return
     }
-    const dataUrl = await blobToDataUrl(file)
-    setReferences((prev) => [...prev, dataUrl].slice(0, 3))
+    const room = Math.max(0, 3 - refsRef.current.length)
+    if (room === 0) {
+      toast('You can attach up to 3 reference images.', 'info')
+      return
+    }
+    const dataUrls = await Promise.all(images.slice(0, room).map((f) => blobToDataUrl(f)))
+    setReferences((prev) => [...prev, ...dataUrls].slice(0, 3))
+    if (images.length > room) toast(`Added ${room} — 3 references is the max.`, 'info')
+  }
+
+  // Drag-and-drop reference images anywhere on the modal. Only active once a real image model is
+  // connected (`live`) and not while the Design/Edit chooser is up — references do nothing otherwise.
+  const dndActive = () => live && !choosing
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer.types).includes('Files')
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!dndActive() || !hasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragging(true)
+  }
+  const onDragOver = (e: React.DragEvent) => {
+    if (!dndActive() || !hasFiles(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  const onDragLeave = () => {
+    if (!dndActive()) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+  const onDrop = (e: React.DragEvent) => {
+    if (!dndActive()) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragging(false)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length) void addReferenceFiles(files)
   }
 
   const suggestions = mode === 'garment' ? GARMENT_SUGGESTIONS : SUGGESTIONS
@@ -428,7 +471,28 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   return createPortal(
     <div className="suite">
       <div className="tai-scrim" onClick={onClose} />
-      <div className="tai" role="dialog" aria-modal="true" aria-labelledby="tai-title">
+      <div
+        className="tai"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tai-title"
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
+      >
+        {dragging && (
+          <div className="tai__drop" aria-hidden="true">
+            <div className="tai__drop-card">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 15V3m0 0L8 7m4-4 4 4" />
+                <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
+              </svg>
+              <b>Drop to add {mode === 'garment' ? 'an example' : 'a reference'}</b>
+              <span>Up to 3 images guide the {mode === 'garment' ? 'garment edit' : 'look'}</span>
+            </div>
+          </div>
+        )}
         {/* Header */}
         <header className="tai__head">
           <span className="tai__title" id="tai-title">
@@ -496,7 +560,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 <button type="button" className="tai__ghost" title={mode === 'garment' ? 'Upload example images to guide the edit' : 'Upload a reference image to guide the result'} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
                   + {mode === 'garment' ? 'Example' : 'Reference'}
                 </button>
-                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => { void addReference(e.target.files?.[0]); e.target.value = '' }} />
+                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void addReferenceFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
               </>
             )}
             <div className="tai__hist-wrap">

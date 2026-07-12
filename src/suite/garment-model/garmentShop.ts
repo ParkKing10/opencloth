@@ -9,16 +9,14 @@ import type { Garment } from '../garments/types'
 import { loadGarmentDisplay, getGarment } from '../garments/garmentClient'
 import { analyzeGarment } from './analysis/analyzeGarment'
 import { makeEmptyGarment } from './garmentGeneration'
+import { blobToDataUrl } from '../assets/assetThumb'
 
-/**
- * Turn a file-based catalog garment (an admin upload) into an editable garment the Design Studio can
- * work on. Prefers the vector source (SVG/PDF → region analysis); falls back to a named blank garment
- * so a purchase never dead-ends even for a raster-only upload.
- */
-export async function buildEditableFromCatalog(garment: Garment): Promise<EditableGarment> {
+type Display = { svg?: string; imageUrl?: string }
+
+/** Analyse a garment's vector source into an editable region garment; blank fallback (e.g. raster). */
+async function editableFromDisplay(disp: Display, garment: Garment): Promise<EditableGarment> {
   const filename = `${garment.slug || garment.name || 'garment'}.svg`
   try {
-    const disp = await loadGarmentDisplay(garment.id)
     if (disp.svg) {
       const { garment: editable } = await analyzeGarment({ text: disp.svg, filename }, { name: garment.name, category: garment.category })
       return editable
@@ -42,6 +40,33 @@ export async function buildEditableFromCatalog(garment: Garment): Promise<Editab
     /* fall through to a blank editable so the buyer always gets something to design */
   }
   return makeEmptyGarment()
+}
+
+/** The garment's flat as a persistent image data URL — used as the Studio backdrop so the actual
+ *  garment shows even when it has no editable region tree (the common case for raster flats). */
+async function displayToDataUrl(disp: Display): Promise<string | null> {
+  if (disp.svg) return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(disp.svg)}`
+  if (disp.imageUrl) {
+    try {
+      const res = await fetch(disp.imageUrl)
+      if (!res.ok) return disp.imageUrl // signed URL may expire, but it displays now
+      return await blobToDataUrl(await res.blob())
+    } catch {
+      return disp.imageUrl
+    }
+  }
+  return null
+}
+
+/**
+ * Provision a purchased garment: build its editable garment (regions when analysable) AND capture its
+ * actual flat as a Studio backdrop image, so the buyer always SEES the real garment — not a blank —
+ * and can design on it. Loads the garment's display once and derives both from it.
+ */
+export async function buildPurchase(garment: Garment): Promise<{ editable: EditableGarment; backdrop: string | null }> {
+  const disp = await loadGarmentDisplay(garment.id)
+  const [editable, backdrop] = await Promise.all([editableFromDisplay(disp, garment), displayToDataUrl(disp)])
+  return { editable, backdrop }
 }
 
 // ---- Ownership (per user, local) — which shop garments the user already bought. ----

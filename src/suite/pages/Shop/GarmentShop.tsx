@@ -12,7 +12,8 @@ import { useToast } from '../../components/ui/Toast'
 import { useGarments } from '../../garments/useGarments'
 import { categoryLabel, type Garment } from '../../garments/types'
 import { createGarment } from '../../garment-model/garmentLibrary'
-import { buildEditableFromCatalog, readOwned, markOwned } from '../../garment-model/garmentShop'
+import { buildPurchase, readOwned, markOwned } from '../../garment-model/garmentShop'
+import { saveDoc } from '../DesignStudio/designDoc'
 import { IcoCoins } from '../../components/ui/Icons'
 import './shop.css'
 
@@ -55,8 +56,13 @@ export function GarmentShop() {
     setBuyingId(item.id)
     try {
       // Build the editable garment FIRST (the valuable thing), then charge the coins.
-      const editable = await buildEditableFromCatalog(item)
+      const { editable, backdrop } = await buildPurchase(item)
       const summary = createGarment(user.id, editable, { name: item.name, category: categoryLabel(item.category), origin: 'shop' })
+      // Attach the ACTUAL garment flat as the Studio backdrop so the buyer sees the real garment
+      // (raster flats have no region tree, so without this the Studio would open blank).
+      if (backdrop) {
+        saveDoc(summary.id, { layers: [], hidden: {}, designName: item.name, garmentEdit: backdrop, updatedAt: Date.now() })
+      }
       if (item.price > 0) {
         mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - item.price } : u)) }))
       }

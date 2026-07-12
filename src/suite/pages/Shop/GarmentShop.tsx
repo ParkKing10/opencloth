@@ -11,15 +11,8 @@ import { useStore } from '../../data/store'
 import { useToast } from '../../components/ui/Toast'
 import { useGarments } from '../../garments/useGarments'
 import { categoryLabel, type Garment } from '../../garments/types'
-import { createGarment, getGarment as getEditableSummary } from '../../garment-model/garmentLibrary'
-import { buildPurchase, readOwned, markOwned } from '../../garment-model/garmentShop'
-import { saveDoc } from '../DesignStudio/designDoc'
-
-/** A garment with editable regions opens in the Garment Lab (structure/layers); a flat-only garment
- *  opens in the Design Studio with its flat as a backdrop. Keeps the buyer in the right editor. */
-function editorPath(garmentId: string, hasRegions: boolean): string {
-  return hasRegions ? `/suite/garment-lab/${garmentId}` : `/suite/design?garment=${garmentId}`
-}
+import { createGarment } from '../../garment-model/garmentLibrary'
+import { buildEditable, readOwned, markOwned } from '../../garment-model/garmentShop'
 import { IcoCoins } from '../../components/ui/Icons'
 import './shop.css'
 
@@ -52,9 +45,7 @@ export function GarmentShop() {
     if (!user || buyingId) return
     const ownedId = owned[item.id]
     if (ownedId) {
-      // Open in the editor that fits: Garment Lab if it has editable regions, else Design Studio.
-      const summary = getEditableSummary(user.id, ownedId)
-      navigate(editorPath(ownedId, !!summary && summary.regionCount > 0))
+      navigate(`/suite/garment-lab/${ownedId}`)
       return
     }
     if (item.price > 0 && coins < item.price) {
@@ -63,14 +54,10 @@ export function GarmentShop() {
     }
     setBuyingId(item.id)
     try {
-      // Build the editable garment FIRST (the valuable thing), then charge the coins.
-      const { editable, backdrop, hasRegions } = await buildPurchase(item)
+      // Analyse FIRST — a garment must resolve to editable layers or the purchase doesn't happen
+      // (no empty garment, no coins spent). buildEditable throws when there are no layers.
+      const editable = await buildEditable(item)
       const summary = createGarment(user.id, editable, { name: item.name, category: categoryLabel(item.category), origin: 'shop' })
-      // A flat-only garment has no region tree — pin its flat as a Design-Studio backdrop so it's
-      // still visible. A region garment needs no backdrop (its editable parts render in the Lab).
-      if (backdrop) {
-        saveDoc(summary.id, { layers: [], hidden: {}, designName: item.name, garmentEdit: backdrop, updatedAt: Date.now() })
-      }
       if (item.price > 0) {
         mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - item.price } : u)) }))
       }
@@ -78,13 +65,14 @@ export function GarmentShop() {
       setOwned(readOwned(user.id))
       toast(
         item.price > 0
-          ? `Bought “${item.name}” for ${item.price} coins — opening the editor.`
-          : `Added “${item.name}” — opening the editor.`,
+          ? `Bought “${item.name}” for ${item.price} coins — opening the Garment Lab.`
+          : `Added “${item.name}” — opening the Garment Lab.`,
         'success',
       )
-      navigate(editorPath(summary.id, hasRegions))
-    } catch {
-      toast('Could not open that garment for editing. Please try again.', 'info')
+      navigate(`/suite/garment-lab/${summary.id}`)
+    } catch (err) {
+      // No layers (or the source couldn't be read) → don't charge, don't file an empty garment.
+      toast(err instanceof Error ? err.message : 'Could not prepare that garment.', 'info')
     } finally {
       setBuyingId(null)
     }

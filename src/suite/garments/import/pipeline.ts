@@ -7,10 +7,32 @@ import { extractArchive } from './extract'
 import { groupIntoGarments, pickPreviewSource, detectViews, garmentHealth } from './detect'
 import { generatePreview } from './preview'
 import { defaultGarmentPrice } from '../pricing'
-import type { DetectedGarment, ImportProgress } from '../types'
+import { analyzeGarment } from '../../garment-model/analysis/analyzeGarment'
+import type { DetectedGarment, ExtractedFile, ImportProgress } from '../types'
 
 let counter = 0
 const tempId = (): string => `g_${Date.now().toString(36)}_${(counter++).toString(36)}`
+
+/**
+ * Count the editable regions/layers the Analysis Engine finds in a garment's vector master (SVG/AI/PDF).
+ * This is the SAME analysis a purchase runs, so validating it here means the shop only ever contains
+ * garments that actually open with layers. Returns 0 for a raster-only or unreadable garment.
+ */
+async function countRegions(files: ExtractedFile[]): Promise<number> {
+  const vec = files.find((f) => f.ext === 'svg' || f.ext === 'ai' || f.ext === 'pdf')
+  if (!vec) return 0
+  try {
+    if (vec.ext === 'svg') {
+      const { report } = await analyzeGarment({ text: await vec.blob.text(), filename: vec.name })
+      return report.regionCount
+    }
+    const bytes = new Uint8Array(await vec.blob.arrayBuffer())
+    const { report } = await analyzeGarment({ bytes, filename: vec.name })
+    return report.regionCount
+  } catch {
+    return 0
+  }
+}
 
 /** Run the full detect pipeline for one uploaded archive. Throws with a friendly message on failure. */
 export async function runImport(file: File, onProgress: (p: ImportProgress) => void): Promise<DetectedGarment[]> {
@@ -32,18 +54,22 @@ export async function runImport(file: File, onProgress: (p: ImportProgress) => v
     })
     const src = pickPreviewSource(g.files)
     const previewBlob = await generatePreview(src, { name: g.name, category: g.category })
+    // Validate at UPLOAD: does this garment analyse into editable layers? If not it can't be published.
+    const regionCount = await countRegions(g.files)
     detected.push({
       tempId: tempId(),
       name: g.name,
       category: g.category,
       price: defaultGarmentPrice(g.category),
+      regionCount,
       files: g.files,
       previewBlob,
       previewUrl: URL.createObjectURL(previewBlob),
       views: detectViews(g.files),
       // a real preview means a usable source image existed (not just the placeholder fallback)
       health: garmentHealth(g.name, g.files, src !== null),
-      include: true,
+      // Only a garment WITH editable layers is publishable — a 0-layer garment starts excluded.
+      include: regionCount > 0,
     })
   }
 

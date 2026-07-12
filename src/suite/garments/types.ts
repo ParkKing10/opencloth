@@ -160,6 +160,9 @@ export type DetectedGarment = {
   category: GarmentCategoryId
   /** Coin price the admin assigns before publishing (defaults to the category tier). */
   price: number
+  /** Editable regions/layers the Analysis Engine found in the garment's vector master. A garment with
+   *  0 layers is not usable and cannot be published — it must be re-uploaded as a proper vector file. */
+  regionCount: number
   files: ExtractedFile[]
   /** Generated preview thumbnail (PNG blob). */
   previewBlob: Blob | null

@@ -604,6 +604,24 @@
 .gl-imp__views {
   color: var(--s-text-2);
 }
+.gl-imp__layers {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--s-accent-2, var(--s-accent));
+}
+.gl-imp__layers--none {
+  color: #f0616d;
+}
+.gl-imp__item--nolayers {
+  opacity: 0.6;
+}
+.gl-imp__item--nolayers .gl-imp__thumb {
+  outline: 1px solid rgba(240, 97, 109, 0.5);
+}
+.gl-imp__blocked {
+  color: #f0616d;
+  font-weight: 600;
+}
 .gl-imp__views::before {
   content: '';
   width: 3px;

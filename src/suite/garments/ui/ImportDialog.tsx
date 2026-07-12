@@ -121,6 +121,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
   }
 
   const includedCount = detected.filter((d) => d.include).length
+  const noLayersCount = detected.filter((d) => d.regionCount === 0).length
 
   async function publish() {
     setPhase('publishing')
@@ -235,18 +236,21 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
           <>
             <div className="gl-imp__reviewbar">
               <span>
-                Detected <strong>{detected.length}</strong> garment{detected.length === 1 ? '' : 's'} · {includedCount}{' '}
-                selected
+                Detected <strong>{detected.length}</strong> garment{detected.length === 1 ? '' : 's'} · {includedCount} selected
+                {noLayersCount > 0 && (
+                  <span className="gl-imp__blocked"> · {noLayersCount} blocked (no layers)</span>
+                )}
               </span>
               <span className="gl-imp__src">{sourceName}</span>
             </div>
             <div className="gl-imp__review">
               {detected.map((d) => (
-                <div key={d.tempId} className={`gl-imp__item${d.include ? '' : ' is-off'}`}>
-                  <label className="gl-imp__check">
+                <div key={d.tempId} className={`gl-imp__item${d.include ? '' : ' is-off'}${d.regionCount === 0 ? ' gl-imp__item--nolayers' : ''}`}>
+                  <label className="gl-imp__check" title={d.regionCount === 0 ? 'No editable layers — this garment cannot be published' : 'Include in publish'}>
                     <input
                       type="checkbox"
                       checked={d.include}
+                      disabled={d.regionCount === 0}
                       onChange={(e) => updateItem(d.tempId, { include: e.target.checked })}
                     />
                   </label>
@@ -294,6 +298,9 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                     <div className="gl-imp__row gl-imp__meta">
                       <span>{d.files.length} files</span>
                       <span className="gl-imp__views">{viewsSummary(d.views)}</span>
+                      <span className={`gl-imp__layers${d.regionCount === 0 ? ' gl-imp__layers--none' : ''}`}>
+                        {d.regionCount > 0 ? `${d.regionCount} layers` : 'No layers — re-upload as vector'}
+                      </span>
                     </div>
                   </div>
                 </div>

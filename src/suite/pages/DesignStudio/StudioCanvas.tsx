@@ -217,6 +217,8 @@ export function StudioCanvas({
   // The active garment view. With per-view backdrops (garmentSvgByView) the tabs genuinely switch
   // the stage between Front/Back; without them the tabs highlight over the single shared preview.
   const [activeView, setActiveView] = useState('')
+  // Neck Label is a view too: when true the stage shows the generated label instead of the garment.
+  const [showLabel, setShowLabel] = useState(false)
   // The Garment Views strip collapses so the stage can be the whole studio.
   const [stripHidden, setStripHidden] = useState<boolean>(() => {
     try {
@@ -362,6 +364,7 @@ export function StudioCanvas({
   // Highlight the first real view whenever the garment changes.
   useEffect(() => {
     setActiveView(viewList(garmentViews)[0] ?? 'Preview')
+    setShowLabel(false)
   }, [garmentName, garmentViews])
 
   function renameDesign() {
@@ -707,7 +710,9 @@ export function StudioCanvas({
             style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
           >
             <div className="ds-garment-3d" ref={stageRef}>
-              {garmentOverride ? (
+              {showLabel && neckLabel ? (
+                <img className="ds-garment-photo ds-necklabel-view" src={neckLabel} alt={`${garmentName} — neck label`} draggable={false} />
+              ) : garmentOverride ? (
                 <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI edit`} draggable={false} />
               ) : garmentSvgByView?.[activeView] || garmentSvg ? (
                 <div
@@ -785,11 +790,11 @@ export function StudioCanvas({
             <div className="ds-flats">
               {viewTabs.map((v) => (
                 <button
-                  className={`ds-flat${activeView === v ? ' is-active' : ''}`}
+                  className={`ds-flat${activeView === v && !showLabel ? ' is-active' : ''}`}
                   type="button"
                   key={v}
                   title={`${v} view`}
-                  onClick={() => setActiveView(v)}
+                  onClick={() => { setActiveView(v); setShowLabel(false) }}
                 >
                   <div className="ds-flat__art">
                     {garmentSvgByView?.[v] ? (
@@ -810,16 +815,28 @@ export function StudioCanvas({
               ))}
               {onNeckLabel && (
                 <button
-                  className={`ds-flat ds-flat--label${neckLabel ? ' has-label' : ''}`}
+                  className={`ds-flat ds-flat--label${neckLabel ? ' has-label' : ''}${showLabel ? ' is-active' : ''}`}
                   type="button"
-                  title={neckLabel ? 'Edit the neck label' : 'Create a neck label with AI'}
-                  onClick={onNeckLabel}
+                  title={neckLabel ? 'View the neck label' : 'Create a neck label with AI'}
+                  onClick={() => (neckLabel ? setShowLabel(true) : onNeckLabel())}
                 >
                   <div className="ds-flat__art">
                     {neckLabel ? (
                       <img className="ds-flat__img" src={neckLabel} alt="Neck label" draggable={false} />
                     ) : (
                       <span className="ds-flat__add" aria-hidden="true">+</span>
+                    )}
+                    {neckLabel && (
+                      <span
+                        className="ds-flat__edit"
+                        role="button"
+                        tabIndex={0}
+                        title="Regenerate the neck label"
+                        onClick={(e) => { e.stopPropagation(); onNeckLabel() }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onNeckLabel() } }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                      </span>
                     )}
                   </div>
                   <span>Neck Label</span>

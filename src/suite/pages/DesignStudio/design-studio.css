@@ -932,6 +932,26 @@
   line-height: 1;
   color: var(--s-accent-2, var(--s-accent));
 }
+.ds-flat--label .ds-flat__art { position: relative; }
+.ds-flat__edit {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--s-dur) var(--s-ease), background var(--s-dur) var(--s-ease);
+}
+.ds-flat--label:hover .ds-flat__edit { opacity: 1; }
+.ds-flat__edit:hover { background: rgba(0, 0, 0, 0.82); }
+/* Neck label shown large in the stage — keep it label-sized, not garment-sized. */
+.ds-necklabel-view { max-width: 62%; max-height: 62%; margin: auto; }
 
 .ds-sizechart {
   overflow: auto;

@@ -1,127 +1,64 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties, SVGProps } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  IcoSparkle,
-  IcoPlus,
-  IcoCoins,
-  IcoBolt,
-  IcoTechPack,
-  IcoUpload,
-  IcoStar,
-  IcoArrowRight,
-} from '../../components/ui/Icons'
-import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import { IcoSparkle, IcoPlus, IcoCoins, IcoBolt, IcoStar, IcoArrowRight } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { useAuth } from '../../auth/auth'
 import { useStore } from '../../data/store'
-import type { Design, TechPack } from '../../data/types'
-import { uid } from '../../data/utils'
-import { downloadTechPackPdf } from '../../lib/exporters'
-import { downloadBlob, downloadJson, slugify, svgElementToPngBlob } from '../../lib/download'
+import { hasImageAi, generateImages } from '../../ai/imageProvider'
+import {
+  frontPrompt,
+  backPrompt,
+  onModelPrompt,
+  enhanceBrief,
+  DESIGN_SIZE,
+  MODEL_SIZE,
+  DESIGN_STYLES,
+  DESIGN_TYPES,
+} from '../../ai/aiDesignerEngine'
+import { saveDesign, listDesigns, patchDesign, deleteDesign, AI_DESIGNS_CHANGED_EVENT, type AIDesign } from '../../ai/aiDesignStore'
+import { blobToDataUrl } from '../../assets/assetThumb'
+import { createGarment } from '../../garment-model/garmentLibrary'
+import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
+import { saveDoc } from '../DesignStudio/designDoc'
+import { downloadBlob, slugify } from '../../lib/download'
 import './aid.css'
 
-/* Local export/download glyph — Icons.tsx has no download icon, so define inline. */
-function IcoDownload(p: SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M12 3v12" />
-      <path d="M8 11l4 4 4-4" />
-      <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-    </svg>
-  )
-}
-
-/* ---- Static option sets ---- */
-const STYLES = ['Streetwear', 'Luxury', 'Vintage Wash', 'Sportswear', 'Minimal'] as const
-type Style = (typeof STYLES)[number]
-
-const TYPES: { key: GarmentKind; label: string }[] = [
-  { key: 'hoodie', label: 'Hoodie' },
-  { key: 'tee', label: 'Tee' },
-  { key: 'jacket', label: 'Jacket' },
-  { key: 'pants', label: 'Pants' },
-  { key: 'cap', label: 'Cap' },
-]
-
-const ASPECTS = [
-  { key: 'square', label: '1:1', glyph: 'sq' },
-  { key: 'portrait', label: '3:4', glyph: 'port' },
-  { key: 'landscape', label: '4:3', glyph: 'land' },
-] as const
-type Aspect = (typeof ASPECTS)[number]['key']
-
-const REF_SLOTS = ['Fabric', 'Silhouette', 'Palette'] as const
-
-/* ---- Rich per-card gradient tints (violet-forward, restrained) ---- */
-const TINTS = [
-  'radial-gradient(130% 120% at 30% 12%, rgba(209,249,79,0.30), transparent 58%), linear-gradient(160deg, #14121f, #0b0b10)',
-  'radial-gradient(130% 120% at 70% 14%, rgba(155,123,255,0.26), transparent 60%), linear-gradient(160deg, #171320, #0b0b10)',
-  'radial-gradient(120% 130% at 50% 0%, rgba(209,249,79,0.22), transparent 62%), linear-gradient(200deg, #100f19, #0a0a0f)',
-  'radial-gradient(130% 120% at 20% 20%, rgba(209,249,79,0.24), rgba(255,107,166,0.06) 45%, transparent 66%), linear-gradient(150deg, #15121d, #0b0b10)',
-]
-
-type Variation = {
-  id: string
-  seed: string
-  name: string
-  kind: GarmentKind
-  style: Style
-  isFav: boolean
-}
-
-const INITIAL_VARIATIONS: Variation[] = [
-  { id: 'v-seed-1', seed: '0x8F2A', name: 'Washed Boxy Hoodie', kind: 'hoodie', style: 'Vintage Wash', isFav: true },
-  { id: 'v-seed-2', seed: '0x1D77', name: 'Panelled Track Hoodie', kind: 'hoodie', style: 'Sportswear', isFav: false },
-  { id: 'v-seed-3', seed: '0xB4C0', name: 'Drop-Shoulder Heavyweight', kind: 'hoodie', style: 'Streetwear', isFav: false },
-]
-
-let variationCounter = 0
-function makeVariationId(): string {
-  variationCounter += 1
-  return `v-${Date.now().toString(36)}-${variationCounter.toString(36)}`
-}
-
-type HistoryItem = { id: string; prompt: string; kind: GarmentKind; style: Style; time: string; count: number }
-const INITIAL_HISTORY: HistoryItem[] = [
-  { id: 'h1', prompt: 'Faded acid-wash hoodie, oversized fit, raw hem', kind: 'hoodie', style: 'Vintage Wash', time: '4m ago', count: 4 },
-  { id: 'h2', prompt: 'Minimal boxy tee, heavyweight cotton, tonal stitch', kind: 'tee', style: 'Minimal', time: '1h ago', count: 4 },
-  { id: 'h3', prompt: 'Cropped moto jacket, matte black hardware', kind: 'jacket', style: 'Luxury', time: '3h ago', count: 6 },
-  { id: 'h4', prompt: 'Baggy cargo pants, ripstop, utility pockets', kind: 'pants', style: 'Streetwear', time: 'Yesterday', count: 4 },
-  { id: 'h5', prompt: 'Structured 6-panel cap, embroidered crest', kind: 'cap', style: 'Sportswear', time: 'Yesterday', count: 4 },
-]
-
-let historyCounter = 0
-function makeHistoryId(): string {
-  historyCounter += 1
-  return `h-${Date.now().toString(36)}-${historyCounter.toString(36)}`
-}
-
-const GEN_COST = 4
-const GEN_COUNT = 4
-const UPSCALE_COST = 2
+/** The AI Designer does real, production-grade work (front + back render, on-model shots), so it
+ *  costs meaningfully more than a quick graphic. Charged per successful variation / photo. */
+const DESIGN_COST = 15
+const MODEL_COST = 10
 const PROMPT_MAX = 480
-const GEN_MS = 2400
-
-/** PNG raster scale factors — upscale ships a crisper 4K-grade asset. */
-const DOWNLOAD_SCALE = 2
-const UPSCALE_SCALE = 6
-
-/** Descriptive nouns used to name freshly generated variations. */
-const NAME_FORMS = ['Boxy', 'Cropped', 'Relaxed', 'Panelled', 'Draped', 'Structured', 'Washed', 'Heavyweight']
-
-function makeSeed(): string {
-  return `0x${Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, '0')}`
-}
-
-function makeVariationName(style: Style, kind: GarmentKind): string {
-  const form = NAME_FORMS[Math.floor(Math.random() * NAME_FORMS.length)]
-  const label = TYPES.find((t) => t.key === kind)?.label ?? 'Garment'
-  return `${form} ${style} ${label}`
-}
+const REF_SLOTS = ['Fabric', 'Silhouette', 'Palette'] as const
+const HISTORY_KEY = 'threados-aid-history-v1'
+const GEN_TIMEOUT_MS = 120_000
 
 const DEFAULT_PROMPT =
   'Oversized boxy hoodie, heavyweight fleece with a faded vintage wash, dropped shoulders, ribbed cuffs and a raw-cut hem. Muted concrete grey.'
+
+const NAME_FORMS = ['Boxy', 'Cropped', 'Relaxed', 'Panelled', 'Draped', 'Structured', 'Washed', 'Heavyweight']
+function designName(style: string, type: string, i: number): string {
+  return `${NAME_FORMS[i % NAME_FORMS.length]} ${style} ${type}`
+}
+
+function loadHistory(): string[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string') : []
+  } catch {
+    return []
+  }
+}
+function pushHistory(prompt: string): string[] {
+  const next = [prompt, ...loadHistory().filter((p) => p.toLowerCase() !== prompt.toLowerCase())].slice(0, 8)
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+  return next
+}
 
 export function AIDesigner() {
   const navigate = useNavigate()
@@ -130,258 +67,188 @@ export function AIDesigner() {
   const { mutate } = useStore()
 
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT)
-  const [style, setStyle] = useState<Style>('Vintage Wash')
-  const [type, setType] = useState<GarmentKind>('hoodie')
-  const [aspect, setAspect] = useState<Aspect>('portrait')
-  const [refs, setRefs] = useState<boolean[]>([true, false, false])
-  const [variations, setVariations] = useState<Variation[]>(INITIAL_VARIATIONS)
-  const [history, setHistory] = useState<HistoryItem[]>(INITIAL_HISTORY)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const genTimer = useRef<number | null>(null)
+  const [style, setStyle] = useState<string>('Vintage Wash')
+  const [type, setType] = useState<string>('Hoodie')
+  const [count, setCount] = useState(2)
+  const [refUrls, setRefUrls] = useState<(string | null)[]>([null, null, null])
+  const [designs, setDesigns] = useState<AIDesign[]>([])
+  const [generating, setGenerating] = useState(false)
+  const [progress, setProgress] = useState('')
+  const [modelBusy, setModelBusy] = useState<Set<string>>(() => new Set())
+  const [history, setHistory] = useState<string[]>(loadHistory)
+  const [live] = useState(() => hasImageAi())
+  const refInputs = useRef<Array<HTMLInputElement | null>>([])
+  const abortRef = useRef<AbortController | null>(null)
 
-  // Live DOM handles to each result card, keyed by variation id, so a card's
-  // inline garment <svg> can be rasterised into a real PNG on demand.
-  const cardRefs = useRef<Map<string, HTMLElement>>(new Map())
-  const registerCard = (id: string) => (el: HTMLElement | null) => {
-    if (el) cardRefs.current.set(id, el)
-    else cardRefs.current.delete(id)
+  const coins = user?.coins ?? 0
+
+  // Load (and live-refresh) the user's AI design library.
+  const refresh = useCallback(async () => {
+    if (!user) return
+    setDesigns(await listDesigns(user.id))
+  }, [user])
+  useEffect(() => {
+    void refresh()
+    const onChange = () => void refresh()
+    window.addEventListener(AI_DESIGNS_CHANGED_EVENT, onChange)
+    return () => window.removeEventListener(AI_DESIGNS_CHANGED_EVENT, onChange)
+  }, [refresh])
+
+  // Abort any in-flight generation on unmount so a late result never sets state on a dead component.
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  const totalCost = count * DESIGN_COST
+  const canGenerate = live && prompt.trim().length > 0 && !generating && coins >= DESIGN_COST
+
+  const spend = (amount: number) => {
+    if (!user) return
+    mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: Math.max(0, u.coins - amount) } : u)) }))
   }
 
-  // Coins live on the authenticated user in the store — read them there rather
-  // than showing a hardcoded balance that never reflects a generation spend.
-  const coins = user?.coins ?? 0
-  const canGenerate = prompt.trim().length > 0 && !isGenerating && coins >= GEN_COST
-  const totalVariations = variations.length + (isGenerating ? GEN_COUNT : 0)
+  async function addReference(i: number, file: File | undefined) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast('Please choose an image file to use as a reference.', 'info')
+      return
+    }
+    const url = await blobToDataUrl(file)
+    setRefUrls((prev) => prev.map((u, j) => (j === i ? url : u)))
+  }
 
-  const genLabel = useMemo(() => {
-    const label = TYPES.find((x) => x.key === type)?.label ?? 'garment'
-    return `${style} ${label.toLowerCase()}`
-  }, [style, type])
+  async function handleGenerate() {
+    const clean = prompt.trim()
+    if (!clean) return toast('Describe the garment you want before generating.', 'info')
+    if (!user) return toast('Sign in to generate designs.', 'info')
+    if (!live) return toast('The AI Designer needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+    if (generating) return
+    if (coins < DESIGN_COST) return toast(`Not enough coins — each design costs ${DESIGN_COST}.`, 'info')
 
-  const toggleRef = (index: number) =>
-    setRefs((prev) => prev.map((value, i) => (i === index ? !value : value)))
+    const brief = { prompt: clean, style, type }
+    const references = refUrls.filter((u): u is string => !!u)
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setGenerating(true)
+    let made = 0
+    let firstError: unknown = null
 
-  const toggleFav = (id: string) =>
-    setVariations((prev) => prev.map((v) => (v.id === id ? { ...v, isFav: !v.isFav } : v)))
-
-  // Clear any in-flight generation timer if the component unmounts mid-run, so
-  // the delayed setState never fires on an unmounted component.
-  useEffect(() => {
-    return () => {
-      if (genTimer.current !== null) {
-        window.clearTimeout(genTimer.current)
-        genTimer.current = null
+    for (let i = 0; i < count; i++) {
+      if (coins - made * DESIGN_COST < DESIGN_COST) break // ran out of coins mid-run
+      try {
+        setProgress(`Rendering front ${i + 1}/${count}…`)
+        const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(GEN_TIMEOUT_MS)])
+        const front = (await generateImages(frontPrompt(brief), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
+        if (!front) throw new Error('No front render returned.')
+        setProgress(`Rendering back ${i + 1}/${count}…`)
+        // Condition the back on the front so it's the SAME garment, from behind.
+        const back = (await generateImages(backPrompt(brief), { n: 1, references: [front], size: DESIGN_SIZE, quality: 'high', signal }))[0] ?? front
+        const design: AIDesign = {
+          id: crypto.randomUUID(),
+          userId: user.id,
+          name: designName(style, type, made),
+          prompt: clean,
+          style,
+          type,
+          frontUrl: front,
+          backUrl: back,
+          modelUrls: [],
+          favorite: false,
+          createdAt: Date.now(),
+        }
+        await saveDesign(design)
+        setDesigns((prev) => [design, ...prev])
+        spend(DESIGN_COST) // charge only for a design that actually landed
+        made++
+      } catch (err) {
+        if (!firstError) firstError = err
       }
     }
-  }, [])
 
-  function handleGenerate() {
-    const clean = prompt.trim()
-    if (!clean) {
-      toast('Describe the garment you want before generating.', 'info')
-      return
+    setGenerating(false)
+    setProgress('')
+    abortRef.current = null
+    if (made > 0) {
+      setHistory(pushHistory(clean))
+      toast(`Generated ${made} design${made === 1 ? '' : 's'} (front + back) — saved to your AI library.`, 'success')
+    } else {
+      toast(firstError instanceof Error ? firstError.message : 'Generation failed. Please try again.', 'info')
     }
-    if (isGenerating) return
-    if (!user) {
-      toast('Sign in to generate designs.', 'info')
-      return
-    }
-    if (coins < GEN_COST) {
-      toast(`Not enough coins — generating costs ${GEN_COST}.`, 'info')
-      return
-    }
-
-    // Spend coins immutably against the current user, preserving all other data.
-    mutate((d) => ({
-      ...d,
-      users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - GEN_COST } : u)),
-    }))
-
-    setIsGenerating(true)
-    genTimer.current = window.setTimeout(() => {
-      const fresh: Variation[] = Array.from({ length: GEN_COUNT }, () => ({
-        id: makeVariationId(),
-        seed: makeSeed(),
-        name: makeVariationName(style, type),
-        kind: type,
-        style,
-        isFav: false,
-      }))
-      setVariations((prev) => [...fresh, ...prev])
-      setHistory((prev) => [
-        { id: makeHistoryId(), prompt: clean, kind: type, style, time: 'just now', count: GEN_COUNT },
-        ...prev,
-      ])
-      setIsGenerating(false)
-      genTimer.current = null
-      toast(`Generated ${GEN_COUNT} ${genLabel} variations.`, 'success')
-    }, GEN_MS)
   }
 
-  function enhancePrompt() {
-    const clean = prompt.trim()
-    if (!clean) {
-      toast('Write a short prompt first, then enhance it.', 'info')
-      return
+  /** Generate a photoreal on-model "real-life" photo of the exact garment. */
+  async function generateModel(design: AIDesign) {
+    if (!user) return
+    if (modelBusy.has(design.id)) return
+    if (coins < MODEL_COST) return toast(`Not enough coins — an on-model photo costs ${MODEL_COST}.`, 'info')
+    setModelBusy((s) => new Set(s).add(design.id))
+    try {
+      const signal = AbortSignal.timeout(GEN_TIMEOUT_MS)
+      const url = (await generateImages(onModelPrompt({ prompt: design.prompt, style: design.style, type: design.type }), {
+        n: 1,
+        references: [design.frontUrl],
+        size: MODEL_SIZE,
+        quality: 'high',
+        signal,
+      }))[0]
+      if (!url) throw new Error('No photo returned.')
+      const next = await patchDesign(design.id, { modelUrls: [...design.modelUrls, url] })
+      setDesigns((prev) => prev.map((d) => (d.id === design.id ? next ?? d : d)))
+      spend(MODEL_COST)
+      toast(`Real-life photo added to “${design.name}”.`, 'success')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not create the on-model photo.', 'info')
+    } finally {
+      setModelBusy((s) => {
+        const n = new Set(s)
+        n.delete(design.id)
+        return n
+      })
     }
-    const additions = 'studio product shot, soft diffused lighting, crisp fabric detail, neutral backdrop'
-    if (clean.toLowerCase().includes('studio product shot')) {
-      toast('Prompt already enhanced.', 'info')
-      return
+  }
+
+  async function download(url: string, name: string) {
+    try {
+      const blob = await fetch(url).then((r) => r.blob())
+      downloadBlob(blob, `threados-${slugify(name)}.png`)
+    } catch {
+      toast('Could not download that image.', 'info')
     }
-    const next = `${clean.replace(/\s*[.,]?\s*$/, '')}. ${additions}.`.slice(0, PROMPT_MAX)
-    setPrompt(next)
-    toast('Prompt enhanced with studio detail.', 'accent')
+  }
+
+  async function removeDesign(design: AIDesign) {
+    if (!window.confirm(`Delete “${design.name}” from your AI library?`)) return
+    await deleteDesign(design.id)
+    setDesigns((prev) => prev.filter((d) => d.id !== design.id))
+  }
+
+  async function toggleFav(design: AIDesign) {
+    const next = await patchDesign(design.id, { favorite: !design.favorite })
+    setDesigns((prev) => prev.map((d) => (d.id === design.id ? next ?? d : d)))
+  }
+
+  /** Push the AI garment into the Design Studio as a designable backdrop (its front render). */
+  function sendToStudio(design: AIDesign) {
+    if (!user) return
+    const summary = createGarment(user.id, makeEmptyGarment(), { name: design.name, category: design.type, origin: 'ai' })
+    saveDoc(summary.id, { layers: [], hidden: {}, designName: design.name, garmentEdit: design.frontUrl, updatedAt: Date.now() })
+    toast(`“${design.name}” sent to the Design Studio.`, 'success')
+    navigate(`/suite/design?garment=${summary.id}`)
   }
 
   function newSession() {
-    if (genTimer.current !== null) {
-      window.clearTimeout(genTimer.current)
-      genTimer.current = null
-    }
+    abortRef.current?.abort()
     setPrompt(DEFAULT_PROMPT)
     setStyle('Vintage Wash')
-    setType('hoodie')
-    setAspect('portrait')
-    setRefs([true, false, false])
-    setVariations(INITIAL_VARIATIONS)
-    setIsGenerating(false)
+    setType('Hoodie')
+    setCount(2)
+    setRefUrls([null, null, null])
+    setGenerating(false)
+    setProgress('')
     toast('Started a fresh session.', 'info')
   }
 
-  function clearHistory() {
-    if (history.length === 0) {
-      toast('History is already empty.', 'info')
-      return
-    }
-    setHistory([])
-    toast('Prompt history cleared.')
-  }
-
-  /**
-   * Rasterise a result card's inline garment <svg> into a PNG and download it.
-   * Returns false (and surfaces the error) when the card or canvas is unavailable,
-   * so callers can avoid charging coins for a render that never produced a file.
-   */
-  async function exportVariationPng(v: Variation, scale: number, suffix: string): Promise<boolean> {
-    const card = cardRefs.current.get(v.id)
-    const svg = card?.querySelector<SVGSVGElement>('.aid-card__glyph svg')
-    if (!svg) {
-      toast('Could not read that design — try again.', 'info')
-      return false
-    }
-    try {
-      const blob = await svgElementToPngBlob(svg, scale)
-      downloadBlob(blob, `threados-${slugify(v.name)}-${suffix}.png`)
-      return true
-    } catch {
-      toast('Could not export the design. Please try again.', 'info')
-      return false
-    }
-  }
-
-  async function upscale(v: Variation) {
-    if (!user) {
-      toast('Sign in to upscale designs.', 'info')
-      return
-    }
-    if (coins < UPSCALE_COST) {
-      toast(`Not enough coins — upscaling costs ${UPSCALE_COST}.`, 'info')
-      return
-    }
-    // Produce the real 4K asset first; only spend coins once the file is created.
-    const ok = await exportVariationPng(v, UPSCALE_SCALE, '4k')
-    if (!ok) return
-    mutate((d) => ({
-      ...d,
-      users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - UPSCALE_COST } : u)),
-    }))
-    toast(`Upscaled “${v.name}” to 4K — download started.`, 'success')
-  }
-
-  /** Export a single variation as a PNG at standard resolution. */
-  async function downloadVariation(v: Variation) {
-    const ok = await exportVariationPng(v, DOWNLOAD_SCALE, 'design')
-    if (ok) toast(`“${v.name}” downloaded as PNG.`, 'success')
-  }
-
-  /** Persist a real Design for this variation, then open it in the studio. */
-  function sendToStudio(v: Variation) {
-    if (!user) {
-      toast('Sign in to send designs to the studio.', 'info')
-      return
-    }
-    const design: Design = {
-      id: uid('d'),
-      ownerId: user.id,
-      name: v.name,
-      kind: v.kind,
-      status: 'draft',
-      progress: 0,
-      updatedAt: Date.now(),
-    }
-    mutate((d) => ({ ...d, designs: [design, ...d.designs] }))
-    toast(`“${v.name}” added to your designs — opening the studio.`, 'success')
-    navigate('/suite/design')
-  }
-
-  /** Persist a real TechPack for this variation, download its PDF, then open Tech Packs. */
-  function createTechPack(v: Variation) {
-    if (!user) {
-      toast('Sign in to create a tech pack.', 'info')
-      return
-    }
-    const pack: TechPack = {
-      id: uid('t'),
-      ownerId: user.id,
-      name: v.name,
-      kind: v.kind,
-      status: 'draft',
-      pages: 5,
-      updatedAt: Date.now(),
-    }
-    mutate((d) => ({ ...d, techPacks: [pack, ...d.techPacks] }))
-    try {
-      downloadTechPackPdf({ name: v.name, kind: v.kind })
-      toast(`Tech pack for “${v.name}” created — PDF downloaded.`, 'success')
-    } catch {
-      toast(`Tech pack for “${v.name}” created.`, 'success')
-    }
-    navigate('/suite/tech-packs')
-  }
-
-  /** Export the current result set as a real JSON file. */
-  function exportResults() {
-    if (variations.length === 0) {
-      toast('Generate some variations before exporting.', 'info')
-      return
-    }
-    downloadJson(
-      {
-        exportedAt: new Date().toISOString(),
-        prompt: prompt.trim(),
-        style,
-        garment: type,
-        aspect,
-        variations: variations.map((v) => ({
-          id: v.id,
-          name: v.name,
-          seed: v.seed,
-          kind: v.kind,
-          style: v.style,
-          favorite: v.isFav,
-        })),
-      },
-      `threados-${slugify(genLabel)}-results.json`,
-    )
-    toast(`Exported ${variations.length} variations to JSON.`, 'success')
-  }
-
-  const RefGlyph = GARMENT_GLYPHS[type]
-
   return (
     <div className="aid-root">
-      {/* ---- Header ---- */}
+      {/* Header */}
       <header className="aid-head">
         <div>
           <p className="aid-head__eyebrow">
@@ -389,8 +256,8 @@ export function AIDesigner() {
           </p>
           <h1 className="aid-head__title">AI Designer</h1>
           <p className="aid-head__sub">
-            Describe the garment, drop references and let the studio render production-ready
-            variations you can upscale or push straight into the Design Studio.
+            Describe a garment and the studio renders it for real — front and back — then puts a model in it so you see
+            how it looks on a person. Every design saves to your AI library.
           </p>
         </div>
         <div className="aid-head__actions">
@@ -405,11 +272,9 @@ export function AIDesigner() {
         </div>
       </header>
 
-      {/* ---- Studio ---- */}
       <div className="aid-studio">
-        {/* ============ LEFT CONTROL PANEL ============ */}
+        {/* Control panel */}
         <aside className="aid-panel">
-          {/* Prompt */}
           <div className="aid-field">
             <div className="aid-field__label">
               <span>Prompt</span>
@@ -424,7 +289,7 @@ export function AIDesigner() {
                 aria-label="Prompt"
               />
               <div className="aid-prompt__foot">
-                <button className="aid-prompt__enhance" type="button" onClick={enhancePrompt}>
+                <button className="aid-prompt__enhance" type="button" onClick={() => setPrompt((p) => enhanceBrief(p).slice(0, PROMPT_MAX))}>
                   <IcoBolt width="12" height="12" /> Enhance
                 </button>
                 <span className="aid-prompt__count">
@@ -434,274 +299,210 @@ export function AIDesigner() {
             </div>
           </div>
 
-          {/* Reference images */}
+          {/* Reference images (optional, real uploads) */}
           <div className="aid-field">
             <div className="aid-field__label">
               <span>Reference images</span>
               <span className="aid-field__hint">Optional</span>
             </div>
             <div className="aid-refs">
-              {REF_SLOTS.map((label, i) => {
-                const isFilled = refs[i]
-                return (
+              {REF_SLOTS.map((label, i) => (
+                <Fragment key={label}>
                   <button
-                    key={label}
                     type="button"
-                    className={`aid-ref${isFilled ? ' is-filled' : ''}`}
-                    onClick={() => toggleRef(i)}
-                    aria-label={`${isFilled ? 'Remove' : 'Add'} ${label} reference`}
+                    className={`aid-ref${refUrls[i] ? ' is-filled' : ''}`}
+                    onClick={() => refInputs.current[i]?.click()}
+                    aria-label={`${refUrls[i] ? 'Replace' : 'Add'} ${label} reference`}
+                    title={`${label} reference`}
                   >
-                    {isFilled ? <RefGlyph width="26" height="26" /> : <IcoPlus width="16" height="16" />}
+                    {refUrls[i] ? (
+                      <img src={refUrls[i] as string} alt={`${label} reference`} className="aid-ref__img" />
+                    ) : (
+                      <IcoPlus width="16" height="16" />
+                    )}
                     <span className="aid-ref__tag">{label}</span>
                   </button>
-                )
-              })}
+                  <input
+                    ref={(el) => { refInputs.current[i] = el }}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    hidden
+                    onChange={(e) => { void addReference(i, e.target.files?.[0]); e.target.value = '' }}
+                  />
+                </Fragment>
+              ))}
             </div>
           </div>
 
-          {/* Brand style */}
           <div className="aid-field">
-            <div className="aid-field__label">
-              <span>Brand style</span>
-            </div>
+            <div className="aid-field__label"><span>Brand style</span></div>
             <div className="aid-pills">
-              {STYLES.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={`aid-pill${style === s ? ' is-active' : ''}`}
-                  onClick={() => setStyle(s)}
-                >
+              {DESIGN_STYLES.map((s) => (
+                <button key={s} type="button" className={`aid-pill${style === s ? ' is-active' : ''}`} onClick={() => setStyle(s)}>
                   {s}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Garment type */}
           <div className="aid-field">
-            <div className="aid-field__label">
-              <span>Garment type</span>
-            </div>
-            <div className="aid-seg" style={{ '--aid-cols': 5 } as CSSProperties}>
-              {TYPES.map((t) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  className={`aid-seg__opt${type === t.key ? ' is-active' : ''}`}
-                  onClick={() => setType(t.key)}
-                  title={t.label}
-                >
-                  {t.label}
+            <div className="aid-field__label"><span>Garment type</span></div>
+            <div className="aid-pills">
+              {DESIGN_TYPES.map((t) => (
+                <button key={t} type="button" className={`aid-pill${type === t ? ' is-active' : ''}`} onClick={() => setType(t)}>
+                  {t}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Aspect */}
           <div className="aid-field">
-            <div className="aid-field__label">
-              <span>Aspect ratio</span>
-            </div>
-            <div className="aid-seg" style={{ '--aid-cols': 3 } as CSSProperties}>
-              {ASPECTS.map((a) => (
-                <button
-                  key={a.key}
-                  type="button"
-                  className={`aid-seg__opt${aspect === a.key ? ' is-active' : ''}`}
-                  onClick={() => setAspect(a.key)}
-                >
-                  <span className={`aid-aspect aid-aspect--${a.glyph}`} aria-hidden="true" />
-                  {a.label}
+            <div className="aid-field__label"><span>How many designs</span></div>
+            <div className="aid-seg" style={{ '--aid-cols': 4 } as CSSProperties}>
+              {[1, 2, 3, 4].map((n) => (
+                <button key={n} type="button" className={`aid-seg__opt${count === n ? ' is-active' : ''}`} onClick={() => setCount(n)}>
+                  {n}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Generate */}
           <div className="aid-panel__foot">
-            <button
-              className="s-btn s-btn--accent aid-generate"
-              type="button"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-            >
+            <button className="s-btn s-btn--accent aid-generate" type="button" disabled={!canGenerate} onClick={() => void handleGenerate()}>
               <IcoSparkle width="17" height="17" />
-              {isGenerating ? 'Generating…' : `Generate ${GEN_COUNT} variations`}
+              {generating ? progress || 'Generating…' : live ? `Generate ${count} design${count === 1 ? '' : 's'}` : 'Add a Runware key to generate'}
             </button>
             <p className="aid-cost-hint">
-              <IcoCoins width="13" height="13" /> Costs <b>{GEN_COST} coins</b> per generation
+              <IcoCoins width="13" height="13" /> Costs <b>{totalCost} coins</b> — front + back each, {DESIGN_COST}/design
             </p>
           </div>
         </aside>
 
-        {/* ============ RIGHT RESULTS CANVAS ============ */}
+        {/* Library / results */}
         <section className="aid-results">
           <div className="aid-results__head">
             <div className="aid-results__title">
-              <h2>Results</h2>
-              <span className="aid-results__count">
-                {totalVariations} variations · {genLabel}
-              </span>
-            </div>
-            <div className="aid-results__tools">
-              <span className="s-chip s-chip--accent">
-                <IcoSparkle width="12" height="12" /> {style}
-              </span>
-              <button
-                className="s-btn s-btn--ghost aid-export"
-                type="button"
-                onClick={exportResults}
-                disabled={variations.length === 0}
-                title="Export the current results as a JSON file"
-              >
-                <IcoDownload width="15" height="15" /> Export JSON
-              </button>
+              <h2>Your AI library</h2>
+              <span className="aid-results__count">{designs.length} design{designs.length === 1 ? '' : 's'}</span>
             </div>
           </div>
 
           <div className="aid-grid">
-            {variations.map((v, i) => {
-              const Glyph = GARMENT_GLYPHS[v.kind]
-              return (
-                <article className="aid-card" key={v.id} ref={registerCard(v.id)} tabIndex={0}>
-                  <div className="aid-card__canvas" style={{ background: TINTS[i % TINTS.length] }}>
-                    <span className="aid-card__grain" aria-hidden="true" />
-                    <span className="aid-card__seed">{v.seed}</span>
-                    <button
-                      type="button"
-                      className={`aid-card__fav${v.isFav ? ' is-fav' : ''}`}
-                      onClick={() => toggleFav(v.id)}
-                      aria-label={v.isFav ? 'Unfavorite' : 'Favorite'}
-                    >
-                      <IcoStar width="15" height="15" />
-                    </button>
-                    <span className="aid-card__glyph">
-                      <Glyph width="96" height="96" />
-                    </span>
-
-                    <div className="aid-toolbar">
-                      <button
-                        className="aid-tool aid-tool--primary"
-                        type="button"
-                        onClick={() => void upscale(v)}
-                      >
-                        <IcoSparkle width="14" height="14" /> Upscale
-                        <span className="aid-tool__tip">Upscale to 4K · {UPSCALE_COST} coins</span>
-                      </button>
-                      <button
-                        className="aid-tool"
-                        type="button"
-                        aria-label="Create tech pack"
-                        onClick={() => createTechPack(v)}
-                      >
-                        <IcoTechPack width="16" height="16" />
-                        <span className="aid-tool__tip">Create Tech Pack</span>
-                      </button>
-                      <button
-                        className="aid-tool"
-                        type="button"
-                        aria-label="Send to Design Studio"
-                        onClick={() => sendToStudio(v)}
-                      >
-                        <IcoArrowRight width="16" height="16" />
-                        <span className="aid-tool__tip">Send to Design Studio</span>
-                      </button>
-                      <button
-                        className="aid-tool"
-                        type="button"
-                        aria-label="Download"
-                        onClick={() => void downloadVariation(v)}
-                      >
-                        <IcoUpload width="16" height="16" style={{ transform: 'rotate(180deg)' }} />
-                        <span className="aid-tool__tip">Download</span>
-                      </button>
-                    </div>
-                  </div>
-                  <div className="aid-card__meta">
-                    <span className="aid-card__name">{v.name}</span>
-                    <span className="aid-card__style">{v.style}</span>
-                  </div>
-                </article>
-              )
-            })}
-
-            {/* Generating shimmer placeholders — shown only while a run is in flight */}
-            {isGenerating &&
-              Array.from({ length: GEN_COUNT }, (_, i) => (
+            {generating &&
+              Array.from({ length: count }, (_, i) => (
                 <article className="aid-card aid-card--gen" key={`gen-${i}`} aria-hidden="true">
                   <div className="aid-gen">
                     <span className="aid-gen__shimmer" />
-                    <span className="aid-gen__orb">
-                      <IcoSparkle width="22" height="22" />
-                    </span>
-                    <span className="aid-gen__label">Rendering variation {i + 1}…</span>
-                    <span className="aid-gen__bar">
-                      <span />
-                    </span>
+                    <span className="aid-gen__orb"><IcoSparkle width="22" height="22" /></span>
+                    <span className="aid-gen__label">{progress || `Rendering ${i + 1}…`}</span>
                   </div>
-                  <div className="aid-card__meta">
-                    <span className="aid-card__name">Generating…</span>
-                    <span className="aid-card__style">~{Math.ceil(GEN_MS / 1000)}s</span>
-                  </div>
+                  <div className="aid-card__meta"><span className="aid-card__name">Generating…</span></div>
                 </article>
               ))}
 
-            {variations.length === 0 && !isGenerating && (
+            {designs.map((d) => (
+              <AIDesignCard
+                key={d.id}
+                design={d}
+                modelBusy={modelBusy.has(d.id)}
+                onModel={() => void generateModel(d)}
+                onFav={() => void toggleFav(d)}
+                onStudio={() => sendToStudio(d)}
+                onDownload={(url, name) => void download(url, name)}
+                onDelete={() => void removeDesign(d)}
+              />
+            ))}
+
+            {designs.length === 0 && !generating && (
               <div className="aid-empty">
-                <span className="aid-empty__orb">
-                  <IcoSparkle width="22" height="22" />
-                </span>
-                <h3>No variations yet</h3>
-                <p>Describe a garment on the left and generate your first set.</p>
+                <span className="aid-empty__orb"><IcoSparkle width="22" height="22" /></span>
+                <h3>{live ? 'No designs yet' : 'Connect a Runware key'}</h3>
+                <p>{live ? 'Describe a garment on the left and generate your first design.' : 'Add your Runware API key in Settings → AI — the AI Designer renders real garments, it won’t fake it.'}</p>
               </div>
             )}
           </div>
 
-          {/* ---- History strip ---- */}
-          <div className="aid-history">
-            <div className="aid-history__head">
-              <span className="aid-history__title">
-                <IcoBolt width="13" height="13" /> Prompt history
-              </span>
-              <button className="aid-history__clear" type="button" onClick={clearHistory}>
-                Clear
-              </button>
-            </div>
-            {history.length > 0 ? (
-              <div className="aid-history__row">
-                {history.map((h) => {
-                  const Glyph = GARMENT_GLYPHS[h.kind]
-                  return (
-                    <button
-                      key={h.id}
-                      type="button"
-                      className="aid-hist"
-                      onClick={() => setPrompt(h.prompt)}
-                    >
-                      <span className="aid-hist__thumb">
-                        <Glyph width="22" height="22" />
-                      </span>
-                      <span className="aid-hist__body">
-                        <span className="aid-hist__prompt">{h.prompt}</span>
-                        <span className="aid-hist__meta">
-                          <span>{h.style}</span>
-                          <span className="aid-hist__dot" />
-                          <span>{h.count} variations</span>
-                          <span className="aid-hist__dot" />
-                          <span>{h.time}</span>
-                        </span>
-                      </span>
-                    </button>
-                  )
-                })}
+          {history.length > 0 && (
+            <div className="aid-history">
+              <div className="aid-history__head">
+                <span className="aid-history__title"><IcoBolt width="13" height="13" /> Prompt history</span>
               </div>
-            ) : (
-              <p className="aid-history__empty">No prompts yet — your generations will show up here.</p>
-            )}
-          </div>
+              <div className="aid-history__row">
+                {history.map((h) => (
+                  <button key={h} type="button" className="aid-hist" onClick={() => setPrompt(h)}>
+                    <span className="aid-hist__body">
+                      <span className="aid-hist__prompt">{h}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </div>
+  )
+}
+
+/** One design in the library: front/back toggle, on-model strip, and per-card actions. */
+function AIDesignCard(props: {
+  design: AIDesign
+  modelBusy: boolean
+  onModel: () => void
+  onFav: () => void
+  onStudio: () => void
+  onDownload: (url: string, name: string) => void
+  onDelete: () => void
+}) {
+  const { design: d, modelBusy, onModel, onFav, onStudio, onDownload, onDelete } = props
+  const [view, setView] = useState<'front' | 'back'>('front')
+  const current = view === 'front' ? d.frontUrl : d.backUrl
+
+  return (
+    <article className="aid-card">
+      <div className="aid-card__canvas">
+        <img className="aid-card__img" src={current} alt={`${d.name} — ${view}`} draggable={false} />
+        <button type="button" className={`aid-card__fav${d.favorite ? ' is-fav' : ''}`} onClick={onFav} aria-label={d.favorite ? 'Unfavorite' : 'Favorite'}>
+          <IcoStar width="15" height="15" />
+        </button>
+        <div className="aid-viewtabs">
+          <button type="button" className={view === 'front' ? 'is-active' : ''} onClick={() => setView('front')}>Front</button>
+          <button type="button" className={view === 'back' ? 'is-active' : ''} onClick={() => setView('back')}>Back</button>
+        </div>
+        <div className="aid-toolbar">
+          <button className="aid-tool aid-tool--primary" type="button" onClick={onModel} disabled={modelBusy}>
+            <IcoSparkle width="14" height="14" /> {modelBusy ? 'Shooting…' : 'On a model'}
+            <span className="aid-tool__tip">See it on a person · {MODEL_COST} coins</span>
+          </button>
+          <button className="aid-tool" type="button" aria-label="Send to Design Studio" onClick={onStudio}>
+            <IcoArrowRight width="16" height="16" />
+            <span className="aid-tool__tip">Send to Design Studio</span>
+          </button>
+          <button className="aid-tool" type="button" aria-label="Download" onClick={() => onDownload(current, `${d.name}-${view}`)}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M8 11l4 4 4-4" /><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
+            <span className="aid-tool__tip">Download {view}</span>
+          </button>
+          <button className="aid-tool" type="button" aria-label="Delete" onClick={onDelete}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" /></svg>
+            <span className="aid-tool__tip">Delete</span>
+          </button>
+        </div>
+      </div>
+
+      {d.modelUrls.length > 0 && (
+        <div className="aid-models">
+          {d.modelUrls.map((m, i) => (
+            <button key={i} type="button" className="aid-model" onClick={() => onDownload(m, `${d.name}-model-${i + 1}`)} title="Download on-model photo">
+              <img src={m} alt={`${d.name} on a model ${i + 1}`} draggable={false} />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="aid-card__meta">
+        <span className="aid-card__name" title={d.name}>{d.name}</span>
+        <span className="aid-card__style">{d.style}</span>
+      </div>
+    </article>
   )
 }

@@ -64,15 +64,15 @@ async function displayToDataUrl(disp: Display): Promise<string | null> {
  * actual flat as a Studio backdrop image, so the buyer always SEES the real garment — not a blank —
  * and can design on it. Loads the garment's display once and derives both from it.
  */
-export async function buildPurchase(garment: Garment): Promise<{ editable: EditableGarment; backdrop: string | null }> {
+export async function buildPurchase(garment: Garment): Promise<{ editable: EditableGarment; backdrop: string | null; hasRegions: boolean }> {
   const disp = await loadGarmentDisplay(garment.id)
   const editable = await editableFromDisplay(disp, garment)
   // If the analysis produced a real editable region tree (e.g. from a .ai/.svg master), show THAT —
-  // it's recolourable and part-editable. Only when it's empty (raster with no vector) do we fall back
-  // to pinning the flat image as a Studio backdrop so the garment is at least visible.
+  // it's recolourable and part-editable, and the buyer should land in the Garment Lab. Only when it's
+  // empty (raster with no vector) do we pin the flat as a Design-Studio backdrop so it's still visible.
   const hasRegions = Object.keys(editable.regions ?? {}).length > 0
   const backdrop = hasRegions ? null : await displayToDataUrl(disp)
-  return { editable, backdrop }
+  return { editable, backdrop, hasRegions }
 }
 
 // ---- Ownership (per user, local) — which shop garments the user already bought. ----

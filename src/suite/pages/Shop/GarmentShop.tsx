@@ -11,9 +11,15 @@ import { useStore } from '../../data/store'
 import { useToast } from '../../components/ui/Toast'
 import { useGarments } from '../../garments/useGarments'
 import { categoryLabel, type Garment } from '../../garments/types'
-import { createGarment } from '../../garment-model/garmentLibrary'
+import { createGarment, getGarment as getEditableSummary } from '../../garment-model/garmentLibrary'
 import { buildPurchase, readOwned, markOwned } from '../../garment-model/garmentShop'
 import { saveDoc } from '../DesignStudio/designDoc'
+
+/** A garment with editable regions opens in the Garment Lab (structure/layers); a flat-only garment
+ *  opens in the Design Studio with its flat as a backdrop. Keeps the buyer in the right editor. */
+function editorPath(garmentId: string, hasRegions: boolean): string {
+  return hasRegions ? `/suite/garment-lab/${garmentId}` : `/suite/design?garment=${garmentId}`
+}
 import { IcoCoins } from '../../components/ui/Icons'
 import './shop.css'
 
@@ -46,7 +52,9 @@ export function GarmentShop() {
     if (!user || buyingId) return
     const ownedId = owned[item.id]
     if (ownedId) {
-      navigate(`/suite/design?garment=${ownedId}`)
+      // Open in the editor that fits: Garment Lab if it has editable regions, else Design Studio.
+      const summary = getEditableSummary(user.id, ownedId)
+      navigate(editorPath(ownedId, !!summary && summary.regionCount > 0))
       return
     }
     if (item.price > 0 && coins < item.price) {
@@ -56,10 +64,10 @@ export function GarmentShop() {
     setBuyingId(item.id)
     try {
       // Build the editable garment FIRST (the valuable thing), then charge the coins.
-      const { editable, backdrop } = await buildPurchase(item)
+      const { editable, backdrop, hasRegions } = await buildPurchase(item)
       const summary = createGarment(user.id, editable, { name: item.name, category: categoryLabel(item.category), origin: 'shop' })
-      // Attach the ACTUAL garment flat as the Studio backdrop so the buyer sees the real garment
-      // (raster flats have no region tree, so without this the Studio would open blank).
+      // A flat-only garment has no region tree — pin its flat as a Design-Studio backdrop so it's
+      // still visible. A region garment needs no backdrop (its editable parts render in the Lab).
       if (backdrop) {
         saveDoc(summary.id, { layers: [], hidden: {}, designName: item.name, garmentEdit: backdrop, updatedAt: Date.now() })
       }
@@ -74,7 +82,7 @@ export function GarmentShop() {
           : `Added “${item.name}” — opening the editor.`,
         'success',
       )
-      navigate(`/suite/design?garment=${summary.id}`)
+      navigate(editorPath(summary.id, hasRegions))
     } catch {
       toast('Could not open that garment for editing. Please try again.', 'info')
     } finally {

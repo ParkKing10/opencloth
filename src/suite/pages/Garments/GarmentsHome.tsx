@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
+import { uid } from '../../data/utils'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import {
@@ -216,7 +217,10 @@ export function GarmentsHome() {
   // Clicking a garment opens it in the Design Studio to DESIGN it (graphics, colour, prints) —
   // that is what "open a garment" means for most people. Editing the underlying structure
   // (regions, panels) is the advanced path and lives in the Garment Lab, one menu click away.
-  const open = (id: string) => navigate(`/suite/studio?garment=${id}`)
+  // Always open a garment as a FRESH design (blank canvas) — never the previously-saved one. A new
+  // design id per open keys it as its own new file (reachable across reloads); the garment is just
+  // the reusable base.
+  const open = (id: string) => navigate(`/suite/studio?garment=${id}&design=${uid('des')}`)
   const editStructure = (id: string) => navigate(`/suite/garment-lab/${id}`)
 
   const commitRename = (id: string) => {

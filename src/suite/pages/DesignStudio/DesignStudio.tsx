@@ -450,6 +450,11 @@ export function DesignStudio() {
   // Which garment the live canvas belongs to, and always-fresh name/collection mirrors —
   // so document saves are keyed correctly and never read stale closure values.
   const loadedGarmentRef = useRef<string | null>(null)
+  // The design DOCUMENT key. Normally === the garment id, but opening a garment "fresh" (from the
+  // Garments Studio) uses a brand-new key so it starts blank and never overwrites the garment's
+  // existing designs. The garment STRUCTURE still loads from the garment id.
+  const docKeyRef = useRef<string | null>(null)
+  const freshConsumedRef = useRef(false)
   const designNameRef = useRef('Hoodie')
   const collectionIdRef = useRef<string | undefined>(undefined)
   const specsRef = useRef<ProductSpecs>({})
@@ -461,7 +466,9 @@ export function DesignStudio() {
    * a load — so loading a garment can never echo an empty canvas back over a saved design.
    */
   const saveCurrentDoc = useCallback((snap: Snapshot, name?: string, col?: string) => {
-    const gid = loadedGarmentRef.current
+    // Save under the DESIGN doc key (a fresh-opened design has its own key, separate from the
+    // garment's other designs), falling back to the garment id for normally-opened designs.
+    const gid = docKeyRef.current ?? loadedGarmentRef.current
     if (!gid) return
     // Persist every version, with the ACTIVE one reflecting the snapshot being saved.
     // The AI garment backdrop lives PER PAGE. Its multi-MB base64 image is offloaded to IndexedDB
@@ -1469,7 +1476,16 @@ export function DesignStudio() {
     const gid = activeGarment.id
     if (!gid || loadedGarmentRef.current === gid) return
     loadedGarmentRef.current = gid
-    const doc = loadDoc(gid)
+    // Opening from the Garments Studio passes ?design=<newId> → the design is keyed by that id, not
+    // the garment id, so it starts as its own NEW file (a brand-new id has no saved doc → blank) and
+    // never overwrites the garment's other designs. It stays reachable across reloads (the id is in
+    // the URL). The garment STRUCTURE is unaffected (it loads from the garment id). The design id only
+    // applies to the FIRST load — an internal garment switch afterwards loads that garment normally.
+    const design = freshConsumedRef.current ? null : searchParams.get('design')
+    freshConsumedRef.current = true
+    const docKey = design || gid
+    docKeyRef.current = docKey
+    const doc = loadDoc(docKey)
     const snapshot: Snapshot = doc
       ? {
           layers: doc.layers,

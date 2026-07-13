@@ -7,12 +7,11 @@ import { SCENES, type Scene, type SceneKind } from './scenes'
 import {
   DEMO_COLLECTION,
   DEMO_COLORS,
-  DEMO_GARMENT_PATHS,
   DEMO_GRAPHICS,
+  DEMO_HERO,
+  DEMO_LOOKBOOK,
   DEMO_MANUFACTURERS,
-  DEMO_MOCKUPS,
   DEMO_TECHPACK,
-  type DemoGarmentGlyph,
 } from './presentationDemoData'
 import './presentation.css'
 
@@ -29,8 +28,8 @@ type StageState = {
   caret: boolean
   entered: boolean
   chosen: number // graphics: chosen index
-  heroGraphic: boolean // hero hoodie carries the placed graphic
-  fabric: string // hero hoodie fabric colour
+  heroGraphic: boolean // hero garment carries the placed graphic
+  recolor: string // recolour overlay hex ('' = none)
   colorName: string
   drag: 'idle' | 'grab' | 'move' | 'snap'
   mockup: number // active mockup index (kept for future sound cue granularity)
@@ -45,19 +44,11 @@ const INITIAL_STAGE: StageState = {
   entered: false,
   chosen: 0,
   heroGraphic: false,
-  fabric: DEMO_COLLECTION[0].fabric,
+  recolor: '',
   drag: 'idle',
   colorName: '',
   mockup: 0,
   tech: 0,
-}
-
-function Silhouette({ glyph, fill }: { glyph: DemoGarmentGlyph; fill: string }) {
-  return (
-    <svg className="pm-sil" viewBox="0 0 200 200" aria-hidden="true">
-      <path d={DEMO_GARMENT_PATHS[glyph]} fill={fill} stroke="rgba(0,0,0,0.22)" strokeWidth="2" strokeLinejoin="round" />
-    </svg>
-  )
 }
 
 export function PresentationOverlay() {
@@ -90,7 +81,7 @@ export function PresentationOverlay() {
     setStage((s) => ({ ...s, ...patch }))
   }, [])
   const enterStage = useCallback((kind: SceneKind) => {
-    setStage((s) => ({ ...INITIAL_STAGE, key: s.key + 1, kind, fabric: s.fabric, heroGraphic: s.heroGraphic }))
+    setStage((s) => ({ ...INITIAL_STAGE, key: s.key + 1, kind, recolor: s.recolor, heroGraphic: s.heroGraphic }))
   }, [])
 
   // Expose a click cue for every pointer interaction while presenting (future sound design).
@@ -250,14 +241,14 @@ export function PresentationOverlay() {
             await moveTo(`.pm-swatch[data-i="${i}"]`, 380)
             await clickCursor()
             emitPresentationCue('recolor')
-            patchStage({ fabric: c.hex, colorName: c.name })
+            patchStage({ recolor: c.hex, colorName: c.name })
             await sleep(reduce ? 60 : 460)
           }
           break
         }
         case 'mockup': {
           enterStage('mockup')
-          for (let i = 0; i < DEMO_MOCKUPS.length; i++) {
+          for (let i = 0; i < DEMO_LOOKBOOK.length; i++) {
             if (!alive()) return
             emitPresentationCue('reveal')
             patchStage({ tech: i + 1, mockup: i })
@@ -412,7 +403,7 @@ export function PresentationOverlay() {
 
 // ── Stage renderers ───────────────────────────────────────────────────────────────────────────────
 function StageContent({ stage }: { stage: StageState }) {
-  const hero = DEMO_COLLECTION[0]
+  const hero = DEMO_HERO
   switch (stage.kind) {
     case 'type':
       return (
@@ -433,13 +424,9 @@ function StageContent({ stage }: { stage: StageState }) {
       return (
         <div className="pm-grid pm-grid--4">
           {DEMO_COLLECTION.map((g, i) => (
-            <article
-              key={g.id}
-              className={`pm-card${i < stage.tech ? ' is-in' : ''}`}
-              style={{ ['--g1' as string]: g.gradient[0], ['--g2' as string]: g.gradient[1], animationDelay: `${i * 80}ms` }}
-            >
+            <article key={g.id} className={`pm-card${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 80}ms` }}>
               <div className="pm-card__art">
-                <Silhouette glyph={g.glyph} fill={g.fabric} />
+                <img className="pm-photo" src={g.image} alt={g.name} draggable={false} />
               </div>
               <div className="pm-card__meta">
                 <div className="pm-card__name">{g.name}</div>
@@ -455,12 +442,19 @@ function StageContent({ stage }: { stage: StageState }) {
     case 'drag':
     case 'recolor': {
       const showGraphics = stage.kind === 'graphics' || stage.kind === 'drag'
-      const fabric = stage.fabric || hero.fabric
       return (
         <div className="pm-studio">
-          <div className={`pm-hero${stage.kind === 'select' ? ' is-focus' : ''}`} style={{ ['--g1' as string]: hero.gradient[0], ['--g2' as string]: hero.gradient[1] }}>
+          <div className={`pm-hero${stage.kind === 'select' ? ' is-focus' : ''}`}>
             <div className="pm-hero__stage">
-              <Silhouette glyph="hoodie" fill={fabric} />
+              <img className="pm-photo pm-hero__photo" src={hero.image} alt={hero.name} draggable={false} />
+              {/* Recolour: a colour masked to the garment's silhouette, then colour-blended onto it,
+                  so only the garment recolours (never the surround) — believable on a real photo. */}
+              {stage.recolor && (
+                <div
+                  className="pm-hero__recolor"
+                  style={{ background: stage.recolor, WebkitMaskImage: `url(${hero.image})`, maskImage: `url(${hero.image})` }}
+                />
+              )}
               {stage.heroGraphic && (
                 <div className={`pm-hero__graphic${stage.drag === 'snap' ? ' is-snap' : ''}`}>
                   <GraphicMark index={stage.chosen} />
@@ -502,7 +496,7 @@ function StageContent({ stage }: { stage: StageState }) {
           {stage.kind === 'recolor' && (
             <div className="pm-swatches">
               {DEMO_COLORS.map((c, i) => (
-                <button key={c.id} data-i={i} className={`pm-swatch${stage.fabric === c.hex ? ' is-active' : ''}`} type="button" style={{ background: c.hex }}>
+                <button key={c.id} data-i={i} className={`pm-swatch${stage.recolor === c.hex ? ' is-active' : ''}`} type="button" style={{ background: c.hex }}>
                   <span className="pm-swatch__name">{c.name}</span>
                 </button>
               ))}
@@ -513,13 +507,13 @@ function StageContent({ stage }: { stage: StageState }) {
     }
     case 'mockup':
       return (
-        <div className="pm-grid pm-grid--4">
-          {DEMO_MOCKUPS.map((m, i) => (
-            <article key={m.id} className={`pm-mockup${i < stage.tech ? ' is-in' : ''}`} style={{ ['--g1' as string]: m.gradient[0], ['--g2' as string]: m.gradient[1], animationDelay: `${i * 80}ms` }}>
-              <div className="pm-mockup__art">
-                <Silhouette glyph={m.glyph} fill={DEMO_COLLECTION[0].fabric} />
+        <div className="pm-grid pm-grid--5">
+          {DEMO_LOOKBOOK.map((m, i) => (
+            <article key={m.id} className={`pm-card pm-card--mini${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 70}ms` }}>
+              <div className="pm-card__art">
+                <img className="pm-photo" src={m.image} alt={m.name} draggable={false} />
               </div>
-              <div className="pm-mockup__label">{m.label}</div>
+              <div className="pm-mockup__label">{m.name}</div>
             </article>
           ))}
         </div>

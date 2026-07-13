@@ -1,21 +1,22 @@
 // Presentation Mode — built-in, luxury demo content. 100% local, zero APIs, instant.
 //
-// Nothing here touches the real store or garment catalog — it is presentation-owned data used
-// only by the scripted keynote and demo overlays. Kept deliberately isolated from src/suite/data
-// types so production models can evolve without ever affecting the show.
+// The garments are REAL LOOM STUDIOS product shots (shot on black, so they blend into the dark
+// keynote stage). Nothing here touches the real store or garment catalog — it is presentation-owned
+// data used only by the scripted keynote.
 
-export type DemoGarmentGlyph = 'hoodie' | 'tee' | 'bomber' | 'puffer'
+import hoodieImg from '../../assets/presentation/hoodie.webp'
+import sweatshirtImg from '../../assets/presentation/sweatshirt.webp'
+import pufferImg from '../../assets/presentation/puffer.webp'
+import leatherImg from '../../assets/presentation/leather-jacket.webp'
+import overcoatImg from '../../assets/presentation/overcoat.webp'
 
 export type DemoGarment = {
   id: string
   name: string
   line: string
   price: string
-  glyph: DemoGarmentGlyph
-  /** Two-stop gradient for the card backdrop. */
-  gradient: [string, string]
-  /** The garment silhouette fill. */
-  fabric: string
+  /** Real product-shot URL (shot on black). */
+  image: string
 }
 
 export type DemoGraphic = {
@@ -25,8 +26,6 @@ export type DemoGraphic = {
   /** A compact SVG inner motif (drawn on a 0 0 100 100 viewBox). */
   motif: string
 }
-
-export type DemoMockup = { id: string; label: string; gradient: [string, string]; glyph: DemoGarmentGlyph }
 
 export type DemoTechSection = { id: string; title: string; rows: Array<{ label: string; value: string }> }
 
@@ -43,58 +42,25 @@ export type DemoManufacturer = {
   priceFrom: string
 }
 
+/** A recolour swatch. Kept to DARK tones so tinting a real (dark) product photo stays believable. */
 export type DemoColor = { id: string; name: string; hex: string }
-
-// ── Garment silhouettes (fill-only paths on a 0 0 200 200 viewBox) ─────────────────────────────
-export const DEMO_GARMENT_PATHS: Record<DemoGarmentGlyph, string> = {
-  hoodie:
-    'M70 34c0-9 12-15 30-15s30 6 30 15l24 12 14 30-20 12-8-6v62c0 6-4 9-10 9H70c-6 0-10-3-10-9v-62l-8 6-20-12 14-30zM82 34c0 10 8 17 18 17s18-7 18-17',
-  tee: 'M64 40 42 56l14 26 16-8v72c0 6 4 9 10 9h36c6 0 10-3 10-9V74l16 8 14-26-22-16-18-8h-24z',
-  bomber:
-    'M66 40 44 54l12 26 14-6v70c0 6 4 9 10 9h40c6 0 10-3 10-9V74l14 6 12-26-22-14-20-6-10 10-8-10zM98 46l4 108',
-  puffer:
-    'M70 38 46 54l12 26 12-5v68c0 6 4 9 10 9h40c6 0 10-3 10-9V75l12 5 12-26-24-16-18-6h-24zM74 70h52M74 92h52M74 114h52M74 136h52',
-}
 
 // ── Scene 3: the luxury streetwear collection (created "instantly") ─────────────────────────────
 export const DEMO_COLLECTION: DemoGarment[] = [
-  {
-    id: 'g-hoodie',
-    name: 'Atelier Oversized Hoodie',
-    line: 'Heavyweight 480gsm loopback',
-    price: '$189',
-    glyph: 'hoodie',
-    gradient: ['#20202b', '#101016'],
-    fabric: '#e9e6df',
-  },
-  {
-    id: 'g-tee',
-    name: 'Monolith Heavyweight Tee',
-    line: 'Boxy 260gsm compact cotton',
-    price: '$95',
-    glyph: 'tee',
-    gradient: ['#26262f', '#111117'],
-    fabric: '#d8d4cb',
-  },
-  {
-    id: 'g-bomber',
-    name: 'Nightfall Bomber Jacket',
-    line: 'Matte technical shell',
-    price: '$320',
-    glyph: 'bomber',
-    gradient: ['#1b1c24', '#0c0d12'],
-    fabric: '#2c2f3a',
-  },
-  {
-    id: 'g-puffer',
-    name: 'Glacier Down Puffer',
-    line: 'Baffled 700-fill down',
-    price: '$410',
-    glyph: 'puffer',
-    gradient: ['#232430', '#0e0f15'],
-    fabric: '#c9cdd6',
-  },
+  { id: 'g-hoodie', name: 'Atelier Oversized Hoodie', line: 'Heavyweight 480gsm loopback', price: '$189', image: hoodieImg },
+  { id: 'g-sweat', name: 'Varsity Heavyweight Crew', line: 'Boxy 420gsm brushed-back', price: '$145', image: sweatshirtImg },
+  { id: 'g-puffer', name: 'Glacier Down Puffer', line: 'Baffled 700-fill, olive', price: '$410', image: pufferImg },
+  { id: 'g-leather', name: 'Vandal Leather Biker', line: 'Washed lamb nappa', price: '$690', image: leatherImg },
 ]
+
+/** Scene 8 — the full range as studio-ready mockups (adds the overcoat). */
+export const DEMO_LOOKBOOK: DemoGarment[] = [
+  ...DEMO_COLLECTION,
+  { id: 'g-coat', name: 'Camden Wool Overcoat', line: 'Italian melton, navy', price: '$540', image: overcoatImg },
+]
+
+/** The hero garment carried through scenes 4–7 (select → graphic → drag → recolour). */
+export const DEMO_HERO = DEMO_COLLECTION[0]
 
 // ── Scene 5: four premium graphics for "Chrome tribal butterfly" ────────────────────────────────
 export const DEMO_GRAPHICS: DemoGraphic[] = [
@@ -128,20 +94,12 @@ export const DEMO_GRAPHICS: DemoGraphic[] = [
   },
 ]
 
-// ── Scene 7: premium recolour sequence ──────────────────────────────────────────────────────────
+// ── Scene 7: premium recolour sequence (dark tones — believable on a real product photo) ─────────
 export const DEMO_COLORS: DemoColor[] = [
-  { id: 'c-black', name: 'Onyx Black', hex: '#15151b' },
-  { id: 'c-white', name: 'Bone White', hex: '#ece9e2' },
-  { id: 'c-olive', name: 'Field Olive', hex: '#585e42' },
-  { id: 'c-cream', name: 'Vintage Cream', hex: '#d9cfb8' },
-]
-
-// ── Scene 8: mockups ────────────────────────────────────────────────────────────────────────────
-export const DEMO_MOCKUPS: DemoMockup[] = [
-  { id: 'm-front', label: 'Front', gradient: ['#22222c', '#101016'], glyph: 'hoodie' },
-  { id: 'm-back', label: 'Back', gradient: ['#20202a', '#0e0e14'], glyph: 'hoodie' },
-  { id: 'm-life', label: 'Lifestyle', gradient: ['#2a2620', '#131009'], glyph: 'hoodie' },
-  { id: 'm-studio', label: 'Studio', gradient: ['#1d2026', '#0b0d11'], glyph: 'hoodie' },
+  { id: 'c-black', name: 'Onyx Black', hex: '#141418' },
+  { id: 'c-olive', name: 'Field Olive', hex: '#565f3c' },
+  { id: 'c-burg', name: 'Oxblood', hex: '#5a2230' },
+  { id: 'c-navy', name: 'Midnight Navy', hex: '#26324f' },
 ]
 
 // ── Scene 9: tech pack ──────────────────────────────────────────────────────────────────────────

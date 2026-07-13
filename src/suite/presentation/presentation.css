@@ -346,11 +346,6 @@
 }
 
 /* ── STAGE VISUALS ──────────────────────────────────────────────────────────────────────────── */
-.pm-sil {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
 
 /* Scene 2 — prompt. */
 .pm-prompt-wrap {
@@ -421,18 +416,16 @@
 .pm-grid--4 {
   grid-template-columns: repeat(4, 1fr);
 }
-.pm-card,
-.pm-mockup {
+.pm-card {
   opacity: 0;
   transform: translateY(26px) scale(0.9);
   border-radius: 18px;
   overflow: hidden;
-  background: linear-gradient(160deg, var(--g1), var(--g2));
+  background: radial-gradient(120% 80% at 50% 18%, #17171f, #08080c);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.85);
 }
-.pm-card.is-in,
-.pm-mockup.is-in {
+.pm-card.is-in {
   animation: pm-card-in 560ms var(--pm-ease-spring) both;
 }
 @keyframes pm-card-in {
@@ -448,12 +441,20 @@
     transform: translateY(0) scale(1);
   }
 }
-.pm-card__art,
-.pm-mockup__art {
-  aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
-  padding: 14px;
+.pm-card__art {
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  padding: 12px 12px 4px;
+}
+/* Real product shot — cut out, so the garment floats on the card's dark gradient. */
+.pm-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.55));
 }
 .pm-card__meta {
   padding: 14px 16px 18px;
@@ -484,6 +485,18 @@
   color: #d6d6de;
   border-top: 1px solid rgba(255, 255, 255, 0.07);
 }
+/* Scene 8 — the lookbook (5 studio mockups). */
+.pm-grid--5 {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+}
+.pm-card--mini {
+  border-radius: 14px;
+}
+.pm-card--mini .pm-mockup__label {
+  padding: 9px 8px 11px;
+  font-size: 11.5px;
+}
 
 /* Scenes 4–7 — the studio hero. */
 .pm-studio {
@@ -494,10 +507,10 @@
 }
 .pm-hero {
   position: relative;
-  width: min(360px, 60vw);
+  width: min(320px, 62vw);
   border-radius: 22px;
-  padding: 22px;
-  background: linear-gradient(160deg, var(--g1), var(--g2));
+  padding: 16px;
+  background: radial-gradient(120% 80% at 50% 12%, #17171f, #08080c);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
   transition: transform 620ms var(--pm-ease);
@@ -507,20 +520,36 @@
 }
 .pm-hero__stage {
   position: relative;
-  aspect-ratio: 1 / 1;
-  display: grid;
-  place-items: center;
+  aspect-ratio: 3 / 4;
+  padding: 6px;
 }
-.pm-hero__stage .pm-sil {
-  transition: filter 500ms var(--pm-ease);
+.pm-hero__photo {
+  filter: drop-shadow(0 20px 34px rgba(0, 0, 0, 0.6));
+}
+/* Recolour layer — a colour masked to the garment's shape, then colour-blended onto it, so ONLY
+   the garment recolours (the transparent surround is untouched). Mask matches object-fit:contain. */
+.pm-hero__recolor {
+  position: absolute;
+  inset: 6px;
+  mix-blend-mode: color;
+  opacity: 0.9;
+  pointer-events: none;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  transition: background 480ms var(--pm-ease), opacity 360ms var(--pm-ease);
 }
 .pm-hero__graphic {
   position: absolute;
-  top: 40%;
+  top: 46%;
   left: 50%;
-  width: 30%;
+  width: 24%;
   transform: translate(-50%, -50%) scale(0.6);
   opacity: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
 }
 .pm-hero__graphic.is-snap {
   animation: pm-snap 520ms var(--pm-ease-spring) forwards;
@@ -794,12 +823,111 @@
   animation: pm-rise 420ms var(--pm-ease) both;
 }
 
-@media (max-width: 720px) {
+/* ── Responsive ─────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .pm-grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pm-grid--5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .pm-techpack {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .pm-veil {
+    padding: 0 4px;
+  }
+  .pm-stage {
+    width: 94vw;
+  }
+  .pm-grid {
+    gap: 12px;
+  }
   .pm-grid--4,
+  .pm-grid--5,
   .pm-rail {
     grid-template-columns: repeat(2, 1fr);
   }
   .pm-techpack {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .pm-hero {
+    width: min(300px, 76vw);
+  }
+  .pm-caption {
+    bottom: 92px;
+    padding: 0 16px;
+  }
+  .pm-caption__title {
+    font-size: 26px;
+  }
+  .pm-caption__sub {
+    font-size: 13px;
+  }
+  .pm-caption__eyebrow {
+    font-size: 10.5px;
+    letter-spacing: 0.24em;
+  }
+  .pm-prompt {
+    padding: 12px 12px 12px 16px;
+    gap: 10px;
+  }
+  .pm-prompt__input {
+    font-size: 16px;
+  }
+  .pm-prompt__go {
+    padding: 9px 14px;
+  }
+  .pm-card__meta {
+    padding: 10px 12px 12px;
+  }
+  .pm-card__name {
+    font-size: 13px;
+  }
+  .pm-card__line {
+    font-size: 11px;
+  }
+  .pm-swatches {
+    gap: 8px;
+  }
+  .pm-swatch {
+    width: 60px;
+    height: 42px;
+  }
+  .pm-swatch__name {
+    font-size: 9px;
+    bottom: -18px;
+  }
+  .pm-factory {
+    padding: 12px 13px;
+    gap: 11px;
+  }
+  .pm-factory__stats {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .pm-factory__flag {
+    font-size: 22px;
+  }
+  .pm-launch {
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 92vw;
+    bottom: 20px;
+    row-gap: 8px;
+  }
+  .pm-launch__badge {
+    display: none;
+  }
+  .pm-hud {
+    bottom: 20px;
+    gap: 12px;
+  }
+  .pm-done__title {
+    font-size: 22px;
   }
 }

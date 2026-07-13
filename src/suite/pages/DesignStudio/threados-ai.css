@@ -126,6 +126,29 @@
 .tai--panel .tai__grid { grid-template-columns: 1fr; }
 .tai--panel .tai__prompt { flex-wrap: wrap; }
 .tai--panel .tai__prompt-actions { flex-wrap: wrap; }
+
+/* ---- Embedded in the Library rail (no portal, fills the left panel) ---- */
+.tai-embed-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.tai--embed {
+  flex: 1;
+  min-height: 0;
+  position: static;
+  transform: none;
+  width: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 12px 12px 18px;
+  animation: none;
+  overflow-y: auto;
+}
+.tai--embed .tai-chooser__cards { grid-template-columns: 1fr; }
+.tai--embed .tai__grid { grid-template-columns: 1fr; }
+.tai--embed .tai__prompt { flex-wrap: wrap; }
+.tai--embed .tai__prompt-actions { flex-wrap: wrap; }
+.tai--embed .tai__head { padding-top: 2px; }
 .tai__drop-card {
   display: flex;
   flex-direction: column;

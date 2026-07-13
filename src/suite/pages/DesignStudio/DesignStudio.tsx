@@ -97,7 +97,7 @@ import './design-studio.css'
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
 /** The Library — six human categories, every one opens a real panel. */
-const RAIL = ['Garments', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
+const RAIL = ['AI', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -260,14 +260,13 @@ export function DesignStudio() {
   const { theme, toggle: toggleTheme } = useSuiteTheme()
   const { user } = useAuth()
   const { data, mutate } = useStore()
-  const [rail, setRail] = useState('Garments')
+  const [rail, setRail] = useState('AI')
 
   // A Design belongs to a garment blank: its id is derived from the active garment
   // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
   // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
-  const [aiOpen, setAiOpen] = useState(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiMode, setAiMode] = useState<AiMode>('graphic')
   // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
@@ -795,7 +794,7 @@ export function DesignStudio() {
     const a = s.action
     if (a.kind === 'generate') {
       setAiPrompt(a.prompt)
-      setAiOpen(true)
+      setRail('AI')
       setDirector(null)
       return
     }
@@ -1153,7 +1152,8 @@ export function DesignStudio() {
   // ---- Command palette (⌘K) — every action, searchable (commands built after selection state) ----
   const [paletteOpen, setPaletteOpen] = useState(false)
   const focusAiBar = useCallback(() => {
-    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.cb__input')?.focus())
+    setRail('AI')
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>('.tai__input')?.focus())
   }, [])
 
   // ---- Right-click context menu — surfaces the same wired ops at the point of intent ----
@@ -2634,7 +2634,7 @@ export function DesignStudio() {
         onGenerate={(prompt, m) => {
           setAiPrompt(prompt)
           setAiMode(m)
-          setAiOpen(true)
+          setRail('AI')
         }}
         onConnectApp={() => setConnectOpen(true)}
       />
@@ -2689,6 +2689,25 @@ export function DesignStudio() {
         {/* Left panel — the Library category currently open */}
         {!leftHidden && (
         <aside className="ds-left">
+          {/* THREADOS AI lives in the Library rail (it replaced the old Catalog). Always mounted so a
+              generation survives switching rails; hidden when another Library category is active. */}
+          <div className="ds-left__ai" style={{ display: rail === 'AI' ? 'flex' : 'none' }}>
+            <ThreadosAIModal
+              embedded
+              open
+              initialPrompt={aiPrompt}
+              initialMode={aiMode}
+              userId={user?.id}
+              onClose={() => {}}
+              onAddToCanvas={addGeneratedConcept}
+              onApplyGarment={(dataUrl) => {
+                setGarmentEditUrl(dataUrl)
+                garmentEditRef.current = dataUrl
+                saveCurrentDoc(presentRef.current)
+                toast('Garment updated with your AI edit.', 'success')
+              }}
+            />
+          </div>
           {rail === 'Assets' && <AssetLibrary userId={user?.id} onPlace={(id) => void placeAsset(id)} />}
           {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
           {rail === 'Inspiration' && (
@@ -3011,24 +3030,10 @@ export function DesignStudio() {
         )}
       </div>
 
-      {/* New-design wizard — nobody ever starts on an empty editor */}
-      <ThreadosAIModal
-        open={aiOpen}
-        initialPrompt={aiPrompt}
-        initialMode={aiMode}
-        userId={user?.id}
-        onClose={() => setAiOpen(false)}
-        onAddToCanvas={addGeneratedConcept}
-        onApplyGarment={(dataUrl) => {
-          setGarmentEditUrl(dataUrl)
-          garmentEditRef.current = dataUrl
-          saveCurrentDoc(presentRef.current)
-          toast('Garment updated with your AI edit.', 'success')
-        }}
-      />
+      {/* THREADOS AI is now embedded in the Library rail (see .ds-left above) — no portal modal. */}
       <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
       <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
-      {director && !aiOpen && !saveOpen && !wizardOpen && !sessionGateOpen && !garmentSwitchTarget && (
+      {director && rail !== 'AI' && !saveOpen && !wizardOpen && !sessionGateOpen && !garmentSwitchTarget && (
         <CreativeDirector
           suggestions={director.suggestions}
           onApply={applyDirector}
@@ -3112,6 +3117,8 @@ export function DesignStudio() {
 function RailIcon({ name }: { name: string }) {
   const common = { width: 20, height: 20 }
   switch (name) {
+    case 'AI':
+      return <IcoSparkle {...common} />
     case 'Garments':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">

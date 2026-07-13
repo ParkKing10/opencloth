@@ -172,6 +172,12 @@
   background: var(--s-bg-2);
   min-height: 0;
 }
+/* THREADOS AI embedded in the Library rail fills the panel (display:flex is toggled inline). */
+.ds-left__ai {
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
 .ds-left__scroll {
   flex: 1;
   overflow-y: auto;

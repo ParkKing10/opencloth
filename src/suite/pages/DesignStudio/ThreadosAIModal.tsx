@@ -70,6 +70,8 @@ type Props = {
   onAddToCanvas: (concept: Concept) => void
   /** Apply an edited garment image as the new garment backdrop (Edit Garment mode). */
   onApplyGarment?: (dataUrl: string) => void
+  /** Embedded in the Library rail (no portal, no scrim, no close X) — the AI lives in the left panel. */
+  embedded?: boolean
 }
 
 /**
@@ -77,7 +79,7 @@ type Props = {
  * keep steering with suggestions, then Add to Canvas. Honest about the engine: on-device vector
  * synthesis today (isLiveConceptAi() === false), same UI when a diffusion model connects later.
  */
-export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', userId, onClose, onAddToCanvas, onApplyGarment }: Props) {
+export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', userId, onClose, onAddToCanvas, onApplyGarment, embedded = false }: Props) {
   const toast = useToast()
   const [mode, setMode] = useState<AiMode>(initialMode)
   const modeRef = useRef<AiMode>(initialMode)
@@ -265,14 +267,15 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     setMode(initialMode)
     modeRef.current = initialMode
     setPrompt(initialPrompt)
-    // With a real prompt the intent is already known (a chip, or a routed command) — generate.
-    // Opened empty → ASK first: show the big Design/Edit-Garment chooser, don't generate yet.
+    // With a real prompt the intent is already known (a routed command). Embedded in the rail we only
+    // PRE-FILL it (the panel is always there — auto-running on every mount/switch would be surprising);
+    // as a modal we generate straight away. Opened empty → show the Design/Edit-Garment chooser.
     if (initialPrompt.trim()) {
       setChoosing(false)
-      void run(initialPrompt, true)
+      if (!embedded) void run(initialPrompt, true)
     } else {
       setChoosing(true)
-      setTimeout(() => firstChoiceRef.current?.focus(), 0) // move focus into the dialog for keyboard/SR users
+      if (!embedded) setTimeout(() => firstChoiceRef.current?.focus(), 0) // move focus into the dialog
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPrompt, initialMode])
@@ -451,13 +454,13 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
         : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
 
-  return createPortal(
-    <div className="suite">
-      {/* No blocking scrim — THREADOS AI is a right-docked side panel so the canvas stays usable while
-          it's open (AI generation can take a moment; you can keep working meanwhile). */}
+  const body = (
+    <div className={`suite${embedded ? ' tai-embed-root' : ''}`}>
+      {/* No blocking scrim — THREADOS AI is a side panel (right-docked as a modal, or embedded in the
+          Library rail) so the canvas stays usable while it's open — generation can take a moment. */}
       <div
-        className="tai tai--panel"
-        role="dialog"
+        className={`tai ${embedded ? 'tai--embed' : 'tai--panel'}`}
+        role={embedded ? 'region' : 'dialog'}
         aria-labelledby="tai-title"
         onDragEnter={onDragEnter}
         onDragOver={onDragOver}
@@ -488,9 +491,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit Garment</button>
             </div>
           )}
+          {!embedded && (
           <button type="button" className={`tai__x${choosing ? ' tai__x--solo' : ''}`} aria-label="Close" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
+          )}
         </header>
 
         {choosing ? (
@@ -692,7 +697,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           </div>
         </div>
       )}
-    </div>,
-    document.body,
+    </div>
   )
+  return embedded ? body : createPortal(body, document.body)
 }

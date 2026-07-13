@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { IcoSparkle } from '../../components/ui/Icons'
 import type { Readiness } from '../../export/readiness'
 import { type Proposal } from './studioModel'
 import type { AiMode } from './ThreadosAIModal'
@@ -20,9 +19,9 @@ type Props = {
   onConnectApp: () => void
 }
 
-/** The compact AI command bar. A single button opens THREADOS AI as a side panel, so the top of the
- *  editor stays clean and the canvas keeps its room. */
-export function CommandBar({ readiness, onFix, onGenerate, onConnectApp }: Props) {
+/** The top bar — just Connect App + the manufacturing-readiness pill. THREADOS AI now lives in the
+ *  Library rail on the left, so there is no AI button up here. */
+export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
   const [panelOpen, setPanelOpen] = useState(false)
   const pillRef = useRef<HTMLDivElement>(null)
 
@@ -39,11 +38,6 @@ export function CommandBar({ readiness, onFix, onGenerate, onConnectApp }: Props
 
   return (
     <div className="cb">
-      <button className="cb__ai" type="button" onClick={() => onGenerate('', 'graphic')} title="Open THREADOS AI — design a graphic or edit the garment">
-        <IcoSparkle width="16" height="16" />
-        Ask THREADOS AI
-      </button>
-
       <div className="cb__right">
         <button
           type="button"

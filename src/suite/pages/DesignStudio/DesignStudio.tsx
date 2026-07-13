@@ -1353,7 +1353,9 @@ export function DesignStudio() {
 
   const garmentRegionLayers = useMemo<GarmentRegionLayer[]>(
     () =>
-      displayGarment
+      // An AI garment-edit (garmentEditUrl) replaces the whole garment with a preview-only image, so
+      // the previous garment's editable regions no longer apply — don't leak them into the Layers panel.
+      displayGarment && !garmentEditUrl
         ? flattenRegions(displayGarment).map(({ region, depth }) => ({
             id: region.id,
             name: region.name,
@@ -1363,7 +1365,7 @@ export function DesignStudio() {
             color: region.appearance?.fill,
           }))
         : [],
-    [displayGarment],
+    [displayGarment, garmentEditUrl],
   )
 
   const toggleRegion = useCallback(
@@ -2943,7 +2945,7 @@ export function DesignStudio() {
             onAddText={addTextObject}
             onAddImage={addImageObject}
             onCreateObject={addShapeObject}
-            regionGarment={displayGarment}
+            regionGarment={garmentEditUrl ? null : displayGarment}
             selectedRegionId={regionSel}
             onSelectRegion={(id) => (id ? selectRegion(id) : setRegionSel(null))}
             onMoveRegion={moveRegion}

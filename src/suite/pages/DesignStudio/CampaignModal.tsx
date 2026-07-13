@@ -193,7 +193,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
             <ChoiceRow label="Lighting" options={CAMPAIGN_LIGHTING} value={sel.lighting} onPick={(v) => set({ lighting: v })} />
             <ChoiceRow label="Quality" options={CAMPAIGN_QUALITIES.map((q) => q.label)} value={CAMPAIGN_QUALITIES.find((q) => q.id === sel.quality)?.label ?? 'High'} onPick={(v) => set({ quality: (CAMPAIGN_QUALITIES.find((q) => q.label === v)?.id ?? 'high') })} />
 
-            <button type="button" className="cg__go" onClick={() => runOne(false)} disabled={!garmentPng || generating}>
+            <button type="button" className="cg__go" onClick={() => runOne(true)} disabled={!garmentPng || generating}>
               {generating ? 'Generating…' : `Generate image${model ? ` · ${model.label}` : ''}`}
             </button>
             {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}

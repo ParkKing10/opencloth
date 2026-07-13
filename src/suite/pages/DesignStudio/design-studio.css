@@ -184,6 +184,13 @@
   padding: 16px 14px 8px;
   min-height: 0;
 }
+/* Every active library panel (AI, Graphics, Assets, …) shares the column with the Layers panel
+   below it — make them flex children that give up room instead of forcing their own 100% height. */
+.ds-left > *:not(.ds-resize):not(.ds-layers-slot) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+}
 .ds-panel-head {
   display: flex;
   align-items: center;
@@ -844,17 +851,17 @@
 /* Tech pack strip */
 .ds-techpack {
   flex-shrink: 0;
-  height: 208px;
+  height: auto;
   border-top: 1px solid var(--s-line);
   background: var(--s-bg-2);
-  padding: 12px 18px 16px;
+  padding: 9px 18px 12px;
   overflow: hidden;
 }
 .ds-techpack__tabs {
   display: flex;
   gap: 18px;
-  border-bottom: 1px solid var(--s-line);
-  margin-bottom: 14px;
+  align-items: center;
+  margin-bottom: 10px;
 }
 .ds-tp-tab {
   padding: 0 2px 10px;
@@ -879,14 +886,15 @@
   color: var(--s-text);
 }
 .ds-flats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
 }
 .ds-flat {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
+  width: 62px;
   padding: 0;
   background: transparent;
   border: none;
@@ -895,10 +903,10 @@
   font: inherit;
 }
 .ds-flat__art {
-  height: 96px;
+  height: 54px;
   display: grid;
   place-items: center;
-  border-radius: var(--s-r);
+  border-radius: 9px;
   color: #3a3a44;
   background: #f4f4f6;
   border: 1px solid var(--s-line);
@@ -906,8 +914,8 @@
   transition: box-shadow var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
 }
 .ds-flat__img {
-  max-width: 88%;
-  max-height: 88%;
+  max-width: 86%;
+  max-height: 86%;
   object-fit: contain;
 }
 .ds-flat:hover .ds-flat__art,

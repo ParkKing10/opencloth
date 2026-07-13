@@ -337,12 +337,13 @@ export function DesignStudio() {
       return null
     }
   })
-  // Layers start minimized — the canvas is the star; one click opens the stack.
+  // Layers panel is open by default (it lives at the bottom of the library column) — only collapsed
+  // when the user explicitly minimized it before ('0'). The toggle persists the choice.
   const [layersCollapsed, setLayersCollapsed] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('threados-layers-open') !== '1'
+      return localStorage.getItem('threados-layers-open') === '0'
     } catch {
-      return true
+      return false
     }
   })
 
@@ -2704,7 +2705,6 @@ export function DesignStudio() {
           {rail === 'Graphics' && <GraphicsPanel onAdd={(name) => addGraphicObject(name)} />}
           {rail === 'Elements' && <ElementsPanel onAdd={addGraphicObject} />}
           {rail === 'Garments' && (
-            <>
           <div className="ds-left__scroll">
             <div className="ds-panel-head">
               <h2>Catalog</h2>
@@ -2797,6 +2797,7 @@ export function DesignStudio() {
               </p>
             )}
           </div>
+          )}
 
           {/* Drag to resize the Layers panel (hidden while minimized) */}
           {!layersCollapsed && (
@@ -2855,8 +2856,6 @@ export function DesignStudio() {
               renameHandle={renameHandleRef}
             />
           </div>
-            </>
-          )}
         </aside>
         )}
 

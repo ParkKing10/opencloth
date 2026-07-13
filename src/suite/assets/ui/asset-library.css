@@ -427,6 +427,16 @@
   font-weight: 700;
 }
 
+/* ---- Studio library rail: a clean tile instead of the busy transparency checker, and images that
+   fill the card, so opaque photos/graphics sit flush — the checkerboard read as ragged at the edges. */
+.ds-left .al-card__thumb {
+  background: var(--s-bg-2, #141418);
+}
+.ds-left .al-card__thumb img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
 /* ---- Full-page (Assets) mode: more, smaller tiles so graphics read big, and click-to-enlarge ---- */
 .assets-page .al-grid {
   grid-template-columns: repeat(auto-fill, minmax(188px, 1fr));

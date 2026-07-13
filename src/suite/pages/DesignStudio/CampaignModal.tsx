@@ -46,6 +46,9 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   const [shots, setShots] = useState<Shot[]>([])
   const [favs, setFavs] = useState<Set<string>>(new Set())
   const [saved, setSaved] = useState<Set<string>>(new Set())
+  // Signature of the shoot settings used for the most recent generate — lets the button honestly show
+  // whether the user has changed anything since, so a click always reflects the current selections.
+  const [lastSig, setLastSig] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const live = hasImageAi()
 
@@ -94,6 +97,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
     const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
     setGenerating(true)
     if (!append) setShots([])
+    const sig = JSON.stringify(sel)
     try {
       const params = campaignImageParams(sel)
       // A Transparent backdrop means a true cut-out — run Runware's background remover on the result.
@@ -102,6 +106,8 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       if (urls[0]) {
         const shot: Shot = { id: `sh-${crypto.randomUUID()}`, dataUrl: urls[0] }
         setShots((prev) => (append ? [...prev, shot] : [shot]))
+        setLastSig(sig) // remember what settings this shot used
+
         // Auto-save every campaign photo to the Asset Library so nothing is lost.
         if (userId) {
           void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `Campaign — ${garmentName}`, category: 'campaign' }).then((a) => {
@@ -163,6 +169,8 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   }
 
   const model = CAMPAIGN_MODELS.find((m) => m.id === sel.modelId)
+  // Have the shoot settings changed since the last generated shot? Drives honest button copy.
+  const settingsChanged = lastSig !== null && lastSig !== JSON.stringify(sel)
 
   return createPortal(
     <div className="suite">
@@ -194,7 +202,13 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
             <ChoiceRow label="Quality" options={CAMPAIGN_QUALITIES.map((q) => q.label)} value={CAMPAIGN_QUALITIES.find((q) => q.id === sel.quality)?.label ?? 'High'} onPick={(v) => set({ quality: (CAMPAIGN_QUALITIES.find((q) => q.label === v)?.id ?? 'high') })} />
 
             <button type="button" className="cg__go" onClick={() => runOne(true)} disabled={!garmentPng || generating}>
-              {generating ? 'Generating…' : `Generate image${model ? ` · ${model.label}` : ''}`}
+              {generating
+                ? 'Generating…'
+                : shots.length === 0
+                  ? `Generate image${model ? ` · ${model.label}` : ''}`
+                  : settingsChanged
+                    ? `Generate with new settings${model ? ` · ${model.label}` : ''}`
+                    : 'Generate another'}
             </button>
             {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}
           </div>
@@ -223,9 +237,9 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
                 ))}
                 {generating && <div className="cg-shot cg-shot--loading"><span className="cg-spin" /></div>}
                 {!generating && shots.length > 0 && (
-                  <button type="button" className="cg-shot cg-add" onClick={() => runOne(true)} title="Generate one more" aria-label="Generate one more">
+                  <button type="button" className="cg-shot cg-add" onClick={() => runOne(true)} title={settingsChanged ? 'Generate with your new settings' : 'Generate one more'} aria-label={settingsChanged ? 'Generate with new settings' : 'Generate one more'}>
                     <span className="cg-add__plus">+</span>
-                    <span className="cg-add__label">One more</span>
+                    <span className="cg-add__label">{settingsChanged ? 'New settings' : 'One more'}</span>
                   </button>
                 )}
               </div>

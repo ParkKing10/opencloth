@@ -149,6 +149,9 @@
   flex: 1;
   min-height: 0;
   position: static;
+  /* As a flex item it would still honour the base .tai z-index (471) and paint ABOVE a modal scrim
+     (e.g. the Campaign Generator at 470) — reset it so overlays cover the embedded panel. */
+  z-index: auto;
   transform: none;
   width: 100%;
   max-height: none;

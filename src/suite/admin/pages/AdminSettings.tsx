@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../data/store'
 import { useToast } from '../../components/ui/Toast'
+import { usePresentation } from '../../presentation/PresentationContext'
 
 type Flag = { id: string; title: string; sub: string; on: boolean }
 
@@ -14,7 +15,14 @@ const INITIAL_FLAGS: Flag[] = [
 export function AdminSettings() {
   const { reset } = useStore()
   const toast = useToast()
+  const presentation = usePresentation()
   const [flags, setFlags] = useState<Flag[]>(INITIAL_FLAGS)
+
+  function togglePresentation() {
+    const next = !presentation.enabled
+    presentation.setEnabled(next)
+    toast(`Presentation Mode ${next ? 'enabled' : 'disabled'}.`, next ? 'success' : 'default')
+  }
 
   function toggle(id: string) {
     setFlags((prev) => prev.map((f) => (f.id === id ? { ...f, on: !f.on } : f)))
@@ -33,6 +41,31 @@ export function AdminSettings() {
         <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Platform settings</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: 'var(--s-text-2)' }}>Control features and platform-wide configuration.</p>
       </header>
+
+      <div className="adm-panel" style={{ marginBottom: 20 }}>
+        <div className="adm-panel__head">
+          <h2>Presentation Mode</h2>
+        </div>
+        <div style={{ padding: 6 }}>
+          <div className="adm-flag">
+            <div>
+              <div className="adm-flag__title">Presentation Mode</div>
+              <div className="adm-flag__sub">
+                Cinematic demo experience for keynotes, investors &amp; recordings. Admin-only — never visible to normal
+                users. Adds premium animations and a scripted ▶ Start Presentation walkthrough. Never changes production data.
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={presentation.enabled}
+              aria-label="Presentation Mode"
+              className={`adm-switch${presentation.enabled ? ' is-on' : ''}`}
+              onClick={togglePresentation}
+            />
+          </div>
+        </div>
+      </div>
 
       <div className="adm-panel" style={{ marginBottom: 20 }}>
         <div className="adm-panel__head">

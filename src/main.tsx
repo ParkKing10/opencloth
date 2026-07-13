@@ -7,6 +7,8 @@ import { initTheme } from './suite/theme'
 import { StoreProvider } from './suite/data/store'
 import { AuthProvider, RequireAuth, RequireAdmin } from './suite/auth/auth'
 import { ToastProvider } from './suite/components/ui/Toast'
+import { PresentationProvider } from './suite/presentation/PresentationContext'
+import { PresentationOverlay } from './suite/presentation/PresentationOverlay'
 import { Login } from './suite/pages/Auth/Login'
 import { Signup } from './suite/pages/Auth/Signup'
 import { SuiteApp } from './suite/SuiteApp'
@@ -43,6 +45,7 @@ createRoot(document.getElementById('root')!).render(
       <StoreProvider>
         <AuthProvider>
           <ToastProvider>
+            <PresentationProvider>
             <Routes>
               {/* Public */}
               <Route path="/" element={<App />} />
@@ -115,6 +118,8 @@ createRoot(document.getElementById('root')!).render(
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            <PresentationOverlay />
+            </PresentationProvider>
           </ToastProvider>
         </AuthProvider>
       </StoreProvider>

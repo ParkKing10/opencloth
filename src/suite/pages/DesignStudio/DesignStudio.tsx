@@ -77,7 +77,6 @@ import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
 import { ElementsPanel } from './ElementsPanel'
-import { VersionsBar } from './VersionsBar'
 import { GarmentSwitchDialog } from './GarmentSwitchDialog'
 import { InspirationPanel } from './InspirationPanel'
 import {
@@ -166,14 +165,6 @@ type Snapshot = {
 type DesignVersion = { id: string; name: string; snapshot: Snapshot }
 
 /** Deep-copy a snapshot so a duplicated version never shares mutable arrays/objects with its source. */
-function cloneSnapshot(s: Snapshot): Snapshot {
-  try {
-    return structuredClone(s)
-  } catch {
-    return JSON.parse(JSON.stringify(s)) as Snapshot
-  }
-}
-
 // A freshly selected imported garment starts with ZERO design layers — no demo VISIONARY
 // text, no fake prints or materials. Real layers appear only when the user adds them.
 const INITIAL_SNAPSHOT: Snapshot = { layers: [], hidden: {} }
@@ -387,10 +378,16 @@ export function DesignStudio() {
 
   // Versions/boards: `present` always mirrors the ACTIVE version's live state, so every existing
   // edit/undo/save path works unchanged. Switching a version swaps `present` (and resets undo).
-  const [versions, setVersions] = useState<DesignVersion[]>([])
-  const [activeVersionId, setActiveVersionId] = useState('')
-  const versionsRef = useRef<DesignVersion[]>([])
-  const activeVersionIdRef = useRef('')
+  // Seed a stable base "Page 1" so the Pages strip is never empty — even for the placeholder
+  // garment that has no saved doc (the load effect below overrides this once a real garment opens).
+  const baseVersionRef = useRef<DesignVersion | null>(null)
+  if (!baseVersionRef.current) {
+    baseVersionRef.current = { id: uid('ver'), name: 'Page 1', snapshot: INITIAL_SNAPSHOT }
+  }
+  const [versions, setVersions] = useState<DesignVersion[]>([baseVersionRef.current])
+  const [activeVersionId, setActiveVersionId] = useState(baseVersionRef.current.id)
+  const versionsRef = useRef<DesignVersion[]>([baseVersionRef.current])
+  const activeVersionIdRef = useRef(baseVersionRef.current.id)
   const lastQuotaWarnRef = useRef(0)
   useEffect(() => {
     versionsRef.current = versions
@@ -613,35 +610,19 @@ export function DesignStudio() {
     [syncActiveVersion, loadVersion, saveCurrentDoc],
   )
 
+  // Add a new BLANK page (an empty design board on the same garment). Pages replaced "versions".
   const addVersion = useCallback(() => {
     const synced = syncActiveVersion(presentRef.current)
     const newId = uid('ver')
-    // Number from the highest existing "Version N", not the array length, so labels don't collide
-    // after a middle version is deleted.
-    const nextNum = synced.reduce((m, v) => {
-      const n = /^Version (\d+)$/.exec(v.name)
-      return n ? Math.max(m, Number(n[1])) : m
-    }, 0) + 1
-    const name = `Version ${nextNum}`
-    const copy = cloneSnapshot(presentRef.current)
-    const next = [...synced, { id: newId, name, snapshot: copy }]
+    const name = `Page ${synced.length + 1}`
+    const blank: Snapshot = { layers: [], hidden: {} }
+    const next = [...synced, { id: newId, name, snapshot: blank }]
     versionsRef.current = next
     setVersions(next)
-    loadVersion(copy, newId)
-    saveCurrentDoc(copy)
-    toast(`${name} created — an editable copy of this one.`, 'success')
+    loadVersion(blank, newId)
+    saveCurrentDoc(blank)
+    toast('Blank page added.', 'success')
   }, [syncActiveVersion, loadVersion, saveCurrentDoc, toast])
-
-  const renameVersion = useCallback(
-    (id: string, name: string) => {
-      const clean = name.trim().slice(0, 40) || 'Version'
-      const next = versionsRef.current.map((v) => (v.id === id ? { ...v, name: clean } : v))
-      versionsRef.current = next
-      setVersions(next)
-      saveCurrentDoc(presentRef.current)
-    },
-    [saveCurrentDoc],
-  )
 
   const deleteVersion = useCallback(
     (id: string) => {
@@ -1494,7 +1475,7 @@ export function DesignStudio() {
       activeId = doc.versions.some((v) => v.id === doc.activeVersionId) ? doc.activeVersionId! : loadedVersions[0].id
     } else {
       activeId = uid('ver')
-      loadedVersions = [{ id: activeId, name: 'Version 1', snapshot }]
+      loadedVersions = [{ id: activeId, name: 'Page 1', snapshot }]
     }
     const activeSnapshot = loadedVersions.find((v) => v.id === activeId)?.snapshot ?? snapshot
     setVersions(loadedVersions)
@@ -1658,7 +1639,7 @@ export function DesignStudio() {
         collectionId: collectionIdRef.current,
         specs: specsRef.current,
         projectInfo: projectInfoRef.current,
-        versions: [{ id: verId, name: 'Version 1', layers: src.layers, hidden: src.hidden }],
+        versions: [{ id: verId, name: 'Page 1', layers: src.layers, hidden: src.hidden }],
         activeVersionId: verId,
         updatedAt: Date.now(),
       })
@@ -2805,16 +2786,11 @@ export function DesignStudio() {
               saveCurrentDoc(presentRef.current, n)
             }}
             saveState={saveState}
-            versionsBar={
-              <VersionsBar
-                versions={versions.map((v) => ({ id: v.id, name: v.name }))}
-                activeId={activeVersionId}
-                onSwitch={switchVersion}
-                onAdd={addVersion}
-                onRename={renameVersion}
-                onDelete={deleteVersion}
-              />
-            }
+            pages={versions.map((v) => ({ id: v.id, name: v.name }))}
+            activePageId={activeVersionId}
+            onSwitchPage={switchVersion}
+            onAddPage={addVersion}
+            onDeletePage={deleteVersion}
             objects={objectLayers}
             hiddenMap={hidden}
             selectedObjIds={selectedObjIds}

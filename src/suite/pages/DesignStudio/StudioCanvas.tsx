@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from 'react'
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
@@ -140,8 +140,13 @@ type Props = {
   designName?: string
   onRenameDesign?: (name: string) => void
   saveState?: 'saved' | 'saving' | 'unsaved'
-  /** Versions switcher (Canva-style boards) rendered in the title bar. */
-  versionsBar?: ReactNode
+  /** Design boards ("pages"). Front/Back garment views are the first pages; extra pages are blank
+   *  boards. Shown in the bottom Pages strip (the old top versions bar is gone). */
+  pages?: { id: string; name: string }[]
+  activePageId?: string
+  onSwitchPage?: (id: string) => void
+  onAddPage?: () => void
+  onDeletePage?: (id: string) => void
   // ---- editable canvas objects ----
   objects?: Layer[]
   hiddenMap?: Record<string, boolean>
@@ -184,7 +189,11 @@ export function StudioCanvas({
   designName: designNameProp,
   onRenameDesign,
   saveState,
-  versionsBar,
+  pages,
+  activePageId,
+  onSwitchPage,
+  onAddPage,
+  onDeletePage,
   objects,
   hiddenMap,
   selectedObjIds,
@@ -572,10 +581,8 @@ export function StudioCanvas({
           />{' '}
           {saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Edited' : 'Saved'}
         </span>
-        {versionsBar}
         <div className="ds-bar-right">
-          {/* Single-view garments show the view as a small label instead of a whole bottom strip. */}
-          {!hasMultipleViews && <span className="ds-view-chip">View · {viewTabs[0]}</span>}
+          {/* The current view/page now lives in the bottom Pages strip, so no top-right view chip. */}
 
           {/* Optional print-zone guides — all off by default. */}
           <div className="ds-ov">
@@ -762,25 +769,24 @@ export function StudioCanvas({
         </div>
       </div>
 
-      {/* Garment Views — only when the garment has more than one real view. A single view
-          shows as a small chip in the title bar instead, so we never waste space here.
-          Not a Tech Pack: real tech-pack generation is a later milestone. */}
-      {hasMultipleViews &&
+      {/* Pages — the garment's Front/Back views are the first pages; extra pages are blank boards; the
+          Neck Label is always the last page. (Replaces the old "Garment Views" strip + top versions bar.) */}
+      {(hasMultipleViews || !!onAddPage) &&
         (stripHidden ? (
-          <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show garment views">
-            <span>Garment Views</span>
+          <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show pages">
+            <span>Pages</span>
             <IcoChevron width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
           </button>
         ) : (
           <div className="ds-techpack">
             <div className="ds-techpack__tabs">
-              <span className="ds-tp-title">Garment Views</span>
+              <span className="ds-tp-title">Pages</span>
               <button
                 className="cv-strip-hide"
                 type="button"
                 onClick={toggleStrip}
                 aria-expanded
-                aria-label="Hide garment views"
+                aria-label="Hide pages"
                 title="Hide panel — more room for the canvas"
               >
                 <IcoChevron width="14" height="14" />
@@ -788,31 +794,70 @@ export function StudioCanvas({
             </div>
 
             <div className="ds-flats">
-              {viewTabs.map((v) => (
+              {/* Garment views = the first pages (Page 1, Page 2 …) */}
+              {viewTabs.map((v, i) => {
+                const onBase = !pages || pages.length === 0 || !activePageId || activePageId === pages[0].id
+                return (
+                  <button
+                    className={`ds-flat${onBase && activeView === v && !showLabel ? ' is-active' : ''}`}
+                    type="button"
+                    key={v}
+                    title={`Page ${i + 1} · ${v}`}
+                    onClick={() => { if (pages && pages[0]) onSwitchPage?.(pages[0].id); setActiveView(v); setShowLabel(false) }}
+                  >
+                    <div className="ds-flat__art">
+                      {garmentSvgByView?.[v] ? (
+                        <img
+                          className="ds-flat__img"
+                          src={`data:image/svg+xml,${encodeURIComponent(garmentSvgByView[v])}`}
+                          alt={`${garmentName} — ${v}`}
+                          draggable={false}
+                        />
+                      ) : viewPreview ? (
+                        <img className="ds-flat__img" src={viewPreview} alt={`${garmentName} — ${v}`} draggable={false} />
+                      ) : (
+                        <Glyph width="66" height="66" />
+                      )}
+                    </div>
+                    <span>Page {i + 1}</span>
+                  </button>
+                )
+              })}
+              {/* Extra pages = blank design boards */}
+              {(pages ?? []).slice(1).map((p, j) => (
                 <button
-                  className={`ds-flat${activeView === v && !showLabel ? ' is-active' : ''}`}
+                  className={`ds-flat${activePageId === p.id && !showLabel ? ' is-active' : ''}`}
                   type="button"
-                  key={v}
-                  title={`${v} view`}
-                  onClick={() => { setActiveView(v); setShowLabel(false) }}
+                  key={p.id}
+                  title={`Page ${viewTabs.length + j + 1}`}
+                  onClick={() => { onSwitchPage?.(p.id); setShowLabel(false) }}
                 >
                   <div className="ds-flat__art">
-                    {garmentSvgByView?.[v] ? (
-                      <img
-                        className="ds-flat__img"
-                        src={`data:image/svg+xml,${encodeURIComponent(garmentSvgByView[v])}`}
-                        alt={`${garmentName} — ${v}`}
-                        draggable={false}
-                      />
-                    ) : viewPreview ? (
-                      <img className="ds-flat__img" src={viewPreview} alt={`${garmentName} — ${v}`} draggable={false} />
-                    ) : (
-                      <Glyph width="66" height="66" />
+                    <Glyph width="52" height="52" />
+                    {onDeletePage && (
+                      <span
+                        className="ds-flat__edit"
+                        role="button"
+                        tabIndex={0}
+                        title="Delete page"
+                        onClick={(e) => { e.stopPropagation(); onDeletePage(p.id) }}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onDeletePage(p.id) } }}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                      </span>
                     )}
                   </div>
-                  <span>{v}</span>
+                  <span>Page {viewTabs.length + j + 1}</span>
                 </button>
               ))}
+              {/* Add a new blank page */}
+              {onAddPage && (
+                <button className="ds-flat ds-flat--label" type="button" title="Add a blank page" onClick={onAddPage}>
+                  <div className="ds-flat__art"><span className="ds-flat__add" aria-hidden="true">+</span></div>
+                  <span>New Page</span>
+                </button>
+              )}
+              {/* Neck Label — always the last page */}
               {onNeckLabel && (
                 <button
                   className={`ds-flat ds-flat--label${neckLabel ? ' has-label' : ''}${showLabel ? ' is-active' : ''}`}

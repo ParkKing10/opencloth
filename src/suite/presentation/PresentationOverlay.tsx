@@ -1,88 +1,56 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { usePresentation } from './PresentationContext'
 import { emitPresentationCue } from './presentationBus'
 import { prefersReducedMotion } from './presentation'
-import { SCENES, type Scene, type SceneKind } from './scenes'
-import {
-  DEMO_COLLECTION,
-  DEMO_COLORS,
-  DEMO_GRAPHICS,
-  DEMO_HERO,
-  DEMO_LOOKBOOK,
-  DEMO_MANUFACTURERS,
-  DEMO_TECHPACK,
-} from './presentationDemoData'
+import { SCENES, type TxKind } from './scenes'
+import { BUTTERFLY_MOTIF, DISTRESS_HOLES, HOODIE_IMG, MODEL_IMG, WASHED_BLACK } from './presentationDemoData'
 import './presentation.css'
 
 // The always-mounted presentation surface. Renders NOTHING for normal users (active === false).
-// For an admin with Presentation Mode on it shows the launcher; pressing ▶ runs the scripted keynote
-// as a cinematic overlay above the real app (which serves as an authentic, animated backdrop).
+// For an admin with Presentation Mode on it shows the launcher; ▶ plays the ~15s spot: ONE hoodie,
+// six prompts, transformed live on a solid-black stage. The hoodie is never replaced — each command
+// mutates the same garment.
 
-const COLLECTION_PROMPT = 'Create a luxury streetwear collection'
-
-type StageState = {
-  key: number
-  kind: SceneKind | null
+// The garment's cumulative state. Flags only ever turn ON during a run (start() resets them).
+type Tx = {
   typed: string
   caret: boolean
-  entered: boolean
-  chosen: number // graphics: chosen index
-  heroGraphic: boolean // hero garment carries the placed graphic
-  recolor: string // recolour overlay hex ('' = none)
-  colorName: string
-  drag: 'idle' | 'grab' | 'move' | 'snap'
-  mockup: number // active mockup index (kept for future sound cue granularity)
-  tech: number // number of tech-pack sections revealed
+  armed: boolean // Generate pressed
+  generating: boolean // brief "thinking" shimmer
+  created: boolean
+  oversized: boolean
+  holes: boolean
+  butterfly: boolean
+  color: string // '' or hex
+  mockup: boolean
+  endmark: boolean // closing wordmark over the mockup
 }
 
-const INITIAL_STAGE: StageState = {
-  key: 0,
-  kind: null,
+const INITIAL: Tx = {
   typed: '',
   caret: true,
-  entered: false,
-  chosen: 0,
-  heroGraphic: false,
-  recolor: '',
-  drag: 'idle',
-  colorName: '',
-  mockup: 0,
-  tech: 0,
+  armed: false,
+  generating: false,
+  created: false,
+  oversized: false,
+  holes: false,
+  butterfly: false,
+  color: '',
+  mockup: false,
+  endmark: false,
 }
 
 export function PresentationOverlay() {
   const { active } = usePresentation()
-  const navigate = useNavigate()
 
   const [playing, setPlaying] = useState(false)
   const [sceneIndex, setSceneIndex] = useState(-1)
-  const [caption, setCaption] = useState<{ title: string; subtitle: string } | null>(null)
-  const [stage, setStage] = useState<StageState>(INITIAL_STAGE)
-  const [cursor, setCursor] = useState<{ x: number; y: number; down: boolean; show: boolean }>({
-    x: 0,
-    y: 0,
-    down: false,
-    show: false,
-  })
-  const [spot, setSpot] = useState<{ x: number; y: number; on: boolean }>({ x: 50, y: 45, on: false })
+  const [tx, setTx] = useState<Tx>(INITIAL)
+  const [cursor, setCursor] = useState<{ x: number; y: number; down: boolean; show: boolean }>({ x: 0, y: 0, down: false, show: false })
   const [finished, setFinished] = useState(false)
 
-  // Loop control — a token invalidates any in-flight director when we stop / restart / unmount.
   const tokenRef = useRef(0)
-  const stageRef = useRef<StageState>(INITIAL_STAGE)
-  stageRef.current = stage
-  // Navigate via a ref: react-router changes the navigate() identity on every route change, so
-  // depending on it would restart the whole show the moment a scene navigates. The ref stays current.
-  const navRef = useRef(navigate)
-  navRef.current = navigate
-
-  const patchStage = useCallback((patch: Partial<StageState>) => {
-    setStage((s) => ({ ...s, ...patch }))
-  }, [])
-  const enterStage = useCallback((kind: SceneKind) => {
-    setStage((s) => ({ ...INITIAL_STAGE, key: s.key + 1, kind, recolor: s.recolor, heroGraphic: s.heroGraphic }))
-  }, [])
+  const patch = useCallback((p: Partial<Tx>) => setTx((s) => ({ ...s, ...p })), [])
 
   // Expose a click cue for every pointer interaction while presenting (future sound design).
   useEffect(() => {
@@ -92,7 +60,7 @@ export function PresentationOverlay() {
     return () => window.removeEventListener('pointerdown', onDown)
   }, [active])
 
-  // Kill the show if the admin turns the mode off entirely.
+  // Kill the show if the admin turns the mode off.
   useEffect(() => {
     if (!active && playing) {
       tokenRef.current++
@@ -103,211 +71,87 @@ export function PresentationOverlay() {
   const stop = useCallback(() => {
     tokenRef.current++
     setPlaying(false)
-    setCaption(null)
-    setStage(INITIAL_STAGE)
+    setTx(INITIAL)
     setCursor((c) => ({ ...c, show: false, down: false }))
-    setSpot((s) => ({ ...s, on: false }))
     setSceneIndex(-1)
     setFinished(false)
   }, [])
 
   const start = useCallback(() => {
     setFinished(false)
-    setStage(INITIAL_STAGE)
+    setTx(INITIAL)
     setPlaying(true)
   }, [])
 
-  // ── The director loop ─────────────────────────────────────────────────────────────────────────
+  // ── Director — one continuous conversation with the hoodie ──────────────────────────────────────
   useEffect(() => {
     if (!playing) return
     const token = ++tokenRef.current
     const alive = () => token === tokenRef.current
     const reduce = prefersReducedMotion()
-    const T = (ms: number) => (reduce ? Math.min(ms, 120) : ms)
-
+    const T = (ms: number) => (reduce ? Math.min(ms, 80) : ms)
     const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, T(ms)))
 
-    const moveCursor = async (x: number, y: number, ms = 620) => {
+    const moveCursor = async (x: number, y: number, ms = 500) => {
       setCursor((c) => ({ ...c, x, y, show: true }))
       await sleep(ms)
     }
-    const moveTo = async (sel: string, ms = 620, dx = 0, dy = 0) => {
+    const moveTo = async (sel: string, ms = 500) => {
       const el = document.querySelector(sel)
       if (el) {
         const r = el.getBoundingClientRect()
-        await moveCursor(r.left + r.width / 2 + dx, r.top + r.height / 2 + dy, ms)
+        await moveCursor(r.left + r.width / 2, r.top + r.height / 2, ms)
       } else {
         await sleep(ms)
       }
     }
-    const clickCursor = async () => {
+    const click = async () => {
       emitPresentationCue('click')
       setCursor((c) => ({ ...c, down: true }))
-      await sleep(140)
-      setCursor((c) => ({ ...c, down: false }))
       await sleep(120)
+      setCursor((c) => ({ ...c, down: false }))
+      await sleep(70)
     }
-    const focusSpot = (x: number, y: number) => setSpot({ x, y, on: true })
-
-    async function runScene(scene: Scene) {
-      switch (scene.kind) {
-        case 'intro': {
-          enterStage('intro')
-          focusSpot(50, 46)
-          await moveCursor(window.innerWidth * 0.5, window.innerHeight * 0.52, 700)
-          await sleep(500)
-          break
-        }
-        case 'type': {
-          enterStage('type')
-          patchStage({ typed: '', caret: true })
-          await moveTo('.pm-prompt__input', 520)
-          await sleep(200)
-          for (let i = 1; i <= COLLECTION_PROMPT.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('type')
-            patchStage({ typed: COLLECTION_PROMPT.slice(0, i) })
-            await sleep(reduce ? 6 : 34 + (COLLECTION_PROMPT[i - 1] === ' ' ? 40 : 0))
-          }
-          await sleep(360)
-          await moveTo('.pm-prompt__go', 420)
-          await clickCursor()
-          emitPresentationCue('generate')
-          patchStage({ entered: true })
-          await sleep(360)
-          break
-        }
-        case 'collection': {
-          enterStage('collection')
-          await sleep(120)
-          for (let i = 0; i < DEMO_COLLECTION.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('reveal')
-            patchStage({ tech: i + 1 }) // reuse `tech` as a generic reveal counter
-            await sleep(reduce ? 40 : 220)
-          }
-          emitPresentationCue('complete')
-          break
-        }
-        case 'select': {
-          enterStage('select')
-          focusSpot(50, 50)
-          await moveTo('.pm-hero', 640)
-          await clickCursor()
-          emitPresentationCue('select')
-          patchStage({ entered: true })
-          await sleep(500)
-          break
-        }
-        case 'graphics': {
-          enterStage('graphics')
-          for (let i = 0; i < DEMO_GRAPHICS.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('reveal')
-            patchStage({ tech: i + 1 })
-            await sleep(reduce ? 40 : 200)
-          }
-          await sleep(400)
-          await moveTo('.pm-graphic[data-i="0"]', 520)
-          await clickCursor()
-          emitPresentationCue('select')
-          patchStage({ chosen: 0, entered: true })
-          await sleep(400)
-          break
-        }
-        case 'drag': {
-          enterStage('drag')
-          patchStage({ chosen: 0 })
-          await sleep(160)
-          await moveTo('.pm-graphic[data-i="0"]', 460)
-          setCursor((c) => ({ ...c, down: true }))
-          emitPresentationCue('drag')
-          patchStage({ drag: 'grab' })
-          await sleep(280)
-          patchStage({ drag: 'move' })
-          await moveTo('.pm-hero', 820)
-          patchStage({ drag: 'snap', heroGraphic: true })
-          emitPresentationCue('snap')
-          setCursor((c) => ({ ...c, down: false }))
-          await sleep(520)
-          break
-        }
-        case 'recolor': {
-          enterStage('recolor')
-          patchStage({ heroGraphic: true })
-          for (let i = 0; i < DEMO_COLORS.length; i++) {
-            if (!alive()) return
-            const c = DEMO_COLORS[i]
-            await moveTo(`.pm-swatch[data-i="${i}"]`, 380)
-            await clickCursor()
-            emitPresentationCue('recolor')
-            patchStage({ recolor: c.hex, colorName: c.name })
-            await sleep(reduce ? 60 : 460)
-          }
-          break
-        }
-        case 'mockup': {
-          enterStage('mockup')
-          for (let i = 0; i < DEMO_LOOKBOOK.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('reveal')
-            patchStage({ tech: i + 1, mockup: i })
-            await sleep(reduce ? 50 : 240)
-          }
-          break
-        }
-        case 'techpack': {
-          enterStage('techpack')
-          for (let i = 0; i < DEMO_TECHPACK.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('reveal')
-            patchStage({ tech: i + 1 })
-            await sleep(reduce ? 40 : 200)
-          }
-          break
-        }
-        case 'manufacturers': {
-          enterStage('manufacturers')
-          for (let i = 0; i < DEMO_MANUFACTURERS.length; i++) {
-            if (!alive()) return
-            emitPresentationCue('reveal')
-            patchStage({ tech: i + 1 })
-            await sleep(reduce ? 50 : 240)
-          }
-          break
-        }
-        case 'complete': {
-          enterStage('complete')
-          emitPresentationCue('success')
-          await sleep(200)
-          break
-        }
+    const type = async (text: string) => {
+      for (let i = 1; i <= text.length; i++) {
+        if (!alive()) return
+        emitPresentationCue('type')
+        patch({ typed: text.slice(0, i) })
+        await sleep(reduce ? 4 : 24)
       }
     }
 
     async function runShow() {
+      await sleep(360)
+      await moveTo('.pm-prompt__input', 520)
       for (let i = 0; i < SCENES.length; i++) {
         if (!alive()) return
-        const scene = SCENES[i]
+        const sc = SCENES[i]
         setSceneIndex(i)
-        emitPresentationCue('scene', scene.id)
-        const prev = i > 0 ? SCENES[i - 1].route : null
-        if (scene.route !== prev) {
-          emitPresentationCue('whoosh')
-          navRef.current(scene.route)
-          await sleep(760)
+        emitPresentationCue('scene', sc.id)
+        // fresh command
+        patch({ typed: '', armed: false })
+        await sleep(160)
+        await type(sc.prompt)
+        await sleep(240)
+        // press Generate
+        await moveTo('.pm-prompt__go', 360)
+        await click()
+        emitPresentationCue('generate')
+        patch({ armed: true, generating: true })
+        await sleep(reduce ? 100 : 520) // the garment "thinks"
+        if (!alive()) return
+        patch({ generating: false })
+        applyTx(sc.apply, patch)
+        emitPresentationCue(sc.apply === 'mockup' ? 'success' : 'reveal')
+        // let the transformation settle
+        await sleep(reduce ? 160 : sc.apply === 'mockup' ? 900 : 820)
+        if (sc.apply === 'mockup') {
+          patch({ endmark: true })
+          await sleep(reduce ? 200 : 1500)
         }
-        if (!alive()) return
-        setCaption({ title: scene.title, subtitle: scene.subtitle })
-        await sleep(140)
-        await runScene(scene)
-        if (!alive()) return
-        await sleep(scene.hold)
-        setCaption(null)
-        await sleep(reduce ? 80 : 240)
       }
       if (!alive()) return
-      setSpot((s) => ({ ...s, on: false }))
       setCursor((c) => ({ ...c, show: false }))
       setFinished(true)
       setPlaying(false)
@@ -317,53 +161,81 @@ export function PresentationOverlay() {
     return () => {
       tokenRef.current++
     }
-    // enterStage/patchStage are stable (useCallback []); navigate is read via navRef so route
-    // changes never restart the show. Only `playing` should (re)start or stop the director.
+    // Only `playing` (re)starts or stops the director; patch is stable.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing])
 
   if (!active) return null
 
-  const scene = sceneIndex >= 0 ? SCENES[sceneIndex] : null
-
   return (
     <div className={`pm-root${playing ? ' is-playing' : ''}`} aria-hidden={!playing}>
-      {/* Camera spotlight — a soft vignette that tightens around the focus point. */}
-      <div
-        className={`pm-spot${spot.on ? ' is-on' : ''}`}
-        style={{ ['--pm-x' as string]: `${spot.x}%`, ['--pm-y' as string]: `${spot.y}%` }}
-      />
-
-      {/* The cinematic stage (presentation-owned demo content). */}
       {playing && (
-        <div className="pm-veil">
-          <div className="pm-stage" key={stage.key}>
-            <StageContent stage={stage} />
-          </div>
-
-          {caption && (
-            <div className="pm-caption" key={`cap-${scene?.id}`}>
-              <div className="pm-caption__eyebrow">loom studios</div>
-              <div className="pm-caption__title">{caption.title}</div>
-              <div className="pm-caption__sub">{caption.subtitle}</div>
+        <div className="pm-veil pm-veil--tx">
+          <div className="pm-stage pm-stage--tx">
+            <div
+              className={`pm-tx${tx.created ? ' is-created' : ''}${tx.oversized ? ' is-oversized' : ''}${tx.mockup ? ' is-mockup' : ''}`}
+            >
+              <div className="pm-tx__flat">
+                <img className="pm-tx__hoodie" src={HOODIE_IMG} alt="" draggable={false} />
+                {tx.color && (
+                  <div
+                    className="pm-tx__recolor"
+                    style={{ background: tx.color, WebkitMaskImage: `url(${HOODIE_IMG})`, maskImage: `url(${HOODIE_IMG})` }}
+                  />
+                )}
+                {tx.holes && (
+                  <div className="pm-tx__holes">
+                    {DISTRESS_HOLES.map((h) => (
+                      <span
+                        key={h.id}
+                        className="pm-tx__hole"
+                        style={{ left: h.x, top: h.y, transform: `translate(-50%, -50%) scale(${h.scale}) rotate(${h.rot}deg)` }}
+                      >
+                        <HoleMark />
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {tx.butterfly && (
+                  <div className="pm-tx__print">
+                    <ButterflyPrint />
+                  </div>
+                )}
+                {tx.generating && <span className="pm-tx__shimmer" aria-hidden="true" />}
+              </div>
+              <img className="pm-tx__model" src={MODEL_IMG} alt="" draggable={false} />
+              {tx.endmark && (
+                <div className="pm-tx__endmark">
+                  <div className="pm-tx__brand">loom studios</div>
+                  <div className="pm-tx__tag">Just describe it.</div>
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="pm-prompt-wrap">
+              <div className={`pm-prompt${tx.generating ? ' is-busy' : ''}`}>
+                <span className="pm-prompt__spark">✦</span>
+                <div className="pm-prompt__input">
+                  {tx.typed}
+                  <span className={`pm-prompt__caret${tx.caret ? ' is-on' : ''}`} />
+                </div>
+                <button className={`pm-prompt__go${tx.armed ? ' is-armed' : ''}`} type="button">
+                  {tx.generating ? 'Generating…' : 'Generate'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Animated presentation cursor. */}
       {cursor.show && (
-        <div
-          className={`pm-cursor${cursor.down ? ' is-down' : ''}`}
-          style={{ transform: `translate(${cursor.x}px, ${cursor.y}px)` }}
-        >
+        <div className={`pm-cursor${cursor.down ? ' is-down' : ''}`} style={{ transform: `translate(${cursor.x}px, ${cursor.y}px)` }}>
           <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
             <path d="M4 2l6 16 2.5-6.5L19 9 4 2z" fill="#fff" stroke="#0b0b10" strokeWidth="1.2" strokeLinejoin="round" />
           </svg>
         </div>
       )}
 
-      {/* Controls. */}
       {!playing && !finished && (
         <div className="pm-launch">
           <span className="pm-launch__badge">Presentation Mode</span>
@@ -388,7 +260,7 @@ export function PresentationOverlay() {
 
       {finished && (
         <div className="pm-launch">
-          <span className="pm-launch__badge">Presentation complete</span>
+          <span className="pm-launch__badge">Replay the spot</span>
           <button className="pm-launch__btn" type="button" onClick={start}>
             <span className="pm-launch__play">↻</span> Replay
           </button>
@@ -401,193 +273,56 @@ export function PresentationOverlay() {
   )
 }
 
-// ── Stage renderers ───────────────────────────────────────────────────────────────────────────────
-function StageContent({ stage }: { stage: StageState }) {
-  const hero = DEMO_HERO
-  switch (stage.kind) {
-    case 'type':
-      return (
-        <div className="pm-prompt-wrap">
-          <div className="pm-prompt">
-            <span className="pm-prompt__spark">✦</span>
-            <div className="pm-prompt__input" data-hero>
-              {stage.typed}
-              <span className={`pm-prompt__caret${stage.caret ? ' is-on' : ''}`} />
-            </div>
-            <button className={`pm-prompt__go${stage.entered ? ' is-armed' : ''}`} type="button">
-              Generate
-            </button>
-          </div>
-        </div>
-      )
-    case 'collection':
-      return (
-        <div className="pm-grid pm-grid--4">
-          {DEMO_COLLECTION.map((g, i) => (
-            <article key={g.id} className={`pm-card${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 80}ms` }}>
-              <div className="pm-card__art">
-                <img className="pm-photo" src={g.image} alt={g.name} draggable={false} />
-              </div>
-              <div className="pm-card__meta">
-                <div className="pm-card__name">{g.name}</div>
-                <div className="pm-card__line">{g.line}</div>
-                <div className="pm-card__price">{g.price}</div>
-              </div>
-            </article>
-          ))}
-        </div>
-      )
-    case 'select':
-    case 'graphics':
-    case 'drag':
-    case 'recolor': {
-      const showGraphics = stage.kind === 'graphics' || stage.kind === 'drag'
-      return (
-        <div className="pm-studio">
-          <div className={`pm-hero${stage.kind === 'select' ? ' is-focus' : ''}`}>
-            <div className="pm-hero__stage">
-              <img className="pm-photo pm-hero__photo" src={hero.image} alt={hero.name} draggable={false} />
-              {/* Recolour: a colour masked to the garment's silhouette, then colour-blended onto it,
-                  so only the garment recolours (never the surround) — believable on a real photo. */}
-              {stage.recolor && (
-                <div
-                  className="pm-hero__recolor"
-                  style={{ background: stage.recolor, WebkitMaskImage: `url(${hero.image})`, maskImage: `url(${hero.image})` }}
-                />
-              )}
-              {stage.heroGraphic && (
-                <div className={`pm-hero__graphic${stage.drag === 'snap' ? ' is-snap' : ''}`}>
-                  <GraphicMark index={stage.chosen} />
-                </div>
-              )}
-            </div>
-            <div className="pm-hero__label">
-              {hero.name}
-              {stage.colorName && <span className="pm-hero__chip">{stage.colorName}</span>}
-            </div>
-          </div>
-
-          {showGraphics && (
-            <div className="pm-rail">
-              {DEMO_GRAPHICS.map((gr, i) => (
-                <button
-                  key={gr.id}
-                  data-i={i}
-                  className={`pm-graphic${i < stage.tech || stage.kind === 'drag' ? ' is-in' : ''}${stage.chosen === i && (stage.kind === 'graphics' || stage.kind === 'drag') ? ' is-chosen' : ''}${stage.kind === 'drag' && i === 0 && stage.drag !== 'idle' ? ` is-drag is-${stage.drag}` : ''}`}
-                  type="button"
-                  style={{ ['--g1' as string]: gr.gradient[0], ['--g2' as string]: gr.gradient[1], animationDelay: `${i * 70}ms` }}
-                >
-                  <svg viewBox="0 0 100 100" className="pm-graphic__svg" aria-hidden="true">
-                    <defs>
-                      <linearGradient id={`chrome-${i}`} x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0" stopColor="#eef1f6" />
-                        <stop offset="0.5" stopColor="#aab3c4" />
-                        <stop offset="1" stopColor="#5b6273" />
-                      </linearGradient>
-                    </defs>
-                    <g dangerouslySetInnerHTML={{ __html: gr.motif.replace(/url\(#chrome\)/g, `url(#chrome-${i})`) }} />
-                  </svg>
-                  <span className="pm-graphic__name">{gr.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {stage.kind === 'recolor' && (
-            <div className="pm-swatches">
-              {DEMO_COLORS.map((c, i) => (
-                <button key={c.id} data-i={i} className={`pm-swatch${stage.recolor === c.hex ? ' is-active' : ''}`} type="button" style={{ background: c.hex }}>
-                  <span className="pm-swatch__name">{c.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )
-    }
+function applyTx(kind: TxKind, patch: (p: Partial<Tx>) => void) {
+  switch (kind) {
+    case 'create':
+      patch({ created: true })
+      break
+    case 'oversized':
+      patch({ oversized: true })
+      break
+    case 'holes':
+      patch({ holes: true })
+      break
+    case 'butterfly':
+      patch({ butterfly: true })
+      break
+    case 'color':
+      patch({ color: WASHED_BLACK })
+      break
     case 'mockup':
-      return (
-        <div className="pm-grid pm-grid--5">
-          {DEMO_LOOKBOOK.map((m, i) => (
-            <article key={m.id} className={`pm-card pm-card--mini${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 70}ms` }}>
-              <div className="pm-card__art">
-                <img className="pm-photo" src={m.image} alt={m.name} draggable={false} />
-              </div>
-              <div className="pm-mockup__label">{m.name}</div>
-            </article>
-          ))}
-        </div>
-      )
-    case 'techpack':
-      return (
-        <div className="pm-techpack">
-          {DEMO_TECHPACK.map((sec, i) => (
-            <section key={sec.id} className={`pm-tp${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 70}ms` }}>
-              <div className="pm-tp__title">{sec.title}</div>
-              {sec.rows.map((r) => (
-                <div key={r.label} className="pm-tp__row">
-                  <span>{r.label}</span>
-                  <b>{r.value}</b>
-                </div>
-              ))}
-            </section>
-          ))}
-        </div>
-      )
-    case 'manufacturers':
-      return (
-        <div className="pm-factories">
-          {DEMO_MANUFACTURERS.map((m, i) => (
-            <article key={m.id} className={`pm-factory${i < stage.tech ? ' is-in' : ''}`} style={{ animationDelay: `${i * 90}ms` }}>
-              <div className="pm-factory__flag">{m.flag}</div>
-              <div className="pm-factory__body">
-                <div className="pm-factory__name">{m.name}</div>
-                <div className="pm-factory__meta">
-                  {m.city}, {m.country} · {m.capability}
-                </div>
-                <div className="pm-factory__stats">
-                  <span>★ {m.rating.toFixed(1)}</span>
-                  <span>MOQ {m.moq}</span>
-                  <span>{m.leadDays}d</span>
-                  <span>from {m.priceFrom}</span>
-                </div>
-              </div>
-              <div className="pm-factory__verified">Verified</div>
-            </article>
-          ))}
-        </div>
-      )
-    case 'complete':
-      return (
-        <div className="pm-done">
-          <div className="pm-done__ring">✓</div>
-          <div className="pm-done__title">Collection ready for production</div>
-          <div className="pm-done__steps">
-            {['Designed', 'Graphics placed', 'Recoloured', 'Mockups', 'Tech pack', 'Manufacturer matched'].map((s, i) => (
-              <span key={s} className="pm-done__step" style={{ animationDelay: `${i * 90}ms` }}>
-                ✓ {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      )
-    default:
-      return null
+      patch({ mockup: true })
+      break
   }
 }
 
-function GraphicMark({ index }: { index: number }) {
-  const gr = DEMO_GRAPHICS[index] ?? DEMO_GRAPHICS[0]
+function ButterflyPrint() {
   return (
     <svg viewBox="0 0 100 100" aria-hidden="true">
       <defs>
-        <linearGradient id={`hero-chrome-${index}`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#eef1f6" />
+        <linearGradient id="pmchrome" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#f2f4f8" />
           <stop offset="0.5" stopColor="#aab3c4" />
           <stop offset="1" stopColor="#5b6273" />
         </linearGradient>
       </defs>
-      <g dangerouslySetInnerHTML={{ __html: gr.motif.replace(/url\(#chrome\)/g, `url(#hero-chrome-${index})`) }} />
+      <g dangerouslySetInnerHTML={{ __html: BUTTERFLY_MOTIF }} />
+    </svg>
+  )
+}
+
+// A distress rip — a dark torn opening with a few frayed threads.
+function HoleMark() {
+  return (
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <path d="M8 19 Q13 10 22 13 Q31 11 33 22 Q29 31 18 29 Q10 31 8 19Z" fill="rgba(6,6,9,0.94)" />
+      <path
+        d="M12 16 L20 25 M25 14 L18 27 M14 23 L27 20"
+        stroke="rgba(206,200,188,0.55)"
+        strokeWidth="0.8"
+        strokeLinecap="round"
+        fill="none"
+      />
     </svg>
   )
 }

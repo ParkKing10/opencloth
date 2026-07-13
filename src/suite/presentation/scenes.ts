@@ -39,7 +39,6 @@ export const SCENES: Scene[] = [
   { id: 6, kind: 'drag', title: 'Place it', subtitle: 'Grab, move, snap — pixel perfect.', route: '/suite/studio', hold: 1000 },
   { id: 7, kind: 'recolor', title: 'Recolour instantly', subtitle: 'Black · Olive · Oxblood · Navy.', route: '/suite/studio', hold: 1200 },
   { id: 8, kind: 'mockup', title: 'Studio-ready mockups', subtitle: 'The full range, shot on black.', route: '/suite/studio', hold: 1500 },
-  { id: 9, kind: 'techpack', title: 'Production-ready tech pack', subtitle: 'Every detail, done for you.', route: '/suite/tech-packs', hold: 1600 },
-  { id: 10, kind: 'manufacturers', title: 'Manufacturer Hub', subtitle: 'Matched with world-class factories.', route: '/suite/manufacturers', hold: 1500 },
-  { id: 11, kind: 'complete', title: 'From idea to production', subtitle: 'The entire workflow — in seconds.', route: '/suite', hold: 2600 },
+  { id: 9, kind: 'manufacturers', title: 'Manufacturer Hub', subtitle: 'Matched with world-class factories.', route: '/suite/manufacturers', hold: 1500 },
+  { id: 10, kind: 'complete', title: 'From idea to production', subtitle: 'The entire workflow — in seconds.', route: '/suite', hold: 2600 },
 ]

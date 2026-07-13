@@ -134,15 +134,19 @@
   opacity: 1;
 }
 
-/* Full-screen cinematic layer during playback. */
+/* Full-screen cinematic layer — a solid BLACK stage. Content and caption are stacked in the flow
+   (never overlapping), and the whole block is vertically centred. Bottom padding reserves the HUD. */
 .pm-veil {
   position: absolute;
   inset: 0;
   pointer-events: auto;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(120% 90% at 50% 0%, rgba(16, 18, 24, 0.55), rgba(6, 6, 9, 0.86));
-  backdrop-filter: blur(3px) saturate(1.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 44px 24px 104px;
+  background: #060607;
   animation: pm-veil-in 320ms var(--pm-ease) both;
 }
 @keyframes pm-veil-in {
@@ -155,18 +159,20 @@
 }
 
 .pm-stage {
-  width: min(1040px, 92vw);
+  width: min(1040px, 100%);
+  max-height: 64vh;
+  min-height: 0;
+  overflow: hidden;
   display: grid;
   place-items: center;
   animation: pm-pop 340ms var(--pm-ease) both;
 }
 
-/* Caption — the keynote title block. */
+/* Caption — sits in the flow directly beneath the content, so the two never overlap. */
 .pm-caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 118px;
+  flex: none;
+  width: 100%;
+  max-width: 720px;
   text-align: center;
   animation: pm-cap-in 420ms var(--pm-ease) both;
 }
@@ -191,14 +197,14 @@
   margin-bottom: 12px;
 }
 .pm-caption__title {
-  font-size: clamp(30px, 4vw, 52px);
+  font-size: clamp(24px, 3.2vw, 44px);
   font-weight: 800;
   letter-spacing: -0.03em;
-  line-height: 1.02;
+  line-height: 1.04;
 }
 .pm-caption__sub {
-  margin-top: 12px;
-  font-size: clamp(14px, 1.4vw, 18px);
+  margin-top: 10px;
+  font-size: clamp(13px, 1.3vw, 17px);
   color: #b7b7c2;
 }
 
@@ -414,14 +420,14 @@
   width: 100%;
 }
 .pm-grid--4 {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .pm-card {
   opacity: 0;
   transform: translateY(26px) scale(0.9);
   border-radius: 18px;
   overflow: hidden;
-  background: radial-gradient(120% 80% at 50% 18%, #17171f, #08080c);
+  background: radial-gradient(125% 85% at 50% 16%, #23242e, #0c0d12);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 24px 60px -26px rgba(0, 0, 0, 0.85);
 }
@@ -450,6 +456,7 @@
 .pm-photo {
   width: 100%;
   height: 100%;
+  min-width: 0;
   object-fit: contain;
   display: block;
   user-select: none;
@@ -487,7 +494,7 @@
 }
 /* Scene 8 — the lookbook (5 studio mockups). */
 .pm-grid--5 {
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 .pm-card--mini {
@@ -510,7 +517,7 @@
   width: min(320px, 62vw);
   border-radius: 22px;
   padding: 16px;
-  background: radial-gradient(120% 80% at 50% 12%, #17171f, #08080c);
+  background: radial-gradient(125% 85% at 50% 12%, #23242e, #0c0d12);
   border: 1px solid rgba(255, 255, 255, 0.09);
   box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
   transition: transform 620ms var(--pm-ease);
@@ -824,53 +831,160 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────────────────────────── */
+/* Tablet + phone: the stage gets a definite height and the content FILLS it (grids split the height,
+   cards flex, garment photos `contain`) so nothing ever overflows onto the caption. */
 @media (max-width: 860px) {
+  .pm-stage {
+    height: 62vh;
+    max-height: 62vh;
+    width: 100%;
+    /* Stretch the scene content to the capped height so grids/hero fit inside (rail can't get
+       clipped) instead of the row sizing to the content and overflowing. */
+    align-items: stretch;
+  }
+  .pm-grid {
+    height: 100%;
+    width: 100%;
+  }
+  /* minmax(0,1fr) so the 620px-intrinsic garment images can't force columns wider than their share. */
   .pm-grid--4 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
   }
   .pm-grid--5 {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
   }
-  .pm-techpack {
-    grid-template-columns: repeat(2, 1fr);
+  .pm-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+  .pm-card__art {
+    flex: 1;
+    min-height: 0;
+    aspect-ratio: auto;
+    padding: 10px 10px 2px;
+  }
+  .pm-card__meta {
+    padding: 8px 12px 10px;
+  }
+  .pm-card__line {
+    display: none;
+  }
+  /* Studio hero (scenes 4–7): hero fills the top, the rail/swatches sit under it. */
+  /* Bounded hero in a flex column so the graphics rail / swatches always fit beneath it. */
+  .pm-studio {
+    height: 100%;
+    width: 100%;
+    gap: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .pm-hero {
+    width: auto;
+    max-width: 84vw;
+    display: flex;
+    flex-direction: column;
+  }
+  .pm-hero.is-focus {
+    transform: none;
+  }
+  .pm-hero__stage {
+    height: 38vh;
+    aspect-ratio: 3 / 4;
+  }
+  .pm-hero__photo {
+    height: 100%;
+  }
+  .pm-rail {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(620px, 92vw);
+    max-width: 100%;
+    flex: none;
+  }
+  .pm-graphic {
+    min-width: 0;
+  }
+  .pm-factories {
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    align-content: center;
+  }
+  .pm-factory {
+    width: 100%;
+    min-width: 0;
+  }
+  .pm-factory__body {
+    min-width: 0;
   }
 }
 
 @media (max-width: 560px) {
   .pm-veil {
-    padding: 0 4px;
+    gap: 16px;
+    padding: 20px 14px 84px;
   }
   .pm-stage {
-    width: 94vw;
+    height: 56vh;
+    max-height: 56vh;
   }
   .pm-grid {
-    gap: 12px;
-  }
-  .pm-grid--4,
-  .pm-grid--5,
-  .pm-rail {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .pm-techpack {
-    grid-template-columns: 1fr;
     gap: 10px;
   }
-  .pm-hero {
-    width: min(300px, 76vw);
+  .pm-card__art {
+    padding: 8px 8px 0;
   }
-  .pm-caption {
-    bottom: 92px;
-    padding: 0 16px;
+  .pm-card__name {
+    font-size: 12px;
+  }
+  .pm-card__price {
+    font-size: 12px;
+    margin-top: 3px;
+  }
+  .pm-mockup__label {
+    padding: 5px 6px 7px;
+    font-size: 10px;
+  }
+  .pm-hero__stage {
+    height: 34vh;
+  }
+  .pm-rail {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .pm-graphic {
+    padding: 8px 5px;
+  }
+  .pm-graphic__name {
+    display: none;
+  }
+  .pm-swatches {
+    gap: 8px;
+  }
+  .pm-swatch {
+    width: 54px;
+    height: 40px;
+  }
+  .pm-swatch__name {
+    font-size: 9px;
+    bottom: -16px;
   }
   .pm-caption__title {
-    font-size: 26px;
+    font-size: 23px;
   }
   .pm-caption__sub {
-    font-size: 13px;
+    font-size: 12.5px;
   }
   .pm-caption__eyebrow {
-    font-size: 10.5px;
-    letter-spacing: 0.24em;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    margin-bottom: 8px;
   }
   .pm-prompt {
     padding: 12px 12px 12px 16px;
@@ -882,49 +996,30 @@
   .pm-prompt__go {
     padding: 9px 14px;
   }
-  .pm-card__meta {
-    padding: 10px 12px 12px;
-  }
-  .pm-card__name {
-    font-size: 13px;
-  }
-  .pm-card__line {
-    font-size: 11px;
-  }
-  .pm-swatches {
-    gap: 8px;
-  }
-  .pm-swatch {
-    width: 60px;
-    height: 42px;
-  }
-  .pm-swatch__name {
-    font-size: 9px;
-    bottom: -18px;
-  }
   .pm-factory {
-    padding: 12px 13px;
-    gap: 11px;
+    padding: 11px 13px;
+    gap: 10px;
   }
   .pm-factory__stats {
     flex-wrap: wrap;
-    gap: 8px 12px;
+    gap: 6px 12px;
+  }
+  .pm-factory__verified {
+    display: none;
   }
   .pm-factory__flag {
-    font-size: 22px;
+    font-size: 20px;
   }
   .pm-launch {
     flex-wrap: wrap;
     justify-content: center;
     max-width: 92vw;
-    bottom: 20px;
     row-gap: 8px;
   }
   .pm-launch__badge {
     display: none;
   }
   .pm-hud {
-    bottom: 20px;
     gap: 12px;
   }
   .pm-done__title {

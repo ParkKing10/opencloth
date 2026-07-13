@@ -24,10 +24,10 @@
   align-items: center;
   gap: 11px;
 }
-.auth__mark {
-  display: grid;
-  place-items: center;
-  color: var(--s-accent);
+.auth__logo {
+  height: 34px;
+  width: auto;
+  display: block;
 }
 .auth__wordmark {
   font-size: 18px;

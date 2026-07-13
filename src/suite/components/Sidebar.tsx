@@ -18,6 +18,7 @@ import {
 } from './ui/Icons'
 import { useAuth } from '../auth/auth'
 import { useStorageEstimate } from '../lib/useStorageEstimate'
+import loomLogo from '../../assets/loom-logo.png'
 import './sidebar.css'
 
 type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: string }
@@ -53,15 +54,8 @@ export function Sidebar() {
   return (
     <aside className="sb">
       <div className="sb__brand">
-        <span className="sb__mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" width="30" height="30">
-            <path d="M16 4 L28 11 L16 18 L4 11 Z M4 15 L16 22 L28 15 L28 18 L16 25 L4 18 Z" fill="currentColor" />
-          </svg>
-        </span>
-        <span className="sb__brand-text">
-          <span className="sb__name">loom studios</span>
-          <span className="sb__tag">Design. Build. Brand.</span>
-        </span>
+        <img className="sb__logo" src={loomLogo} alt="loom studios" />
+        <span className="sb__tag">Design. Build. Brand.</span>
       </div>
 
       <nav className="sb__nav" aria-label="Suite Navigation">

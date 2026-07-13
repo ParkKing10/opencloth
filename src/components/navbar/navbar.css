@@ -22,10 +22,10 @@
   flex-shrink: 0;
 }
 
-.brand__mark {
-  display: grid;
-  place-items: center;
-  color: var(--accent);
+.brand__logo {
+  height: 30px;
+  width: auto;
+  display: block;
 }
 
 .brand__text {

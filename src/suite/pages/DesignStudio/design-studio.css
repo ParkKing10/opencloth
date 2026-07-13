@@ -33,10 +33,10 @@
   color: var(--s-text);
   cursor: pointer;
 }
-.ds-logo__mark {
-  display: grid;
-  place-items: center;
-  color: var(--s-accent);
+.ds-logo__img {
+  height: 22px;
+  width: auto;
+  display: block;
 }
 .ds-logo__beta {
   font-size: 10px;

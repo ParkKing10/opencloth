@@ -13,6 +13,7 @@ import {
   IcoSparkle,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
+import loomLogo from '../../../assets/loom-logo.png'
 import { useGarments } from '../../garments/useGarments'
 import { loadGarmentDisplay, getGarment } from '../../garments/garmentClient'
 import { isBuiltinGarmentId, builtinTemplateId } from '../../garments/builtinGarments'
@@ -2395,12 +2396,7 @@ export function DesignStudio() {
       <header className="ds-top">
         <div className="ds-top__left">
           <button className="ds-logo" type="button" onClick={() => guardedNavigate('/suite')}>
-            <span className="ds-logo__mark">
-              <svg viewBox="0 0 32 32" width="24" height="24">
-                <path d="M16 4 L28 11 L16 18 L4 11 Z M4 15 L16 22 L28 15 L28 18 L16 25 L4 18 Z" fill="currentColor" />
-              </svg>
-            </span>
-            loom studios
+            <img className="ds-logo__img" src={loomLogo} alt="loom studios" />
             <span className="ds-logo__beta">Beta</span>
           </button>
           {/* Connect App + live readiness — next to the logo (no separate bar below). */}

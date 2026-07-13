@@ -17,12 +17,11 @@ const FRAMING =
   'photorealistic fabric with accurate weave and drape, true accurate colours, crisp stitching, seams and trims, ' +
   'even soft studio lighting, sharp focus, ultra high detail, catalogue quality.'
 
-/** FRONT render — the anchor image every back/on-model shot is conditioned on. `refRoles` are the
- *  active reference slots (Fabric/Silhouette/Palette); when present the model is told to treat the
- *  attached images as loose GUIDANCE, not something to reproduce. */
-export function frontPrompt(b: DesignBrief, refRoles: string[] = []): string {
-  const guidance = refRoles.length
-    ? ` The attached reference image(s) are STYLE / MOOD GUIDANCE ONLY (${refRoles.map((r) => r.toLowerCase()).join(', ')}) — take loose inspiration for the indicated aspect(s), but DESIGN A NEW, ORIGINAL garment from the written brief. Do NOT copy, trace or reproduce the reference; do not replicate its exact print, logo, layout or composition.`
+/** FRONT render — the anchor image every back/on-model shot is conditioned on. When reference images
+ *  are attached the model is told to treat them as loose GUIDANCE, not something to reproduce. */
+export function frontPrompt(b: DesignBrief, hasRefs = false): string {
+  const guidance = hasRefs
+    ? ' The attached reference image(s) are STYLE / MOOD GUIDANCE ONLY — take loose inspiration, but DESIGN A NEW, ORIGINAL garment from the written brief. Do NOT copy, trace or reproduce the reference; do not replicate its exact print, logo, layout or composition.'
     : ''
   return (
     `Professional apparel product render — the FRONT view of a ${b.style.toLowerCase()} ${b.type}. ` +

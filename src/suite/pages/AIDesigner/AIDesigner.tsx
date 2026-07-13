@@ -30,7 +30,8 @@ import './aid.css'
 const DESIGN_COST = 15
 const MODEL_COST = 10
 const PROMPT_MAX = 480
-const REF_SLOTS = ['Fabric', 'Silhouette', 'Palette'] as const
+// Reference images are plain, unlabelled slots — just drop in images for loose style guidance.
+const REF_COUNT = 3
 const HISTORY_KEY = 'threados-aid-history-v1'
 const GEN_TIMEOUT_MS = 120_000
 
@@ -135,13 +136,8 @@ export function AIDesigner() {
     if (coins < DESIGN_COST) return toast(`Not enough coins — each design costs ${DESIGN_COST}.`, 'info')
 
     const brief = { prompt: clean, style, type }
-    // Keep each reference's ROLE (Fabric/Silhouette/Palette) so the front prompt can tell the model
-    // exactly what to take loose inspiration from — a reference GUIDES, it is never reproduced.
-    const activeRefs = REF_SLOTS.map((role, i) => ({ role: role as string, url: refUrls[i] })).filter(
-      (r): r is { role: string; url: string } => !!r.url,
-    )
-    const references = activeRefs.map((r) => r.url)
-    const refRoles = activeRefs.map((r) => r.role)
+    // References are plain images — loose STYLE guidance the model takes inspiration from, never copies.
+    const references = refUrls.filter((u): u is string => !!u)
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setGenerating(true)
@@ -153,7 +149,7 @@ export function AIDesigner() {
       try {
         setProgress(`Rendering front ${i + 1}/${count}…`)
         const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(GEN_TIMEOUT_MS)])
-        const front = (await generateImages(frontPrompt(brief, refRoles), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
+        const front = (await generateImages(frontPrompt(brief, references.length > 0), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
         if (!front) throw new Error('No front render returned.')
         setProgress(`Rendering back ${i + 1}/${count}…`)
         // Condition the back on the front so it's the SAME garment, from behind.
@@ -308,21 +304,20 @@ export function AIDesigner() {
               <span className="aid-field__hint">Optional</span>
             </div>
             <div className="aid-refs">
-              {REF_SLOTS.map((label, i) => (
-                <Fragment key={label}>
+              {Array.from({ length: REF_COUNT }).map((_, i) => (
+                <Fragment key={i}>
                   <button
                     type="button"
                     className={`aid-ref${refUrls[i] ? ' is-filled' : ''}`}
                     onClick={() => refInputs.current[i]?.click()}
-                    aria-label={`${refUrls[i] ? 'Replace' : 'Add'} ${label} reference`}
-                    title={`${label} reference`}
+                    aria-label={refUrls[i] ? 'Replace reference image' : 'Add reference image'}
+                    title={refUrls[i] ? 'Replace reference image' : 'Add reference image'}
                   >
                     {refUrls[i] ? (
-                      <img src={refUrls[i] as string} alt={`${label} reference`} className="aid-ref__img" />
+                      <img src={refUrls[i] as string} alt={`Reference ${i + 1}`} className="aid-ref__img" />
                     ) : (
                       <IcoPlus width="16" height="16" />
                     )}
-                    <span className="aid-ref__tag">{label}</span>
                   </button>
                   <input
                     ref={(el) => { refInputs.current[i] = el }}

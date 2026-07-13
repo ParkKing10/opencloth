@@ -140,9 +140,9 @@ type Props = {
   designName?: string
   onRenameDesign?: (name: string) => void
   saveState?: 'saved' | 'saving' | 'unsaved'
-  /** Design boards ("pages"). Front/Back garment views are the first pages; extra pages are blank
-   *  boards. Shown in the bottom Pages strip (the old top versions bar is gone). */
-  pages?: { id: string; name: string }[]
+  /** Design boards ("pages"). Page 1 is the loaded garment; extra pages start blank but can each
+   *  carry their own AI garment (`thumb`). Shown in the bottom Pages strip. */
+  pages?: { id: string; name: string; thumb?: string | null }[]
   activePageId?: string
   onSwitchPage?: (id: string) => void
   onAddPage?: () => void
@@ -370,10 +370,10 @@ export function StudioCanvas({
   // Every view card shows the garment's REAL preview — generic icons are empty-state only.
   const viewPreview = garmentImage
 
-  // A "page" is a design board. The FIRST page (pages[0]) is the GARMENT page — it shows the
-  // garment. Every OTHER page is a BLANK board (empty canvas, no garment). There is no Front/Back:
-  // the garment is a single page, and the back is part of it, not a separate page.
-  const isGarmentPage = !pages || pages.length === 0 || !activePageId || activePageId === pages[0].id
+  // A "page" is a design board. The FIRST page (pages[0]) is the BASE page — it shows the loaded
+  // garment. Other pages start BLANK, but any page can get its own AI garment backdrop applied to it
+  // (`garmentOverride`), so it shows on whichever page you applied it to. There is no Front/Back.
+  const isBasePage = !pages || pages.length === 0 || !activePageId || activePageId === pages[0].id
   const garmentThumbSvg = garmentSvgByView?.[viewTabs[0]] ?? garmentSvg ?? null
 
   // Highlight the first real view whenever the garment changes.
@@ -725,23 +725,25 @@ export function StudioCanvas({
             <div className="ds-garment-3d" ref={stageRef}>
               {showLabel && neckLabel ? (
                 <img className="ds-garment-photo ds-necklabel-view" src={neckLabel} alt={`${garmentName} — neck label`} draggable={false} />
-              ) : !isGarmentPage ? (
-                <div className="ds-garment-blank" role="img" aria-label="Blank page" />
               ) : garmentOverride ? (
-                <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI edit`} draggable={false} />
-              ) : garmentSvgByView?.[activeView] || garmentSvg ? (
+                // An AI garment applied to THIS page — shows on whichever page you applied it to.
+                <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI garment`} draggable={false} />
+              ) : isBasePage && (garmentSvgByView?.[activeView] || garmentSvg) ? (
                 <div
                   className="ds-garment-vector"
                   role="img"
                   aria-label={`${garmentName}${garmentSvgByView?.[activeView] ? ` — ${activeView}` : ''}`}
                   dangerouslySetInnerHTML={{ __html: garmentSvgByView?.[activeView] ?? (garmentSvg as string) }}
                 />
-              ) : garmentImage ? (
+              ) : isBasePage && garmentImage ? (
                 <img className="ds-garment-photo" src={garmentImage} alt={garmentName} draggable={false} />
-              ) : (
+              ) : isBasePage ? (
                 <Glyph width="340" height="340" />
+              ) : (
+                // A blank page with no garment of its own.
+                <div className="ds-garment-blank" role="img" aria-label="Blank page" />
               )}
-              {isGarmentPage && regionGarment && onSelectRegion && onMoveRegion && (
+              {isBasePage && !garmentOverride && regionGarment && onSelectRegion && onMoveRegion && (
                 <StudioRegionLayer
                   garment={regionGarment}
                   view={labelToViewId(activeView, regionGarment)}
@@ -804,7 +806,7 @@ export function StudioCanvas({
             <div className="ds-flats">
               {/* Page 1 = the GARMENT (a single page — no Front/Back split). */}
               <button
-                className={`ds-flat${isGarmentPage && !showLabel ? ' is-active' : ''}`}
+                className={`ds-flat${isBasePage && !showLabel ? ' is-active' : ''}`}
                 type="button"
                 title="Page 1 · Garment"
                 onClick={() => { if (pages && pages[0]) onSwitchPage?.(pages[0].id); setShowLabel(false) }}
@@ -825,16 +827,17 @@ export function StudioCanvas({
                 </div>
                 <span>Page 1</span>
               </button>
-              {/* Every other page = a BLANK design board (empty canvas, no garment). */}
+              {/* Every other page starts blank, but can carry its own AI garment (p.thumb). */}
               {(pages ?? []).slice(1).map((p, j) => (
                 <button
                   className={`ds-flat${activePageId === p.id && !showLabel ? ' is-active' : ''}`}
                   type="button"
                   key={p.id}
-                  title={`Page ${j + 2} · Blank`}
+                  title={`Page ${j + 2}${p.thumb ? '' : ' · Blank'}`}
                   onClick={() => { onSwitchPage?.(p.id); setShowLabel(false) }}
                 >
-                  <div className="ds-flat__art ds-flat__art--blank">
+                  <div className={`ds-flat__art${p.thumb ? '' : ' ds-flat__art--blank'}`}>
+                    {p.thumb && <img className="ds-flat__img" src={p.thumb} alt={`Page ${j + 2}`} draggable={false} />}
                     {onDeletePage && (
                       <span
                         className="ds-flat__edit"

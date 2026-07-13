@@ -53,6 +53,8 @@ export type DesignVersionDoc = {
   name: string
   layers: Layer[]
   hidden: Record<string, boolean>
+  /** IndexedDB key (`${gid}:${versionId}`) for this page's AI garment backdrop image, if any. */
+  garmentEditKey?: string
   regionHidden?: Record<string, boolean>
   regionFills?: Record<string, string>
   regionNames?: Record<string, string>

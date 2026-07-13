@@ -151,6 +151,9 @@ function libToStudio(g: LibGarment): Garment {
 type Snapshot = {
   layers: Layer[]
   hidden: Record<string, boolean>
+  /** AI garment backdrop applied to THIS page (data URL). Per-page: applying a garment while on
+   *  Page 2 sets it on Page 2, not Page 1. Persisted per-version in IndexedDB (see garmentEditKey). */
+  garmentEdit?: string
   /** Garment-region overrides (hide a sleeve, recolour the body, rename/lock/move a part) —
    *  undoable + saved with the design. Every map is sparse: an override equal to the base is dropped. */
   regionHidden?: Record<string, boolean>
@@ -259,8 +262,6 @@ export function DesignStudio() {
   // loom studios AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiMode] = useState<AiMode>('graphic')
-  // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
-  const [garmentEditUrl, setGarmentEditUrl] = useState<string | null>(null)
   // Neck Label — the garment's AI-generated woven care/brand tag (persists in the doc as a 3rd view).
   const [neckLabelOpen, setNeckLabelOpen] = useState(false)
   const [neckLabel, setNeckLabel] = useState<string | null>(null)
@@ -376,6 +377,10 @@ export function DesignStudio() {
   const [present, setPresent] = useState<Snapshot>(INITIAL_SNAPSHOT)
   const [future, setFuture] = useState<Snapshot[]>([])
 
+  // The AI garment backdrop belongs to the ACTIVE page (present mirrors the active version), so
+  // applying a garment lands on whatever page you're on — not always Page 1.
+  const garmentEditUrl = present.garmentEdit ?? null
+
   // Versions/boards: `present` always mirrors the ACTIVE version's live state, so every existing
   // edit/undo/save path works unchanged. Switching a version swaps `present` (and resets undo).
   // Seed a stable base "Page 1" so the Pages strip is never empty — even for the placeholder
@@ -447,8 +452,6 @@ export function DesignStudio() {
   const loadedGarmentRef = useRef<string | null>(null)
   const designNameRef = useRef('Hoodie')
   const collectionIdRef = useRef<string | undefined>(undefined)
-  // AI garment-edit backdrop, kept in a ref so autosave preserves it across unrelated edits.
-  const garmentEditRef = useRef<string | null>(null)
   const specsRef = useRef<ProductSpecs>({})
   const projectInfoRef = useRef<ProjectInfo>({})
 
@@ -461,11 +464,16 @@ export function DesignStudio() {
     const gid = loadedGarmentRef.current
     if (!gid) return
     // Persist every version, with the ACTIVE one reflecting the snapshot being saved.
+    // The AI garment backdrop lives PER PAGE. Its multi-MB base64 image is offloaded to IndexedDB
+    // (inlining it in the localStorage doc blew the ~5MB quota); the version doc keeps only a
+    // lightweight key `${gid}:${versionId}`.
+    const gKey = (vid: string) => `${gid}:${vid}`
     const snapToVersionDoc = (v: DesignVersion, s: Snapshot): DesignVersionDoc => ({
       id: v.id,
       name: v.name,
       layers: s.layers,
       hidden: s.hidden,
+      garmentEditKey: s.garmentEdit ? gKey(v.id) : undefined,
       regionHidden: s.regionHidden,
       regionFills: s.regionFills,
       regionNames: s.regionNames,
@@ -476,12 +484,13 @@ export function DesignStudio() {
     const versionDocs = hasVersions
       ? versionsRef.current.map((v) => snapToVersionDoc(v, v.id === activeVersionIdRef.current ? snap : v.snapshot))
       : undefined
-    // Offload the AI garment-edit image (a multi-MB base64 URL) to IndexedDB — inlining it in the
-    // localStorage doc blew the ~5MB quota, so the save silently failed and the edit was lost on reload.
-    // The doc keeps only a lightweight key; the image persists reliably in IndexedDB.
-    const gEdit = garmentEditRef.current
-    if (gEdit) void putGarmentImage(gid, gEdit)
-    else void delGarmentImage(gid)
+    // Only the active page's snapshot changed this save — persist just its image (others were
+    // written while they were active).
+    const activeVid = activeVersionIdRef.current
+    if (activeVid) {
+      if (snap.garmentEdit) void putGarmentImage(gKey(activeVid), snap.garmentEdit)
+      else void delGarmentImage(gKey(activeVid))
+    }
     // When versions exist they are the source of truth; keep the top-level layers/hidden EMPTY (not a
     // duplicate of the active version) so image payloads aren't stored twice — halving quota pressure.
     const ok = saveDoc(gid, {
@@ -496,8 +505,9 @@ export function DesignStudio() {
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
       projectInfo: projectInfoRef.current,
-      garmentEdit: undefined, // offloaded to IndexedDB (see garmentEditKey)
-      garmentEditKey: gEdit ? gid : undefined,
+      // The garment backdrop is now per-page (see each version's garmentEditKey), not top-level.
+      garmentEdit: undefined,
+      garmentEditKey: undefined,
       neckLabel: neckLabelRef.current ?? undefined,
       versions: versionDocs,
       activeVersionId: activeVersionIdRef.current || undefined,
@@ -563,6 +573,7 @@ export function DesignStudio() {
       // region overrides.
       const base = presentRef.current
       const merged: Snapshot = {
+        garmentEdit: base.garmentEdit,
         regionHidden: base.regionHidden,
         regionFills: base.regionFills,
         regionNames: base.regionNames,
@@ -576,6 +587,16 @@ export function DesignStudio() {
       saveCurrentDoc(merged)
     },
     [saveCurrentDoc],
+  )
+
+  // Apply an AI garment backdrop to the CURRENT page (present mirrors the active version), so it
+  // lands on the page you're viewing — never always Page 1. Undoable + saved via commit.
+  const applyGarmentToPage = useCallback(
+    (dataUrl: string) => {
+      commit({ ...presentRef.current, garmentEdit: dataUrl })
+      toast('Garment applied to this page — start designing on top.', 'success')
+    },
+    [commit, toast],
   )
 
   // ---- Versions / boards: multiple editable variations of the same garment in one file ----
@@ -633,6 +654,9 @@ export function DesignStudio() {
       const remaining = versionsRef.current.filter((v) => v.id !== id)
       versionsRef.current = remaining
       setVersions(remaining)
+      // Drop this page's garment image from IndexedDB so deleted pages don't leak storage.
+      const gid = loadedGarmentRef.current
+      if (gid) void delGarmentImage(`${gid}:${id}`)
       if (id === activeVersionIdRef.current) {
         loadVersion(remaining[0].snapshot, remaining[0].id)
         saveCurrentDoc(remaining[0].snapshot)
@@ -1497,23 +1521,28 @@ export function DesignStudio() {
     const loadedInfo = doc?.projectInfo ?? {}
     setProjectInfo(loadedInfo)
     projectInfoRef.current = loadedInfo
-    // Restore (or clear) any AI garment-edit backdrop for this garment. Old docs keep it inline; new
-    // docs offload it to IndexedDB (garmentEditKey) — read it back async, guarding a fast garment switch.
-    if (doc?.garmentEdit) {
-      setGarmentEditUrl(doc.garmentEdit)
-      garmentEditRef.current = doc.garmentEdit
-    } else if (doc?.garmentEditKey) {
-      setGarmentEditUrl(null)
-      garmentEditRef.current = null
-      void getGarmentImage(doc.garmentEditKey).then((url) => {
-        if (loadedGarmentRef.current !== gid || !url) return // a newer garment loaded meanwhile
-        setGarmentEditUrl(url)
-        garmentEditRef.current = url
-      })
-    } else {
-      setGarmentEditUrl(null)
-      garmentEditRef.current = null
+    // Restore each PAGE's AI garment backdrop from IndexedDB (per-version key), async. The garment
+    // images aren't in the snapshot yet, so inject them once loaded — into the right version and into
+    // `present` if that page is active — guarding against a fast garment switch.
+    const injectGarment = (vid: string, url: string | null) => {
+      if (loadedGarmentRef.current !== gid || !url) return // a newer garment loaded meanwhile
+      const put = (v: DesignVersion): DesignVersion =>
+        v.id === vid ? { ...v, snapshot: { ...v.snapshot, garmentEdit: url } } : v
+      versionsRef.current = versionsRef.current.map(put)
+      setVersions((vs) => vs.map(put))
+      if (activeVersionIdRef.current === vid) {
+        const nextPresent = { ...presentRef.current, garmentEdit: url }
+        presentRef.current = nextPresent
+        setPresent(nextPresent)
+      }
     }
+    doc?.versions?.forEach((v) => {
+      if (v.garmentEditKey) void getGarmentImage(v.garmentEditKey).then((url) => injectGarment(v.id, url))
+    })
+    // Back-compat: an OLD doc stored one garment for the whole design → it belongs to Page 1.
+    const baseVid = loadedVersions[0].id
+    if (doc?.garmentEdit) injectGarment(baseVid, doc.garmentEdit)
+    else if (doc?.garmentEditKey) void getGarmentImage(doc.garmentEditKey).then((url) => injectGarment(baseVid, url))
     // Restore (or clear) the neck label for this garment.
     setNeckLabel(doc?.neckLabel ?? null)
     neckLabelRef.current = doc?.neckLabel ?? null
@@ -2596,12 +2625,7 @@ export function DesignStudio() {
               userId={user?.id}
               onClose={() => {}}
               onAddToCanvas={addGeneratedConcept}
-              onApplyGarment={(dataUrl) => {
-                setGarmentEditUrl(dataUrl)
-                garmentEditRef.current = dataUrl
-                saveCurrentDoc(presentRef.current)
-                toast('Garment applied to your canvas — start designing on top.', 'success')
-              }}
+              onApplyGarment={applyGarmentToPage}
             />
           </div>
           {rail === 'Assets' && <AssetLibrary userId={user?.id} onPlace={(id) => void placeAsset(id)} />}
@@ -2786,7 +2810,12 @@ export function DesignStudio() {
               saveCurrentDoc(presentRef.current, n)
             }}
             saveState={saveState}
-            pages={versions.map((v) => ({ id: v.id, name: v.name }))}
+            pages={versions.map((v) => ({
+              id: v.id,
+              name: v.name,
+              // Live garment for the active page (present), stored garment for the rest.
+              thumb: (v.id === activeVersionId ? present.garmentEdit : v.snapshot.garmentEdit) ?? null,
+            }))}
             activePageId={activeVersionId}
             onSwitchPage={switchVersion}
             onAddPage={addVersion}

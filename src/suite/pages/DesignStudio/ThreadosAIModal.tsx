@@ -175,7 +175,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         let okG = false
         let errG: unknown = null
         await Promise.all(
-          [0, 1, 2].map(async (i) => {
+          [0].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
             try {
               // Example/reference uploads guide the edit alongside the captured garment.
@@ -211,7 +211,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         let anyOk = false
         let firstErr: unknown = null
         await Promise.all(
-          [0, 1, 2].map(async (i) => {
+          [0].map(async (i) => {
             const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(90_000)])
             try {
               const urls = await generateImages(graphicPrompt(clean), { n: 1, references: refsRef.current, size: '1024x1024', quality: 'medium', signal })
@@ -246,7 +246,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       }
 
       // On-device vector concepts (no key, or the live call failed) — revealed as they compose.
-      const all = generateConcepts(clean, { baseSeed: base })
+      const all = generateConcepts(clean, { baseSeed: base }).slice(0, 1)
       for (let i = 0; i < all.length; i += 1) {
         await new Promise((r) => setTimeout(r, REVEAL_MS))
         if (runIdRef.current !== myRun) return // superseded by a newer run
@@ -561,7 +561,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               )}
             </div>
             <button type="button" className="tai__go" onClick={submit} disabled={!prompt.trim() || generating}>
-              {generating ? (live ? `Generating… ${progress}/3` : `Composing ${progress}/3…`) : 'Generate'}
+              {generating ? (live ? 'Generating…' : 'Composing…') : 'Generate'}
             </button>
           </div>
         </div>
@@ -585,7 +585,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               <span key={t} className="tai__tag">{t}</span>
             ))}
           </div>
-          {generating && <div className="tai__bar" role="progressbar" aria-valuemin={0} aria-valuemax={3} aria-valuenow={progress}><span style={{ width: `${Math.max(8, (progress / 3) * 100)}%` }} /></div>}
+          {generating && <div className="tai__bar" role="progressbar" aria-valuemin={0} aria-valuemax={1} aria-valuenow={progress}><span style={{ width: `${Math.max(8, progress * 100)}%` }} /></div>}
         </div>
 
         {/* Concepts */}
@@ -601,7 +601,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               </span>
             </div>
           ) : (
-          [0, 1, 2].map((i) => {
+          [0].map((i) => {
             const c = concepts[i]
             if (!c)
               return (
@@ -655,7 +655,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               </button>
             ))}
             <button type="button" className="tai__chip tai__chip--more" disabled={generating || !prompt.trim()} onClick={() => run(prompt, false)}>
-              ↻ Generate 3 more
+              ↻ Generate 1 more
             </button>
           </div>
         </div>

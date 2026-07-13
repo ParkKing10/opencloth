@@ -204,6 +204,25 @@ export function garmentEditPrompt(intent: string): string {
   )
 }
 
+/**
+ * Engineer a CREATE-GARMENT prompt — generate a brand-new garment from a written description, with NO
+ * base garment to edit. Same photoreal product-shot framing as the garment edit, so a created piece
+ * drops straight onto the canvas ready to design on. Any reference images are loose STYLE guidance
+ * (fabric / mood / silhouette), never something to copy — this designs an original garment.
+ */
+export function createGarmentPrompt(description: string, hasRefs = false): string {
+  const guidance = hasRefs
+    ? ' The attached reference image(s) are STYLE / MOOD GUIDANCE ONLY — take loose inspiration for fabric, palette or silhouette, but design an ORIGINAL garment from the written brief; do NOT copy, trace or reproduce a reference.'
+    : ''
+  return (
+    `Design a brand-new garment: ${description.trim()}.${guidance} ` +
+    `A single, complete, wearable piece — realistic fabric, cut, seams, stitching and trims. ` +
+    `Ghost-mannequin flat product shot, the garment centered and fully visible edge to edge, isolated on a ` +
+    `plain seamless off-white studio background, no person, no mannequin, no hanger, no props, no text or watermark, ` +
+    `even soft studio lighting, sharp focus, ultra high detail, catalogue quality.`
+  )
+}
+
 /** Fields the neck-label creator collects. All optional — the prompt uses whatever is filled in. */
 export type NeckLabelFields = {
   brand?: string

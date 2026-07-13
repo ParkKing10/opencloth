@@ -2708,7 +2708,7 @@ export function DesignStudio() {
                 setGarmentEditUrl(dataUrl)
                 garmentEditRef.current = dataUrl
                 saveCurrentDoc(presentRef.current)
-                toast('Garment updated with your AI edit.', 'success')
+                toast('Garment applied to your canvas — start designing on top.', 'success')
               }}
             />
           </div>

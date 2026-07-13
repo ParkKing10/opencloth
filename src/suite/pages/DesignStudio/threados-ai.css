@@ -165,6 +165,15 @@
 .tai--embed .tai__prompt { flex-direction: column; align-items: stretch; }
 .tai--embed .tai__prompt-actions { flex-wrap: wrap; justify-content: flex-end; }
 .tai--embed .tai__head { padding-top: 2px; }
+/* Three mode tabs (Graphic · Create · Edit) in the narrow header — compact, and allow a wrap row. */
+.tai--panel .tai__head, .tai--embed .tai__head { flex-wrap: wrap; row-gap: 8px; }
+.tai--panel .tai__mode, .tai--embed .tai__mode { padding: 6px 9px; font-size: 12px; }
+/* Three stacked chooser cards in the narrow rail/panel — keep them compact so all fit without deep scroll. */
+.tai--panel .tai-choice, .tai--embed .tai-choice { min-height: 0; padding: 14px 16px; gap: 7px; }
+.tai--panel .tai-choice__icon, .tai--embed .tai-choice__icon { width: 40px; height: 40px; border-radius: 11px; }
+.tai--panel .tai-choice > b, .tai--embed .tai-choice > b { font-size: 15px; }
+.tai--panel .tai-choice > small, .tai--embed .tai-choice > small { font-size: 12px; line-height: 1.45; }
+.tai--panel .tai-choice__go, .tai--embed .tai-choice__go { margin-top: 4px; }
 /* Make the input obviously a text field in the narrow panel. */
 .tai--embed .tai__prompt-field,
 .tai--panel .tai__prompt-field {

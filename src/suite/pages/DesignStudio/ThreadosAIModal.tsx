@@ -4,14 +4,14 @@ import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
 import { generateConcepts, regenerateConcept, isLiveConceptAi, liveConcept, type Concept } from '../../ai/conceptEngine'
-import { generateImages, graphicPrompt, garmentEditPrompt, removeImageBackground, hasImageAi } from '../../ai/imageProvider'
+import { generateImages, graphicPrompt, garmentEditPrompt, createGarmentPrompt, removeImageBackground, hasImageAi } from '../../ai/imageProvider'
 import { blobToDataUrl } from '../../assets/assetThumb'
 import { saveGeneratedAsset } from '../../assets/saveGenerated'
 import { captureDesignPng } from '../../export/real/capture'
 import { hashSeed } from '../../ai/rng'
 import './threados-ai.css'
 
-export type AiMode = 'graphic' | 'garment'
+export type AiMode = 'graphic' | 'garment' | 'create'
 
 /** Creative follow-ups the engine can honestly deliver: each re-generates with the added intent. */
 const SUGGESTIONS: { label: string; add: string }[] = [
@@ -24,6 +24,18 @@ const SUGGESTIONS: { label: string; add: string }[] = [
   { label: 'More aggressive', add: 'aggressive sharp' },
   { label: 'Cleaner', add: 'clean minimal' },
   { label: 'More luxurious', add: 'luxury premium' },
+]
+
+/** Create-garment directions — each steers a brand-new generated piece toward a look/detail. */
+const CREATE_SUGGESTIONS: { label: string; add: string }[] = [
+  { label: 'Streetwear', add: 'streetwear' },
+  { label: 'Luxury', add: 'luxury premium' },
+  { label: 'Oversized', add: 'oversized boxy fit' },
+  { label: 'Techwear', add: 'techwear utility' },
+  { label: 'Vintage wash', add: 'vintage washed' },
+  { label: 'Minimal', add: 'clean minimal' },
+  { label: 'Add a hood', add: 'with a hood' },
+  { label: 'Cargo pockets', add: 'with cargo pockets' },
 ]
 
 /** Garment-edit follow-ups — each appends a real fabric transformation to the prompt. */
@@ -203,6 +215,46 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         setGenerating(false)
         if (okG) setHistory(pushHistory(clean))
         else toast(errG instanceof Error ? errG.message : 'Garment edit failed.', 'info')
+        return
+      }
+
+      // Create-garment mode: generate a brand-NEW garment from the text alone (no base to capture),
+      // then apply it as the backdrop so the user designs on top. Same photoreal engine as Edit Garment.
+      if (modeRef.current === 'create') {
+        if (!hasImageAi()) {
+          toast('Creating a garment needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+          setGenerating(false)
+          return
+        }
+        let okC = false
+        let errC: unknown = null
+        await Promise.all(
+          [0].map(async (i) => {
+            const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(120_000)])
+            try {
+              // Optional reference uploads are loose STYLE guidance only (see createGarmentPrompt).
+              const urls = await generateImages(createGarmentPrompt(clean, refsRef.current.length > 0), { n: 1, references: refsRef.current, size: '1024x1536', quality: 'medium', signal })
+              if (runIdRef.current !== myRun) return
+              if (urls[0]) {
+                okC = true
+                const c = liveConcept(clean, urls[0], (base + i * 0x9e3779b1) >>> 0)
+                setConcepts((prev) => {
+                  const next = prev.slice()
+                  next[i] = c
+                  return next
+                })
+                setProgress((p) => p + 1)
+                finalize(c.id, urls[0], `New garment — ${clean.slice(0, 32)}`, 'garment-edit')
+              }
+            } catch (err) {
+              if (!errC) errC = err
+            }
+          }),
+        )
+        if (runIdRef.current !== myRun) return
+        setGenerating(false)
+        if (okC) setHistory(pushHistory(clean))
+        else toast(errC instanceof Error ? errC.message : 'Garment creation failed.', 'info')
         return
       }
 
@@ -450,15 +502,19 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     if (files.length) void addReferenceFiles(files)
   }
 
-  const suggestions = mode === 'garment' ? GARMENT_SUGGESTIONS : SUGGESTIONS
+  const suggestions = mode === 'garment' ? GARMENT_SUGGESTIONS : mode === 'create' ? CREATE_SUGGESTIONS : SUGGESTIONS
   const engineNote =
     mode === 'garment'
       ? isLiveConceptAi()
         ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Upload examples to steer the look, then apply one to update the design.'
         : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
-      : isLiveConceptAi()
-        ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
-        : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
+      : mode === 'create'
+        ? isLiveConceptAi()
+          ? 'Creating a brand-new garment with Runware · Nano Banana 2 — no base needed. Upload style references to steer the look, then apply it to start designing on top.'
+          : 'Creating a garment needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
+        : isLiveConceptAi()
+          ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
+          : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
 
   const body = (
     <div className={`suite${embedded ? ' tai-embed-root' : ''}`}>
@@ -480,8 +536,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 <path d="M12 15V3m0 0L8 7m4-4 4 4" />
                 <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
               </svg>
-              <b>Drop to add {mode === 'garment' ? 'an example' : 'a reference'}</b>
-              <span>Up to 3 images guide the {mode === 'garment' ? 'garment edit' : 'look'}</span>
+              <b>Drop to add {mode === 'garment' ? 'an example' : mode === 'create' ? 'a style reference' : 'a reference'}</b>
+              <span>Up to 3 images guide the {mode === 'garment' ? 'garment edit' : mode === 'create' ? 'new garment' : 'look'}</span>
             </div>
           </div>
         )}
@@ -499,7 +555,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           {!choosing && (
             <div className="tai__modes" role="tablist" aria-label="AI mode">
               <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>Graphic</button>
-              <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit Garment</button>
+              <button type="button" role="tab" aria-selected={mode === 'create'} className={`tai__mode${mode === 'create' ? ' is-active' : ''}`} onClick={() => switchMode('create')}>Create</button>
+              <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit</button>
             </div>
           )}
           {!embedded && (
@@ -527,6 +584,17 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 <small>Artwork, logos &amp; prints to place on your garment — generated on a clean transparent background, ready to drop onto the canvas.</small>
                 <span className="tai-choice__go">Start designing →</span>
               </button>
+              <button type="button" className="tai-choice tai-choice--create" onClick={() => pickMode('create')}>
+                <span className="tai-choice__icon" aria-hidden>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
+                    <path d="M12 9.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
+                  </svg>
+                </span>
+                <b>Create a Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
+                <small>No garment yet? Describe one — “oversized cargo pants”, “cropped varsity jacket” — and THREADOS generates a photoreal piece to design on.</small>
+                <span className="tai-choice__go">{live ? 'Start creating →' : 'Add a key in Settings → AI'}</span>
+              </button>
               <button type="button" className="tai-choice tai-choice--garment" onClick={() => pickMode('garment')}>
                 <span className="tai-choice__icon" aria-hidden>
                   <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -549,7 +617,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               ref={inputRef}
               className="tai__input"
               value={prompt}
-              placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
+              placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : mode === 'create' ? 'Describe a garment to create — “oversized cargo pants”, “cropped varsity jacket”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
               aria-label="Design prompt"
@@ -558,8 +626,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           <div className="tai__prompt-actions">
             {live && (
               <>
-                <button type="button" className="tai__ghost" title={mode === 'garment' ? 'Upload example images to guide the edit' : 'Upload a reference image to guide the result'} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
-                  + {mode === 'garment' ? 'Example' : 'Reference'}
+                <button type="button" className="tai__ghost" title={mode === 'garment' ? 'Upload example images to guide the edit' : mode === 'create' ? 'Upload style references to steer the new garment' : 'Upload a reference image to guide the result'} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
+                  + {mode === 'garment' ? 'Example' : mode === 'create' ? 'Style' : 'Reference'}
                 </button>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void addReferenceFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
               </>
@@ -586,7 +654,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
 
         {references.length > 0 && (
           <div className="tai__refs">
-            <span className="tai__refs-label">{mode === 'garment' ? 'Examples' : 'References'}</span>
+            <span className="tai__refs-label">{mode === 'garment' ? 'Examples' : mode === 'create' ? 'Style references' : 'References'}</span>
             {references.map((r, i) => (
               <span key={i} className="tai-ref tai-checker">
                 <img src={r} alt={`Reference ${i + 1}`} />
@@ -611,11 +679,13 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           {!generating && concepts.length === 0 ? (
             <div className="tai-empty">
               <IcoSparkle width="26" height="26" />
-              <b>{mode === 'garment' ? 'Edit your garment' : 'Design a graphic'}</b>
+              <b>{mode === 'garment' ? 'Edit your garment' : mode === 'create' ? 'Create a garment' : 'Design a graphic'}</b>
               <span>
                 {mode === 'garment'
                   ? 'Describe the change above — “add crazy holes”, “acid wash”, “oversized fit” — and hit Generate.'
-                  : 'Describe your graphic above — “chrome tribal star”, “vintage skull with roses” — and hit Generate.'}
+                  : mode === 'create'
+                    ? 'Describe the piece above — “oversized bomber jacket”, “pleated midi skirt” — and hit Generate.'
+                    : 'Describe your graphic above — “chrome tribal star”, “vintage skull with roses” — and hit Generate.'}
               </span>
             </div>
           ) : (
@@ -650,9 +720,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                   </div>
                 </div>
                 <div className="tai-card__foot">
-                  <span className="tai-card__style">{mode === 'garment' ? 'Edited garment' : c.styleLabel}</span>
-                  {mode === 'garment' && onApplyGarment ? (
-                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>{finalizingIds.has(c.id) ? 'Preparing…' : 'Apply to Garment'}</button>
+                  <span className="tai-card__style">{mode === 'garment' ? 'Edited garment' : mode === 'create' ? 'New garment' : c.styleLabel}</span>
+                  {(mode === 'garment' || mode === 'create') && onApplyGarment ? (
+                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>{finalizingIds.has(c.id) ? 'Preparing…' : mode === 'create' ? 'Use this Garment' : 'Apply to Garment'}</button>
                   ) : (
                     <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => add(c)}>{finalizingIds.has(c.id) ? 'Preparing…' : 'Add to Canvas'}</button>
                   )}

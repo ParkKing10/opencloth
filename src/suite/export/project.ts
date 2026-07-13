@@ -164,12 +164,12 @@ export function buildManufacturingProject(input: ProjectInput): ManufacturingPro
 
   return {
     meta: {
-      brand: input.brand || 'THREADOS',
+      brand: input.brand || 'loom studios',
       collection: input.collection || 'SS26 — Concrete Series',
       styleName: input.styleName,
       styleNumber,
       date: now.toISOString().slice(0, 10),
-      designer: input.designer || 'THREADOS Studio',
+      designer: input.designer || 'loom studios Studio',
       season: input.season || 'SS26',
     },
     garment: {

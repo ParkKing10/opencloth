@@ -1,5 +1,5 @@
 /**
- * THREADOS Editable Garment — the structured-vector format the future AI worker will emit.
+ * loom studios Editable Garment — the structured-vector format the future AI worker will emit.
  *
  * A garment is NEVER a flat PNG. It is a hierarchy of independently-editable vector REGIONS
  * (Body, Sleeves, Collar, Pocket, Zipper, Rib, Cuffs, Labels, Stitching, …) drawn as a

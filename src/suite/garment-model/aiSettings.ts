@@ -1,7 +1,7 @@
 /**
  * AI provider settings (Settings → AI). Configures OpenAI for the garment-edit pipeline.
  *
- * SECURITY REALITY: THREADOS ships as a static site. A static browser app cannot truly encrypt a
+ * SECURITY REALITY: loom studios ships as a static site. A static browser app cannot truly encrypt a
  * secret it must also decrypt (the decrypt routine + key are in the bundle). So the stored key is
  * OBFUSCATED at rest, not encrypted — the Settings UI states this plainly and recommends a
  * server-side proxy or an environment variable for production. `VITE_OPENAI_API_KEY` is honored as

@@ -36,7 +36,7 @@ export async function buildTechPackPdf(project: RealExportProject, garmentPng: B
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
     doc.setTextColor(INK)
-    doc.text('THREADOS', M, H - 26)
+    doc.text('loom studios', M, H - 26)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(MUTED)
     doc.text(project.projectName, W - M, H - 26, { align: 'right' })
@@ -227,7 +227,7 @@ export async function buildTechPackPdf(project: RealExportProject, garmentPng: B
     y += 24
   }
 
-  // accent tick so the page reads as a finished THREADOS doc
+  // accent tick so the page reads as a finished loom studios doc
   doc.setDrawColor(ACCENT)
 
   footer()

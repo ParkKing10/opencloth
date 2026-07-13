@@ -40,7 +40,7 @@ export function downloadTechPackPdf(input: TechPackInput): string {
   doc.setTextColor(209, 249, 79)
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(9)
-  doc.text('THREADOS · TECH PACK', M, 40)
+  doc.text('loom studios · TECH PACK', M, 40)
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(20)
   doc.text(input.name, M, 66)

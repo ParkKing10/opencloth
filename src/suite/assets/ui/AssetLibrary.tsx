@@ -254,7 +254,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
             <span className="al-empty__ico">
               <IcoUpload width={16} height={16} />
             </span>
-            <p>Upload PNG, JPG, SVG or WEBP graphics — and everything you make with THREADOS AI saves here automatically. All ready to drop onto any garment.</p>
+            <p>Upload PNG, JPG, SVG or WEBP graphics — and everything you make with loom studios AI saves here automatically. All ready to drop onto any garment.</p>
             <button type="button" className="al-upload" onClick={() => fileInputRef.current?.click()}>
               <IcoUpload width={13} height={13} />
               Upload graphics

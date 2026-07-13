@@ -1,7 +1,7 @@
 /**
  * Assemble an editable garment from a detected GarmentSpec.
  *
- * The GEOMETRY is always THREADOS's own trusted template for the detected type — so the result is
+ * The GEOMETRY is always loom studios's own trusted template for the detected type — so the result is
  * always a clean, editable, front+back technical flat. The spec only decides WHICH template and
  * which ACHIEVABLE attributes to apply (length, sleeveless, closure), using existing structural
  * primitives. Nothing is traced from the photo; nothing is invented. Colours are detected upstream

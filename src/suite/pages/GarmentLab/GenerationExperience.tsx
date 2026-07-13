@@ -126,7 +126,7 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
           <span className="gen__eyebrow">Detected from your photo</span>
           <h2>Assembled from detected attributes</h2>
           <p className="gen__prompt">
-            THREADOS matched your photo to an editable technical flat. Anything below can be refined in the editor.
+            loom studios matched your photo to an editable technical flat. Anything below can be refined in the editor.
           </p>
           {confidences.length > 0 && (
             <ul className="gen__conf">

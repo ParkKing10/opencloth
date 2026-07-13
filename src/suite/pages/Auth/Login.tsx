@@ -60,7 +60,7 @@ export function Login() {
           </Link>
           <div className="auth__card">
             <h1 className="auth__title">Welcome back</h1>
-            <p className="auth__sub">Sign in to your THREADOS workspace.</p>
+            <p className="auth__sub">Sign in to your loom studios workspace.</p>
 
             <form className="auth__form" onSubmit={(e) => submit(e)}>
               <div className="auth__field">

@@ -79,7 +79,7 @@ export async function buildManufacturingZip(project: RealExportProject, extra: P
   ]
 
   const manifest = {
-    generator: 'THREADOS Export System',
+    generator: 'loom studios Export System',
     version: 1,
     generatedAt,
     structure: {

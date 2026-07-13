@@ -90,7 +90,7 @@ export function ContextPanel({ layer, fields, memberCount, aiNote, onFieldChange
             <IcoSparkle width="14" height="14" />
           </span>
           <div className="cx__ai-body">
-            <span className="cx__ai-eyebrow">THREADOS AI</span>
+            <span className="cx__ai-eyebrow">loom studios AI</span>
             <p>{aiNote.text}</p>
             <button type="button" className="cx__ai-apply" onClick={() => onApplyNote(aiNote)}>
               {aiNote.actionLabel}

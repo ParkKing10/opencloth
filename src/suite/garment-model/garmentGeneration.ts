@@ -1,7 +1,7 @@
 /**
  * Garment generation entry point (Milestone 8.2).
  *
- *   Prompt → AI provider → Editable Garment (front + back, region tree) → THREADOS editor
+ *   Prompt → AI provider → Editable Garment (front + back, region tree) → loom studios editor
  *
  * The AI NEVER returns an image. With an OpenAI key the real provider generates and validates a
  * structured editable garment (throws on failure so the UI can retry). Without a key, the

@@ -3,7 +3,7 @@
  *
  * A vision model CANNOT faithfully trace a photo into SVG path geometry (it hallucinates paths).
  * It CAN reliably classify a garment and read its construction: type, length, sleeves, collar,
- * closure, pockets, dominant colours. So THREADOS asks the model for THIS spec, then assembles the
+ * closure, pockets, dominant colours. So loom studios asks the model for THIS spec, then assembles the
  * editable garment from its own trusted templates (see specToGarment.ts). Clean, editable, front+back.
  *
  * Every field is a closed enum + a real 0–100 confidence FROM THE MODEL. Nothing is invented: an

@@ -38,7 +38,7 @@ function toGarment(t: GarmentTemplate): Garment {
     slug: t.id.replace(/^tpl-/, ''),
     category: libCategory(t),
     status: 'published',
-    vendor: 'THREADOS Catalog',
+    vendor: 'loom studios Catalog',
     tags: [t.category],
     thumbUrl: garmentThumbnailDataUrl(t.make()),
     createdAt: 0,

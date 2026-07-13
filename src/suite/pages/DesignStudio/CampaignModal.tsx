@@ -213,7 +213,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
                   ? `Generate with new settings${model ? ` · ${model.label}` : ''}`
                   : 'Generate another'}
             </button>
-            {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and THREADOS won’t fake one.</p>}
+            {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and loom studios won’t fake one.</p>}
           </div>
 
           {/* Right: results — one image, then a "+" tile to pull more */}

@@ -10,13 +10,13 @@ export function HeroVisual() {
   return (
     <div
       className="hero-visual"
-      aria-label="THREADOS Kollektion: schwarzer Hoodie, T-Shirt, Cargohose und Cap im Spotlight"
+      aria-label="loom studios Kollektion: schwarzer Hoodie, T-Shirt, Cargohose und Cap im Spotlight"
     >
       <div className="hero-visual__stage">
         <img
           className="hero-visual__img"
           src={heroProduct}
-          alt="THREADOS Kollektion – Hoodie, T-Shirt, Cargohose und Cap in Schwarz, dramatisch beleuchtet"
+          alt="loom studios Kollektion – Hoodie, T-Shirt, Cargohose und Cap in Schwarz, dramatisch beleuchtet"
           width={1536}
           height={1024}
           loading="eager"

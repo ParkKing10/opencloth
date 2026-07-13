@@ -45,9 +45,9 @@ export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inlin
         <div className="dl__hero">
           <div className="dl__hero-glow" aria-hidden="true" />
           <div className="dl__hero-body">
-            <span className="dl__hero-kicker"><IcoSparkle width="15" height="15" /> THREADOS MOBILE</span>
+            <span className="dl__hero-kicker"><IcoSparkle width="15" height="15" /> loom studios MOBILE</span>
             <h1>Design your clothes<br />anywhere.</h1>
-            <p>Get the THREADOS app — paint, print and drop graphics on your garments from your phone, exactly like here, in your pocket.</p>
+            <p>Get the loom studios app — paint, print and drop graphics on your garments from your phone, exactly like here, in your pocket.</p>
             <div className="dl__hero-cta">
               <button type="button" className="dl__store" onClick={onGetApp}>
                 <span className="dl__store-glyph"></span>

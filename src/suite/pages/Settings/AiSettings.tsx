@@ -1,5 +1,5 @@
 /**
- * AI settings (Settings → AI). THREADOS uses a single provider you manage: Runware
+ * AI settings (Settings → AI). loom studios uses a single provider you manage: Runware
  * (https://runware.ai), which powers every AI image — graphics, garment edits and campaign photos
  * (default model: Nano Banana 2). Without a key, image AI falls back to the on-device vector engine
  * (graphics) or is gated honestly (garment/campaign photos are never faked).
@@ -21,7 +21,7 @@ export function AiSettings() {
 
   const save = () => {
     saveRunwareKey(runwareKey)
-    toast(runwareKey.trim() ? 'Runware key saved — THREADOS AI images are live.' : 'Runware key cleared.', 'success')
+    toast(runwareKey.trim() ? 'Runware key saved — loom studios AI images are live.' : 'Runware key cleared.', 'success')
   }
 
   return (
@@ -31,7 +31,7 @@ export function AiSettings() {
           <div>
             <h2>AI Provider · Runware</h2>
             <p className="aiset__sub">
-              One key powers all of THREADOS AI — graphics, garment edits and campaign photos (Nano Banana 2).
+              One key powers all of loom studios AI — graphics, garment edits and campaign photos (Nano Banana 2).
               Get a key at runware.ai and top up your wallet (external models need credit).
             </p>
           </div>
@@ -63,7 +63,7 @@ export function AiSettings() {
 
         <p className="aiset__security">
           <b>Security:</b> saved obfuscated in your browser — a static app can’t truly encrypt it. For production, set
-          <code>VITE_RUNWARE_API_KEY</code> at build time instead. The key is never hardcoded, and without one THREADOS
+          <code>VITE_RUNWARE_API_KEY</code> at build time instead. The key is never hardcoded, and without one loom studios
           AI falls back to on-device vector previews (garment &amp; campaign photos are gated, never faked).
         </p>
       </div>

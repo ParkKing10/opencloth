@@ -128,7 +128,7 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
           <div className="nl__form">
             <label className="nl__field">
               <span>Brand name</span>
-              <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="THREADOS" />
+              <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="loom studios" />
             </label>
 
             <label className="nl__field">

@@ -467,7 +467,7 @@ export function Marketplace() {
     try {
       downloadJson(
         {
-          product: 'THREADOS Marketplace',
+          product: 'loom studios Marketplace',
           applyUrl: SELLER_APPLY_URL,
           payoutShare: '80%',
           payoutCadence: 'weekly',
@@ -512,7 +512,7 @@ export function Marketplace() {
           <section id="mk-seller-panel" className="mk-panel">
             <div className="mk-panel__head">
               <div>
-                <b>Start selling on THREADOS</b>
+                <b>Start selling on loom studios</b>
                 <small>Publish to 40k+ creators and earn 80% on every sale. Payouts weekly.</small>
               </div>
               <button

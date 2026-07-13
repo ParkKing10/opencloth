@@ -214,7 +214,7 @@ export function GarmentLab() {
 
   return (
     // `suite` brings the --s-* design tokens + theme into this full-screen route (like the Design
-    // Studio's `suite studio` root), so the editor matches the THREADOS design language.
+    // Studio's `suite studio` root), so the editor matches the loom studios design language.
     <div className="suite eg-lab">
       <GarmentHeader
         name={garment.name}

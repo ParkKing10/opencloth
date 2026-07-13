@@ -1,5 +1,5 @@
 /**
- * Auto-save AI generations into the user's Asset Library (IndexedDB). Every image THREADOS AI
+ * Auto-save AI generations into the user's Asset Library (IndexedDB). Every image loom studios AI
  * produces — graphics, garment edits, campaign photos — lands here automatically so the user never
  * loses a creation. Reuses analyzeFile for real dimensions + a fast grid thumbnail, and emits
  * ASSETS_CHANGED_EVENT so an open Assets panel refreshes live.

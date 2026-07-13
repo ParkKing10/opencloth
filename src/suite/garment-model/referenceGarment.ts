@@ -1,5 +1,5 @@
 /**
- * A hand-authored reference garment in the THREADOS Editable Garment format: an oversized
+ * A hand-authored reference garment in the loom studios Editable Garment format: an oversized
  * bomber jacket as a professional technical flat, front + back aligned in one coordinate space.
  *
  * This is NOT AI output and is not claimed to be — it is the concrete specimen the format is

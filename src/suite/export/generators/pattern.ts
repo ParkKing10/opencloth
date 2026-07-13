@@ -65,7 +65,7 @@ export function generatePatternDxf(p: ManufacturingProject): string {
     ox += maxX + 10 // lay pieces side by side with a gap (cm)
   })
   return [
-    '999', `THREADOS pattern — ${p.meta.styleName} (${p.meta.styleNumber}) — units: cm`,
+    '999', `loom studios pattern — ${p.meta.styleName} (${p.meta.styleNumber}) — units: cm`,
     '0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '5', '0', 'ENDSEC',
     '0', 'SECTION', '2', 'ENTITIES',
     entities.join('\n'),

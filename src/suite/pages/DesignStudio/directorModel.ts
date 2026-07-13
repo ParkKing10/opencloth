@@ -1,5 +1,5 @@
 /**
- * Creative Director — after a graphic lands, THREADOS keeps designing WITH the user. It reads the
+ * Creative Director — after a graphic lands, loom studios keeps designing WITH the user. It reads the
  * real object (size, position, blend) and the design as a whole, then proposes concrete next moves,
  * each with an action that genuinely changes the design.
  *
@@ -18,7 +18,7 @@ export type DirectorAction =
 export type DirectorSuggestion = { id: string; text: string; cta: string; action: DirectorAction }
 
 export type DirectorContext = {
-  /** The prompt that produced this object, when it came from THREADOS AI (enables "matching …"). */
+  /** The prompt that produced this object, when it came from loom studios AI (enables "matching …"). */
   prompt?: string
   objectType: CanvasObjectType
 }

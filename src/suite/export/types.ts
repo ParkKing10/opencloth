@@ -126,7 +126,7 @@ export const DEFAULT_SELECTION: PackageSelection = {
 /** Progress event emitted while a package is assembled — drives the modal animation. */
 export type PackageProgress = { step: string; done: number; total: number }
 
-/** Brand accent used across generated documents (THREADOS lime). */
+/** Brand accent used across generated documents (loom studios lime). */
 export const BRAND_LIME: [number, number, number] = [216, 255, 62]
 export const INK: [number, number, number] = [18, 18, 24]
 export const MUTED: [number, number, number] = [120, 120, 132]

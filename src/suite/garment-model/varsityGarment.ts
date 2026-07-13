@@ -1,5 +1,5 @@
 /**
- * A hand-authored VARSITY / LETTERMAN JACKET in the THREADOS Editable Garment format — a proper
+ * A hand-authored VARSITY / LETTERMAN JACKET in the loom studios Editable Garment format — a proper
  * technical flat with correct jacket proportions (full sleeves to the wrist, jacket-length body,
  * ribbed stand collar + cuffs + hem, a snap-button placket, side pockets, a chest patch, and a
  * back logo panel). This is what a detected "jacket" reconstructs into: it reads as a varsity

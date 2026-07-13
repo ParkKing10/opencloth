@@ -172,7 +172,7 @@
   background: var(--s-bg-2);
   min-height: 0;
 }
-/* THREADOS AI embedded in the Library rail fills the panel (display:flex is toggled inline). */
+/* loom studios AI embedded in the Library rail fills the panel (display:flex is toggled inline). */
 .ds-left__ai {
   flex: 1;
   min-height: 0;

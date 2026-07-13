@@ -1,5 +1,5 @@
 /**
- * The single mandatory visual language for every THREADOS garment: a professional apparel
+ * The single mandatory visual language for every loom studios garment: a professional apparel
  * TECHNICAL FLAT. White garment, black outlines, one consistent stroke system, subtle grey
  * shading only. Encoded as tokens so hand-authored fixtures AND the future AI worker conform
  * to exactly one style — never glossy, photographic, painterly, 3D, or sketch.

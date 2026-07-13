@@ -147,7 +147,7 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
                 ))}
               </div>
               <p className="gw-note">
-                THREADOS starts you from the closest real template, named from your prompt — every region stays editable.
+                loom studios starts you from the closest real template, named from your prompt — every region stays editable.
                 {hasApiKey()
                   ? ' OpenAI is connected for garment editing; prompt-to-garment generation is a future milestone.'
                   : ' Prompt-to-garment generation arrives with the AI worker (a future milestone).'}
@@ -163,7 +163,7 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
                 <small>ZIP · SVG · AI · PNG · PDF</small>
               </button>
               <p className="gw-note">
-                <b>SVG files are analyzed automatically</b> — THREADOS reads the geometry and builds editable regions
+                <b>SVG files are analyzed automatically</b> — loom studios reads the geometry and builds editable regions
                 (body, sleeves, collar, buttons…) with a confidence score each. Direct <b>.ai / .pdf</b> vector
                 extraction and ZIP packs are coming; those start from the closest editable template for now.
               </p>

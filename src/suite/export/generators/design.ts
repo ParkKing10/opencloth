@@ -6,7 +6,7 @@ export function generateProjectJson(p: ManufacturingProject): Blob {
   const payload = {
     _format: 'threados.manufacturing-project',
     _version: 1,
-    generatedBy: 'THREADOS Manufacturing Export System',
+    generatedBy: 'loom studios Manufacturing Export System',
     project: p,
   }
   return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })

@@ -780,11 +780,11 @@ export function Community() {
   async function hire(designer: Designer) {
     const handle = slugify(designer.name)
     const subject = encodeURIComponent(`Project enquiry — ${designer.name}`)
-    const from = user ? `${user.name} (${user.email})` : 'A THREADOS member'
+    const from = user ? `${user.name} (${user.email})` : 'A loom studios member'
     const body = encodeURIComponent(
       `Hi ${designer.name.split(' ')[0]},\n\n` +
         `${from} would like to discuss a ${designer.category.toLowerCase()} project with you. ` +
-        `Are you open to new commissions?\n\nSent via THREADOS Community.`,
+        `Are you open to new commissions?\n\nSent via loom studios Community.`,
     )
     const mailto = `mailto:${handle}@makers.threados.app?subject=${subject}&body=${body}`
     try {

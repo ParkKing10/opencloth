@@ -1,6 +1,6 @@
 /**
  * Real, editable garment templates for the Create-Garment wizard. Each is a genuine multi-region
- * technical flat in the THREADOS Editable Garment format (not a picture) so it opens straight into
+ * technical flat in the loom studios Editable Garment format (not a picture) so it opens straight into
  * the editor with selectable/hideable/lockable regions. Kept intentionally to a curated set of real
  * templates — the wizard shows exactly these, never a fake longer list.
  */

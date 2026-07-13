@@ -1,5 +1,5 @@
 /**
- * Real image generation via Runware (https://runware.ai) — the engine behind every THREADOS AI
+ * Real image generation via Runware (https://runware.ai) — the engine behind every loom studios AI
  * image (graphics, garment edits, campaign shots). Default model: Nano Banana 2 (google:4@3),
  * which does text→image and image→image (reference) editing.
  *

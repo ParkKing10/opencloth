@@ -27,7 +27,7 @@ export async function loadTracedGarments(): Promise<Garment[]> {
       slug: e.slug,
       category: (e.category as GarmentCategoryId) || 'jacket',
       status: 'published' as const,
-      vendor: 'THREADOS Traced',
+      vendor: 'loom studios Traced',
       tags: ['traced'],
       thumbUrl: `/traced/${e.slug}.svg`,
       createdAt: 0,

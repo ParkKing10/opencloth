@@ -123,7 +123,7 @@ export function ExportModal({
                     )}
                   </span>
                   <div className="xp-factory__text">
-                    <span className="xp-factory__eyebrow">THREADOS AI · Factory Check</span>
+                    <span className="xp-factory__eyebrow">loom studios AI · Factory Check</span>
                     <b>{verdict.headline}</b>
                     <small>{verdict.detail}</small>
                     {verdict.blockers.length > 0 && (

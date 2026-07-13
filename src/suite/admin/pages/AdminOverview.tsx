@@ -21,7 +21,7 @@ export function AdminOverview() {
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Platform overview</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: 'var(--s-text-2)' }}>
-          Everything happening across the THREADOS platform.
+          Everything happening across the loom studios platform.
         </p>
       </header>
 

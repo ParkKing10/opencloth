@@ -239,7 +239,7 @@ export function GarmentsHome() {
       <SuitePage eyebrow="Workspace" title="Garments">
         <div className="gm-onboard">
           <div className="gm-onboard__glyph" aria-hidden="true">🧥</div>
-          <h2>Welcome to THREADOS Garments</h2>
+          <h2>Welcome to loom studios Garments</h2>
           <p className="gm-onboard__lead">Every garment you create becomes fully editable.</p>
           <ul className="gm-onboard__list">
             <li>Change sleeves</li>

@@ -10,7 +10,7 @@ const STATS = [
 
 export function Stats() {
   return (
-    <section className="stats" aria-label="THREADOS in Zahlen">
+    <section className="stats" aria-label="loom studios in Zahlen">
       <div className="shell stats__grid">
         {STATS.map(({ icon: Icon, value, label }) => (
           <article className="stat" key={label}>

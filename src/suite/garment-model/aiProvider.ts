@@ -4,7 +4,7 @@
  *   Editable Garment + prompt → provider.editGarment → validated Editable Garment (never an image)
  *
  * - PlaceholderProvider wraps the deterministic Milestone 8 editor (always available, no network).
- * - OpenAiProvider calls the real OpenAI chat API, then THREADOS VALIDATES the response is a
+ * - OpenAiProvider calls the real OpenAI chat API, then loom studios VALIDATES the response is a
  *   well-formed editable garment that preserved IDs/hierarchy/order. Anything invalid, or any
  *   failure, falls back to the placeholder — so callers always get a usable editable garment.
  *
@@ -111,13 +111,13 @@ class PlaceholderProvider implements AiGarmentProvider {
   }
 }
 
-const SYSTEM_PROMPT = `You are the THREADOS garment editor. You receive an editable garment as JSON and a user instruction.
+const SYSTEM_PROMPT = `You are the loom studios garment editor. You receive an editable garment as JSON and a user instruction.
 Return ONLY a JSON object of the SAME schema representing the edited garment. Rules:
 - Edit ONLY the regions the instruction requires; leave everything else byte-identical.
 - Preserve every region id, the parent/child hierarchy, and rootIds order wherever possible.
 - Never return an image or prose. Never invent a different garment. Output must be valid JSON only.`
 
-const GENERATE_SYSTEM_PROMPT = `You are the THREADOS garment generator. Output ONLY a JSON object in the THREADOS
+const GENERATE_SYSTEM_PROMPT = `You are the loom studios garment generator. Output ONLY a JSON object in the loom studios
 Editable Garment format — never an image, never PNG/JPG, never prose. The garment MUST contain:
 - "format":"threados.editable-garment","version":1, a unique "id", a "name", a "category", "style":"tech-flat".
 - "views": BOTH a front and a back view: [{"id":"front","label":"Front","viewBox":{"w":400,"h":560}},{"id":"back","label":"Back","viewBox":{"w":400,"h":560}}].
@@ -245,7 +245,7 @@ class OpenAiProvider implements AiGarmentProvider {
     const attempt = async (extra: string) =>
       normalizeGarment(parseJsonLoose(await this.chat([
         { role: 'system', content: GENERATE_SYSTEM_PROMPT + extra },
-        { role: 'user', content: `Create this garment as a THREADOS editable garment: ${prompt}` },
+        { role: 'user', content: `Create this garment as a loom studios editable garment: ${prompt}` },
       ], 0.4)))
 
     let garment = await attempt('')
@@ -259,7 +259,7 @@ class OpenAiProvider implements AiGarmentProvider {
 
   async reconstructGarment(images: string[]): Promise<ReconstructionResult> {
     // Vision returns a SPEC (type + construction), not geometry — that's what it can do reliably.
-    // THREADOS then assembles the garment from its own trusted templates. A network failure throws
+    // loom studios then assembles the garment from its own trusted templates. A network failure throws
     // (→ honest retry UI); a response we can't read becomes an honest template start.
     const userContent = [
       { type: 'text', text: 'Analyse the garment in the photo(s) and return the JSON spec. Use the photos only as reference; never return the image or any geometry.' },

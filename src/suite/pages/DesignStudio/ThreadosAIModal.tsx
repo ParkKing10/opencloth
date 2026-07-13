@@ -87,7 +87,7 @@ type Props = {
 }
 
 /**
- * THREADOS AI — the creative workspace. Type an idea, get three real transparent vector concepts,
+ * loom studios AI — the creative workspace. Type an idea, get three real transparent vector concepts,
  * keep steering with suggestions, then Add to Canvas. Honest about the engine: on-device vector
  * synthesis today (isLiveConceptAi() === false), same UI when a diffusion model connects later.
  */
@@ -110,7 +110,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const [finalizingIds, setFinalizingIds] = useState<Set<string>>(() => new Set())
   const [history, setHistory] = useState<string[]>(loadHistory)
   const [historyOpen, setHistoryOpen] = useState(false)
-  // When THREADOS AI is opened without a committed intent (a bare "Ask THREADOS AI" click), ASK
+  // When loom studios AI is opened without a committed intent (a bare "Ask loom studios AI" click), ASK
   // first with a big, unmissable choice — Design a graphic vs. Edit the garment — instead of relying
   // on the small header toggle a user would never notice.
   const [choosing, setChoosing] = useState(false)
@@ -507,18 +507,18 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     mode === 'garment'
       ? isLiveConceptAi()
         ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Upload examples to steer the look, then apply one to update the design.'
-        : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
+        : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — loom studios won’t fake it.'
       : mode === 'create'
         ? isLiveConceptAi()
           ? 'Creating a brand-new garment with Runware · Nano Banana 2 — no base needed. Upload style references to steer the look, then apply it to start designing on top.'
-          : 'Creating a garment needs a real image model. Add your Runware API key in Settings → AI — THREADOS won’t fake it.'
+          : 'Creating a garment needs a real image model. Add your Runware API key in Settings → AI — loom studios won’t fake it.'
         : isLiveConceptAi()
           ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
           : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
 
   const body = (
     <div className={`suite${embedded ? ' tai-embed-root' : ''}`}>
-      {/* No blocking scrim — THREADOS AI is a side panel (right-docked as a modal, or embedded in the
+      {/* No blocking scrim — loom studios AI is a side panel (right-docked as a modal, or embedded in the
           Library rail) so the canvas stays usable while it's open — generation can take a moment. */}
       <div
         className={`tai ${embedded ? 'tai--embed' : 'tai--panel'}`}
@@ -550,7 +550,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           )}
           <span className="tai__title" id="tai-title">
             <IcoSparkle width="18" height="18" />
-            THREADOS AI
+            loom studios AI
           </span>
           {!choosing && (
             <div className="tai__modes" role="tablist" aria-label="AI mode">
@@ -570,7 +570,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           <div className="tai-chooser">
             <div className="tai-chooser__head">
               <b>What do you want to create?</b>
-              <span>THREADOS AI works two ways — pick one to begin.</span>
+              <span>loom studios AI works two ways — pick one to begin.</span>
             </div>
             <div className="tai-chooser__cards">
               <button ref={firstChoiceRef} type="button" className="tai-choice tai-choice--graphic" onClick={() => pickMode('graphic')}>
@@ -592,7 +592,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                   </svg>
                 </span>
                 <b>Create a Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
-                <small>No garment yet? Describe one — “oversized cargo pants”, “cropped varsity jacket” — and THREADOS generates a photoreal piece to design on.</small>
+                <small>No garment yet? Describe one — “oversized cargo pants”, “cropped varsity jacket” — and loom studios generates a photoreal piece to design on.</small>
                 <span className="tai-choice__go">{live ? 'Start creating →' : 'Add a key in Settings → AI'}</span>
               </button>
               <button type="button" className="tai-choice tai-choice--garment" onClick={() => pickMode('garment')}>
@@ -602,7 +602,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                   </svg>
                 </span>
                 <b>Edit the Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
-                <small>Transform the actual piece — rips, holes, acid &amp; bleach washes, distressing, colour. THREADOS edits your real garment, not a graphic.</small>
+                <small>Transform the actual piece — rips, holes, acid &amp; bleach washes, distressing, colour. loom studios edits your real garment, not a graphic.</small>
                 <span className="tai-choice__go">{live ? 'Start editing →' : 'Add a key in Settings → AI'}</span>
               </button>
             </div>

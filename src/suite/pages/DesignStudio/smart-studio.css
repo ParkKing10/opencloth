@@ -83,7 +83,7 @@
   cursor: default;
 }
 
-/* Compact AI button — replaces the wide prompt bar; opens THREADOS AI as a side panel. */
+/* Compact AI button — replaces the wide prompt bar; opens loom studios AI as a side panel. */
 .cb__ai {
   display: inline-flex;
   align-items: center;

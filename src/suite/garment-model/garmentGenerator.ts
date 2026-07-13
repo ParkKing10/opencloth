@@ -1,7 +1,7 @@
 /**
  * The seam for the FUTURE AI garment pipeline:
  *
- *   Prompt → AI Garment Generator → Editable Garment Model → THREADOS Editor → Design → Export
+ *   Prompt → AI Garment Generator → Editable Garment Model → loom studios Editor → Design → Export
  *
  * Milestone 7 defines this contract and builds the editor around it, but connects NO model.
  * `generateGarment` intentionally throws — there is no OpenAI/Gemini/Claude call, no prompt
@@ -43,4 +43,4 @@ export function loadReferenceGarment(): EditableGarment {
 }
 
 /** Human-readable description of the target pipeline, surfaced in the foundation UI. */
-export const FUTURE_PIPELINE_STAGES = ['Prompt', 'AI Garment Generator', 'Editable Garment', 'THREADOS Editor', 'Design', 'Export'] as const
+export const FUTURE_PIPELINE_STAGES = ['Prompt', 'AI Garment Generator', 'Editable Garment', 'loom studios Editor', 'Design', 'Export'] as const

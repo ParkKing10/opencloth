@@ -42,7 +42,7 @@ export function AdminApp() {
               <IcoShield width="18" height="18" />
             </span>
             <span className="adm__brand-text">
-              <span className="adm__name">THREADOS</span>
+              <span className="adm__name">loom studios</span>
               <span className="adm__tag">Admin Console</span>
             </span>
           </div>

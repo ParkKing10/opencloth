@@ -263,7 +263,7 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
             <span className="dv-empty__ico">
               <IcoUpload width={16} height={16} />
             </span>
-            <p>Drop files here — logos, graphics, patterns, fonts. THREADOS files them automatically.</p>
+            <p>Drop files here — logos, graphics, patterns, fonts. loom studios files them automatically.</p>
             <button type="button" className="dv-upload" onClick={openPicker}>
               <IcoUpload width={13} height={13} />
               Upload

@@ -264,7 +264,7 @@ export function DesignStudio() {
   // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
-  // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
+  // loom studios AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiMode] = useState<AiMode>('graphic')
   // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
@@ -713,7 +713,7 @@ export function DesignStudio() {
     [commit, toast],
   )
 
-  // THREADOS AI → canvas: a generated concept becomes a normal image object (its SVG data URL as
+  // loom studios AI → canvas: a generated concept becomes a normal image object (its SVG data URL as
   // the source), centred and selected. Mirrors placeAsset, so it inherits layers/undo/save/inspector.
   const addGeneratedConcept = useCallback(
     (concept: Concept) => {
@@ -1854,7 +1854,7 @@ export function DesignStudio() {
       cmd('flip-v', 'Flip vertical', () => flipSelection('v'), { group: 'Object', disabled: !hasSel }),
       cmd('lock', 'Lock / unlock', toggleLockSelection, { group: 'Object', disabled: !hasSel }),
       cmd('hide', 'Hide / show', toggleHideSelection, { group: 'Object', disabled: !hasSel }),
-      cmd('ask-ai', 'Ask THREADOS AI', focusAiBar, { group: 'AI', keywords: 'prompt command generate' }),
+      cmd('ask-ai', 'Ask loom studios AI', focusAiBar, { group: 'AI', keywords: 'prompt command generate' }),
       cmd('save', 'Save design…', () => setSaveOpen(true), { group: 'File', keywords: 'store collection' }),
     ]
   }, [
@@ -1972,7 +1972,7 @@ export function DesignStudio() {
   // real garment. Project-info fields the user entered in the wizard win over derived defaults.
   const exportProject: RealExportProject = useMemo(
     () => ({
-      brand: projectInfo.brand?.trim() || activeGarment.brand || 'THREADOS',
+      brand: projectInfo.brand?.trim() || activeGarment.brand || 'loom studios',
       projectName: designName,
       designer: projectInfo.designer?.trim() || user?.name || user?.email?.split('@')[0] || 'Designer',
       collection: projectInfo.collection?.trim() || '',
@@ -2397,10 +2397,10 @@ export function DesignStudio() {
           <button className="ds-logo" type="button" onClick={() => guardedNavigate('/suite')}>
             <span className="ds-logo__mark">
               <svg viewBox="0 0 32 32" width="17" height="17">
-                <path d="M5 6h22v5h-8v15h-6V11H5V6Z" fill="currentColor" />
+                <path d="M16 4 L28 11 L16 18 L4 11 Z M4 15 L16 22 L28 15 L28 18 L16 25 L4 18 Z" fill="currentColor" />
               </svg>
             </span>
-            THREADOS
+            loom studios
             <span className="ds-logo__beta">Beta</span>
           </button>
           {/* Connect App + live readiness — next to the logo (no separate bar below). */}
@@ -2608,7 +2608,7 @@ export function DesignStudio() {
         {/* Left panel — the Library category currently open */}
         {!leftHidden && (
         <aside className="ds-left">
-          {/* THREADOS AI lives in the Library rail (it replaced the old Catalog). Always mounted so a
+          {/* loom studios AI lives in the Library rail (it replaced the old Catalog). Always mounted so a
               generation survives switching rails; hidden when another Library category is active. */}
           <div className="ds-left__ai" style={{ display: rail === 'AI' ? 'flex' : 'none' }}>
             <ThreadosAIModal
@@ -2920,7 +2920,7 @@ export function DesignStudio() {
         )}
       </div>
 
-      {/* THREADOS AI is now embedded in the Library rail (see .ds-left above) — no portal modal. */}
+      {/* loom studios AI is now embedded in the Library rail (see .ds-left above) — no portal modal. */}
       <CampaignModal open={campaignOpen} garmentName={activeGarment.name} userId={user?.id} onClose={() => setCampaignOpen(false)} />
       <ConnectAppDialog open={connectOpen} onClose={() => setConnectOpen(false)} />
       {director && rail !== 'AI' && !saveOpen && !wizardOpen && !sessionGateOpen && !garmentSwitchTarget && (

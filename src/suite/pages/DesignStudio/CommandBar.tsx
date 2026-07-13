@@ -19,7 +19,7 @@ type Props = {
   onConnectApp: () => void
 }
 
-/** The top bar — just Connect App + the manufacturing-readiness pill. THREADOS AI now lives in the
+/** The top bar — just Connect App + the manufacturing-readiness pill. loom studios AI now lives in the
  *  Library rail on the left, so there is no AI button up here. */
 export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
   const [panelOpen, setPanelOpen] = useState(false)

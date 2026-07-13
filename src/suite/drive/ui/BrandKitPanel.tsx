@@ -1,7 +1,7 @@
 /**
  * Brand Kit panel — lives in the studio's left aside.
  * Edits the account's brand defaults (loadBrandKit/saveBrandKit) and surfaces
- * Brand Memory: the repeated choices THREADOS has learned for this designer.
+ * Brand Memory: the repeated choices loom studios has learned for this designer.
  */
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import {
@@ -287,7 +287,7 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                     <IcoSparkle width={12} height={12} />
                     Brand Memory
                   </b>
-                  <small>THREADOS learns your repeated choices.</small>
+                  <small>loom studios learns your repeated choices.</small>
                 </span>
                 <button
                   type="button"

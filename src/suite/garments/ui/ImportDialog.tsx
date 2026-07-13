@@ -151,7 +151,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
             <p>
               {phase === 'category'
                 ? 'First, choose the category this whole pack lands in — pick one or create your own.'
-                : 'Drop one .zip or .rar — THREADOS extracts, groups and previews every garment automatically.'}
+                : 'Drop one .zip or .rar — loom studios extracts, groups and previews every garment automatically.'}
             </p>
           </div>
           <button className="gl-modal__close" type="button" onClick={close} aria-label="Close">

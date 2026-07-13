@@ -1,5 +1,5 @@
 /**
- * THREADOS Drive — permanent, account-scoped asset storage.
+ * loom studios Drive — permanent, account-scoped asset storage.
  * Supabase mode: files land in the private 'drive' bucket ("<uid>/<folder>/<name>")
  * with a metadata row in drive_assets. Fallback mode: small files persist as data
  * URLs in localStorage so the feature works without a backend.

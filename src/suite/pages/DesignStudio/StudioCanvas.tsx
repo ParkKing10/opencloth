@@ -45,7 +45,7 @@ const TOOL_GROUPS: ToolGroup[] = [
   {
     name: 'Paint',
     tools: [
-      { id: 'brush', label: 'Brush', hint: 'Paint — pencil, marker, fabric & texture brushes', soon: true, note: 'Painting — pencil, brush, marker, airbrush, fabric, denim & leather brushes, with pressure & tilt — is coming soon. It ships with the THREADOS iPad app; see Connect App.' },
+      { id: 'brush', label: 'Brush', hint: 'Paint — pencil, marker, fabric & texture brushes', soon: true, note: 'Painting — pencil, brush, marker, airbrush, fabric, denim & leather brushes, with pressure & tilt — is coming soon. It ships with the loom studios iPad app; see Connect App.' },
     ],
   },
   {

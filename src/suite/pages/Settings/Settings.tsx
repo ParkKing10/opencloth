@@ -375,7 +375,7 @@ export function Settings() {
   /* -- Documentation: real navigation to the docs site -- */
   const documentation = () => {
     window.open(DOCS_URL, '_blank', 'noopener,noreferrer')
-    toast('Opening the THREADOS documentation', 'info')
+    toast('Opening the loom studios documentation', 'info')
   }
 
   /* -- Avatar upload: real file picker → data URL → visible avatar image -- */
@@ -467,7 +467,7 @@ export function Settings() {
     setActive('team')
   }
 
-  /* -- Delete workspace: backup first, then really clear local THREADOS data -- */
+  /* -- Delete workspace: backup first, then really clear local loom studios data -- */
   const deletePhrase = workspaceName.trim() || 'DELETE'
 
   const confirmDeleteWorkspace = () => {
@@ -501,7 +501,7 @@ export function Settings() {
     if (!user) return
     const now = new Date()
     const body = [
-      'THREADOS — PLAN SUMMARY',
+      'loom studios — PLAN SUMMARY',
       '=======================',
       '',
       `Date:         ${now.toISOString().slice(0, 10)}`,
@@ -516,7 +516,7 @@ export function Settings() {
       'Billing is not connected yet — no payment has been processed and no',
       'card is on file. This document is a plan summary, not a tax invoice.',
       '',
-      'Thank you for building with THREADOS.',
+      'Thank you for building with loom studios.',
     ].join('\n')
     downloadText(body, `threados-plan-summary-${now.toISOString().slice(0, 10)}.txt`)
     toast('Plan summary downloaded — no payment has been processed.', 'info')
@@ -526,7 +526,7 @@ export function Settings() {
     <SuitePage
       eyebrow="Settings"
       title="Settings"
-      subtitle="Manage your profile, brand, plan, team and integrations across the THREADOS workspace."
+      subtitle="Manage your profile, brand, plan, team and integrations across the loom studios workspace."
       actions={
         <>
           <button className="s-btn s-btn--subtle" type="button" onClick={documentation}>
@@ -822,7 +822,7 @@ export function Settings() {
                 <div className="set-danger-row__text" style={{ flex: 1 }}>
                   <b>Delete workspace</b>
                   <p>
-                    Downloads a backup, then permanently deletes all THREADOS data stored in this
+                    Downloads a backup, then permanently deletes all loom studios data stored in this
                     browser — designs, garments, tech packs, drive files and preferences — and
                     reloads the app to a fresh state.
                   </p>
@@ -935,7 +935,7 @@ export function Settings() {
                     <IcoSparkle width="15" height="15" />
                   </button>
                 </div>
-                <span className="set-hint">Lime is the THREADOS default and keeps contrast AA-compliant.</span>
+                <span className="set-hint">Lime is the loom studios default and keeps contrast AA-compliant.</span>
               </div>
             </div>
           </section>
@@ -945,7 +945,7 @@ export function Settings() {
             <div className="set-card__head">
               <div className="set-card__head-text">
                 <h2>Notifications</h2>
-                <p>Choose what THREADOS emails and pushes to your team.</p>
+                <p>Choose what loom studios emails and pushes to your team.</p>
               </div>
               <span className="s-chip s-chip--accent">
                 <IcoBell width="12" height="12" /> Email + Push

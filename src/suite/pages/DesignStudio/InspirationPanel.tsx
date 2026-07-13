@@ -21,7 +21,7 @@ const LOOKS: InspirationPreset[] = [
   { name: 'Cream Luxe', vibe: 'Elevated heavyweight essential', garment: 'Hoodie', kind: 'hoodie', fit: 'Regular', fabric: 'Ultra Fleece 520 GSM', colorHex: '#D8C9B0', colorName: 'Washed Beige', text: 'ATELIER', textColor: '#3E3428' },
   { name: 'Utility Cargo', vibe: 'Technical, pocketed, functional', garment: 'Cargo Pants', kind: 'pants', fit: 'Baggy', fabric: 'Ripstop 280 GSM', colorHex: '#3E4A3A', colorName: 'Forest' },
   { name: 'Racing Bomber', vibe: 'Moto-inspired outerwear', garment: 'Bomber Jacket', kind: 'jacket', fit: 'Regular', fabric: 'Midweight Twill 320 GSM', colorHex: '#22304A', colorName: 'Navy', text: 'SPEED', textColor: '#D8FF3E' },
-  { name: 'Acid Pop', vibe: 'Loud lime graphic tee', garment: 'T-Shirt', kind: 'tee', fit: 'Regular', fabric: 'Lightweight Jersey 240 GSM', colorHex: '#1E1E1E', colorName: 'Jet Black', text: 'THREADOS', textColor: '#D8FF3E' },
+  { name: 'Acid Pop', vibe: 'Loud lime graphic tee', garment: 'T-Shirt', kind: 'tee', fit: 'Regular', fabric: 'Lightweight Jersey 240 GSM', colorHex: '#1E1E1E', colorName: 'Jet Black', text: 'loom studios', textColor: '#D8FF3E' },
 ]
 
 export function InspirationPanel({ onApply }: { onApply: (p: InspirationPreset) => void }) {

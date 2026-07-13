@@ -32,7 +32,7 @@ export function DesignStudioLanding() {
       designs={designs}
       onOpen={(id) => navigate(`/suite/studio?garment=${encodeURIComponent(id)}`)}
       onNew={() => navigate('/suite/studio')}
-      onGetApp={() => toast('The THREADOS mobile app is coming soon — design your clothes on the go.', 'info')}
+      onGetApp={() => toast('The loom studios mobile app is coming soon — design your clothes on the go.', 'info')}
     />
   )
 }

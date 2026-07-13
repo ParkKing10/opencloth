@@ -1,7 +1,7 @@
 /**
  * Tolerant parsing + repair for AI garment output. Real models return JSON that is usually
  * MOSTLY right — a missing field, a stray view, an unreferenced region. Rather than reject it (and
- * show the user an error), THREADOS repairs it into a valid front+back editable garment. This is
+ * show the user an error), loom studios repairs it into a valid front+back editable garment. This is
  * what makes generation feel reliable: the strict schema is the target, but the intake is forgiving.
  */
 import {

@@ -1,5 +1,5 @@
 /**
- * Concept engine — the real, on-device graphic generator behind the THREADOS AI command bar. It
+ * Concept engine — the real, on-device graphic generator behind the loom studios AI command bar. It
  * turns a prompt into transparent, print-ready vector concepts by composing a motif with a style
  * treatment. Deterministic (same prompt+seed → same art), so "Generate 3 more" and "regenerate this
  * one" are honest re-seeds, not random noise.

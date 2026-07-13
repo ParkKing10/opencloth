@@ -293,6 +293,10 @@
 .lp-act.is-on {
   color: var(--s-accent);
 }
+.lp-act--danger:hover {
+  color: var(--s-danger, #ef5a5a);
+  background: color-mix(in oklab, var(--s-danger, #ef5a5a) 16%, transparent);
+}
 
 /* ---------- selection footer ---------- */
 .lp__footer {

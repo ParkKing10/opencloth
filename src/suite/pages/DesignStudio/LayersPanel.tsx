@@ -597,6 +597,20 @@ export function LayersPanel({
                     {hidden[layer.id] ? <path d="M4 20 20 4" /> : <circle cx="12" cy="12" r="2.6" />}
                   </svg>
                 </button>
+                <button
+                  type="button"
+                  className="lp-act lp-act--danger"
+                  title="Delete"
+                  aria-label={`Delete ${layer.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    remove([layer.id])
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+                  </svg>
+                </button>
               </span>
             </div>
           )

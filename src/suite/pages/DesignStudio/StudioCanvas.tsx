@@ -370,6 +370,12 @@ export function StudioCanvas({
   // Every view card shows the garment's REAL preview — generic icons are empty-state only.
   const viewPreview = garmentImage
 
+  // A "page" is a design board. The FIRST page (pages[0]) is the GARMENT page — it shows the
+  // garment. Every OTHER page is a BLANK board (empty canvas, no garment). There is no Front/Back:
+  // the garment is a single page, and the back is part of it, not a separate page.
+  const isGarmentPage = !pages || pages.length === 0 || !activePageId || activePageId === pages[0].id
+  const garmentThumbSvg = garmentSvgByView?.[viewTabs[0]] ?? garmentSvg ?? null
+
   // Highlight the first real view whenever the garment changes.
   useEffect(() => {
     setActiveView(viewList(garmentViews)[0] ?? 'Preview')
@@ -719,6 +725,8 @@ export function StudioCanvas({
             <div className="ds-garment-3d" ref={stageRef}>
               {showLabel && neckLabel ? (
                 <img className="ds-garment-photo ds-necklabel-view" src={neckLabel} alt={`${garmentName} — neck label`} draggable={false} />
+              ) : !isGarmentPage ? (
+                <div className="ds-garment-blank" role="img" aria-label="Blank page" />
               ) : garmentOverride ? (
                 <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI edit`} draggable={false} />
               ) : garmentSvgByView?.[activeView] || garmentSvg ? (
@@ -733,7 +741,7 @@ export function StudioCanvas({
               ) : (
                 <Glyph width="340" height="340" />
               )}
-              {regionGarment && onSelectRegion && onMoveRegion && (
+              {isGarmentPage && regionGarment && onSelectRegion && onMoveRegion && (
                 <StudioRegionLayer
                   garment={regionGarment}
                   view={labelToViewId(activeView, regionGarment)}
@@ -794,46 +802,39 @@ export function StudioCanvas({
             </div>
 
             <div className="ds-flats">
-              {/* Garment views = the first pages (Page 1, Page 2 …) */}
-              {viewTabs.map((v, i) => {
-                const onBase = !pages || pages.length === 0 || !activePageId || activePageId === pages[0].id
-                return (
-                  <button
-                    className={`ds-flat${onBase && activeView === v && !showLabel ? ' is-active' : ''}`}
-                    type="button"
-                    key={v}
-                    title={`Page ${i + 1} · ${v}`}
-                    onClick={() => { if (pages && pages[0]) onSwitchPage?.(pages[0].id); setActiveView(v); setShowLabel(false) }}
-                  >
-                    <div className="ds-flat__art">
-                      {garmentSvgByView?.[v] ? (
-                        <img
-                          className="ds-flat__img"
-                          src={`data:image/svg+xml,${encodeURIComponent(garmentSvgByView[v])}`}
-                          alt={`${garmentName} — ${v}`}
-                          draggable={false}
-                        />
-                      ) : viewPreview ? (
-                        <img className="ds-flat__img" src={viewPreview} alt={`${garmentName} — ${v}`} draggable={false} />
-                      ) : (
-                        <Glyph width="66" height="66" />
-                      )}
-                    </div>
-                    <span>Page {i + 1}</span>
-                  </button>
-                )
-              })}
-              {/* Extra pages = blank design boards */}
+              {/* Page 1 = the GARMENT (a single page — no Front/Back split). */}
+              <button
+                className={`ds-flat${isGarmentPage && !showLabel ? ' is-active' : ''}`}
+                type="button"
+                title="Page 1 · Garment"
+                onClick={() => { if (pages && pages[0]) onSwitchPage?.(pages[0].id); setShowLabel(false) }}
+              >
+                <div className="ds-flat__art">
+                  {garmentThumbSvg ? (
+                    <img
+                      className="ds-flat__img"
+                      src={`data:image/svg+xml,${encodeURIComponent(garmentThumbSvg)}`}
+                      alt={garmentName}
+                      draggable={false}
+                    />
+                  ) : viewPreview ? (
+                    <img className="ds-flat__img" src={viewPreview} alt={garmentName} draggable={false} />
+                  ) : (
+                    <Glyph width="66" height="66" />
+                  )}
+                </div>
+                <span>Page 1</span>
+              </button>
+              {/* Every other page = a BLANK design board (empty canvas, no garment). */}
               {(pages ?? []).slice(1).map((p, j) => (
                 <button
                   className={`ds-flat${activePageId === p.id && !showLabel ? ' is-active' : ''}`}
                   type="button"
                   key={p.id}
-                  title={`Page ${viewTabs.length + j + 1}`}
+                  title={`Page ${j + 2} · Blank`}
                   onClick={() => { onSwitchPage?.(p.id); setShowLabel(false) }}
                 >
-                  <div className="ds-flat__art">
-                    <Glyph width="52" height="52" />
+                  <div className="ds-flat__art ds-flat__art--blank">
                     {onDeletePage && (
                       <span
                         className="ds-flat__edit"
@@ -847,7 +848,7 @@ export function StudioCanvas({
                       </span>
                     )}
                   </div>
-                  <span>Page {viewTabs.length + j + 1}</span>
+                  <span>Page {j + 2}</span>
                 </button>
               ))}
               {/* Add a new blank page */}

@@ -938,6 +938,10 @@
   text-align: center;
 }
 /* Neck Label tile — a dashed "create" state until a label exists. */
+/* Blank page thumbnail — a clean empty sheet (no garment glyph). */
+.ds-flat__art--blank {
+  background: #fbfbfd;
+}
 .ds-flat--label .ds-flat__art {
   border-style: dashed;
   background: var(--s-inset, #f4f4f6);

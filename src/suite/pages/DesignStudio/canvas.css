@@ -218,6 +218,20 @@
   display: block;
 }
 
+/* Blank page — an empty design board (no garment). Gives design objects a stable, sized
+   coordinate space and reads as a clean artboard rather than a rendering gap. */
+.ds-garment-blank {
+  height: 440px;
+  max-height: 62vh;
+  aspect-ratio: 3 / 4;
+  width: auto;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed var(--s-line-2);
+  pointer-events: none;
+  user-select: none;
+}
+
 .ds-toolrail__sep {
   height: 1px;
   margin: 4px 6px;

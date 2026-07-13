@@ -17,6 +17,21 @@
   gap: 34px;
 }
 
+/* In-shell page variant — flows inside .suite__content (which already provides the background and
+   padding) instead of a full-screen fixed overlay, so the sidebar stays visible. */
+.dl--page {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  overflow: visible;
+  background: none;
+}
+.dl--page .dl__inner {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
 /* Hero */
 .dl__hero {
   position: relative;

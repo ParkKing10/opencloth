@@ -216,7 +216,7 @@ export function GarmentsHome() {
   // Clicking a garment opens it in the Design Studio to DESIGN it (graphics, colour, prints) —
   // that is what "open a garment" means for most people. Editing the underlying structure
   // (regions, panels) is the advanced path and lives in the Garment Lab, one menu click away.
-  const open = (id: string) => navigate(`/suite/design?garment=${id}`)
+  const open = (id: string) => navigate(`/suite/studio?garment=${id}`)
   const editStructure = (id: string) => navigate(`/suite/garment-lab/${id}`)
 
   const commitRename = (id: string) => {

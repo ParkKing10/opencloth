@@ -209,7 +209,7 @@ export function GarmentLab() {
   }, [user?.id, garmentId, refreshSummary])
 
   const openDesignStudio = useCallback(() => {
-    navigate(`/suite/design?garment=${encodeURIComponent(garmentId)}&name=${encodeURIComponent(garment.name)}`)
+    navigate(`/suite/studio?garment=${encodeURIComponent(garmentId)}&name=${encodeURIComponent(garment.name)}`)
   }, [navigate, garmentId, garment.name])
 
   return (

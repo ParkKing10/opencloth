@@ -8,8 +8,12 @@ type Props = {
   onOpen: (id: string) => void
   onNew: () => void
   onGetApp: () => void
-  /** Leave the studio back to the workspace — the launcher is never a dead end. */
-  onBack: () => void
+  /** Leave the studio back to the workspace. Omitted when the launcher lives inside the suite shell
+   *  (the sidebar already provides navigation), so no redundant back button is shown. */
+  onBack?: () => void
+  /** Rendered as a normal page inside the suite shell (not a full-screen fixed overlay) — flows in
+   *  the content area so the sidebar stays visible. */
+  inline?: boolean
 }
 
 function timeAgo(ms: number): string {
@@ -27,14 +31,16 @@ function timeAgo(ms: number): string {
  * drops the user straight into the editor: they pick a saved design to continue or start fresh. Up
  * top, a bold "get the app" hero promotes designing on mobile.
  */
-export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack }: Props) {
+export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inline = false }: Props) {
   return (
-    <div className="dl">
+    <div className={`dl${inline ? ' dl--page' : ''}`}>
       <div className="dl__inner">
-        <button type="button" className="dl__back" onClick={onBack}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
-          Back to workspace
-        </button>
+        {onBack && (
+          <button type="button" className="dl__back" onClick={onBack}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            Back to workspace
+          </button>
+        )}
         {/* App-download hero */}
         <div className="dl__hero">
           <div className="dl__hero-glow" aria-hidden="true" />

@@ -24,8 +24,7 @@ import { useSuiteTheme } from '../../theme'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { uid } from '../../data/utils'
-import { saveDesignThumb, loadDesignThumb } from '../../data/designThumbs'
-import { DesignLauncher, type LauncherDesign } from './DesignLauncher'
+import { saveDesignThumb } from '../../data/designThumbs'
 import { putGarmentImage, getGarmentImage, delGarmentImage } from './garmentImageStore'
 import { captureDesignThumbnail } from '../../export/real/capture'
 import type { RealExportProject } from '../../export/real/exportProject'
@@ -295,10 +294,6 @@ export function DesignStudio() {
   // New-design wizard: guide the first steps instead of an empty editor. It is opened by the
   // session gate (or straight away when there is nothing to continue) — see the entry effect below.
   const [wizardOpen, setWizardOpen] = useState<boolean>(false)
-  // Launcher: entering the Studio without a specific garment shows the chooser (open a save or start
-  // new) + the app-download hero — never drops the user straight into a blank editor.
-  const [launcherOpen, setLauncherOpen] = useState<boolean>(false)
-  const launchedRef = useRef(false)
 
   // Session gate: on a fresh entry (not opened from a specific garment) we ask "continue or new?"
   // instead of silently reopening the last design.
@@ -1478,26 +1473,6 @@ export function DesignStudio() {
       setWizardOpen(true)
     }
   }, [catalog, searchParams])
-
-  // Launcher entry: entering the Studio WITHOUT a specific garment (the nav link) ALWAYS shows the
-  // launcher — the chooser + app-download hero — never the bare editor. A ?garment= entry (from the
-  // Shop, My Garments or a Recent Design) opens the editor directly and skips it.
-  useEffect(() => {
-    if (launchedRef.current) return
-    if (searchParams.get('garment')) return
-    launchedRef.current = true
-    setLauncherOpen(true)
-  }, [searchParams])
-
-  // Recent designs shown in the launcher (this user's, newest first, with their saved thumbnails).
-  const launcherDesigns = useMemo<LauncherDesign[]>(() => {
-    if (!user) return []
-    return data.designs
-      .filter((d) => d.ownerId === user.id)
-      .sort((a, b) => b.updatedAt - a.updatedAt)
-      .slice(0, 24)
-      .map((d) => ({ id: d.id, name: d.name, thumb: loadDesignThumb(d.id) ?? undefined, updatedAt: d.updatedAt }))
-  }, [data.designs, user])
 
   // M9/8.2 unified workflow: opened from a garment (?garment=<id>&name=<name>) → make THAT editable
   // garment the active garment (its flat as the backdrop, design keyed to its id), skip the picker.
@@ -3076,20 +3051,6 @@ export function DesignStudio() {
         onClose={() => setSaveOpen(false)}
         onSave={confirmSave}
       />
-
-      {/* Design Studio launcher — the chooser + app hero shown on entry without a specific garment */}
-      {launcherOpen && (
-        <DesignLauncher
-          designs={launcherDesigns}
-          onOpen={(id) => {
-            setLauncherOpen(false)
-            navigate(`/suite/design?garment=${encodeURIComponent(id)}`)
-          }}
-          onNew={() => setLauncherOpen(false)}
-          onGetApp={() => toast('The THREADOS mobile app is coming soon — design your clothes on the go.', 'info')}
-          onBack={() => guardedNavigate('/suite')}
-        />
-      )}
 
       {/* Neck Label creator — AI-generated woven care/brand tag, applied as the garment's third view */}
       <NeckLabelModal open={neckLabelOpen} onClose={() => setNeckLabelOpen(false)} onApply={applyNeckLabel} />

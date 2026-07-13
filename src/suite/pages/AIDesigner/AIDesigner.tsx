@@ -248,7 +248,7 @@ export function AIDesigner() {
     const summary = createGarment(user.id, makeEmptyGarment(), { name: design.name, category: design.type, origin: 'ai' })
     saveDoc(summary.id, { layers: [], hidden: {}, designName: design.name, garmentEdit: design.frontUrl, updatedAt: Date.now() })
     toast(`“${design.name}” sent to the Design Studio.`, 'success')
-    navigate(`/suite/design?garment=${summary.id}`)
+    navigate(`/suite/studio?garment=${summary.id}`)
   }
 
   return (

@@ -12,6 +12,7 @@ import { Signup } from './suite/pages/Auth/Signup'
 import { SuiteApp } from './suite/SuiteApp'
 import { Dashboard } from './suite/pages/Dashboard/Dashboard'
 import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'
+import { DesignStudioLanding } from './suite/pages/DesignStudio/DesignStudioLanding'
 import { GarmentLab } from './suite/pages/GarmentLab/GarmentLab'
 import { GarmentsHome } from './suite/pages/Garments/GarmentsHome'
 import { AIDesigner } from './suite/pages/AIDesigner/AIDesigner'
@@ -48,9 +49,10 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
 
-              {/* Full-screen editor (auth required) */}
+              {/* Full-screen editor (auth required). The Design Studio LANDING lives inside the suite
+                  shell (see /suite/design below); the editor itself is full-screen at /suite/studio. */}
               <Route
-                path="/suite/design"
+                path="/suite/studio"
                 element={
                   <RequireAuth>
                     <DesignStudio />
@@ -76,6 +78,7 @@ createRoot(document.getElementById('root')!).render(
                 }
               >
                 <Route index element={<Dashboard />} />
+                <Route path="design" element={<DesignStudioLanding />} />
                 <Route path="garments" element={<GarmentsHome />} />
                 <Route path="shop" element={<GarmentShop />} />
                 <Route path="ai" element={<AIDesigner />} />

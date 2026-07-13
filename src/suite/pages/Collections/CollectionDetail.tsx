@@ -24,7 +24,7 @@ export function CollectionDetail() {
   if (!collection) return <Navigate to="/suite/collections" replace />
 
   const open = (d: { id: string; name: string }) =>
-    navigate(`/suite/design?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)
+    navigate(`/suite/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)
 
   return (
     <SuitePage

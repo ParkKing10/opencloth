@@ -335,7 +335,10 @@ export function LayersPanel({
             <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
           </button>
         ) : (
-          <h2>Layers</h2>
+          <div className="lp__title">
+            <h2>Layers</h2>
+            <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
+          </div>
         )}
         <div className="lp__head-actions">
           {selectedIds.length > 1 && (

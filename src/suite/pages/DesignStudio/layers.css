@@ -66,6 +66,7 @@
   min-height: 190px;
 }
 
+.lp__title { display: inline-flex; align-items: center; gap: 8px; }
 .lp__head-actions {
   display: flex;
   align-items: center;

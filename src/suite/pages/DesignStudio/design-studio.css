@@ -184,12 +184,21 @@
   padding: 16px 14px 8px;
   min-height: 0;
 }
-/* Every active library panel (AI, Graphics, Assets, …) shares the column with the Layers panel
-   below it — make them flex children that give up room instead of forcing their own 100% height. */
-.ds-left > *:not(.ds-resize):not(.ds-layers-slot) {
+/* Each active library panel (AI, Layers, Graphics, Assets, …) fills the column on its own. */
+.ds-left > * {
   flex: 1 1 auto;
   min-height: 0;
   height: auto;
+}
+/* Layers as its own Library tab — the panel fills the column (no shared bottom slot, no top border). */
+.ds-left__layers {
+  display: flex;
+  flex-direction: column;
+}
+.ds-left__layers .lp {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 0;
 }
 .ds-panel-head {
   display: flex;

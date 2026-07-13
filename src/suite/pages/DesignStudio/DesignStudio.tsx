@@ -95,7 +95,7 @@ import './design-studio.css'
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
 /** The Library — six human categories, every one opens a real panel. */
-const RAIL = ['AI', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
+const RAIL = ['AI', 'Layers', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -302,15 +302,7 @@ export function DesignStudio() {
   const [garmentSwitchTarget, setGarmentSwitchTarget] = useState<Garment | null>(null)
   const [lastDesignName, setLastDesignName] = useState('')
 
-  // Workspace layout: resizable Layers panel + collapsible inspector (both persisted).
-  const [layersH, setLayersH] = useState<number | null>(() => {
-    try {
-      const raw = localStorage.getItem('threados-layers-h')
-      return raw ? Math.max(150, parseInt(raw, 10) || 0) : null
-    } catch {
-      return null
-    }
-  })
+  // Workspace layout: collapsible inspector (persisted). Layers live in their own Library tab now.
   const [rightHidden, setRightHidden] = useState<boolean>(() => {
     try {
       // right inspector is closed by default (canvas-first); an explicit choice persists.
@@ -337,16 +329,6 @@ export function DesignStudio() {
       return null
     }
   })
-  // Layers panel is open by default (it lives at the bottom of the library column) — only collapsed
-  // when the user explicitly minimized it before ('0'). The toggle persists the choice.
-  const [layersCollapsed, setLayersCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('threados-layers-open') === '0'
-    } catch {
-      return false
-    }
-  })
-
   const toggleRight = useCallback(() => {
     setRightHidden((v) => {
       try {
@@ -367,49 +349,6 @@ export function DesignStudio() {
       }
       return !v
     })
-  }, [])
-
-  const toggleLayersCollapsed = useCallback(() => {
-    setLayersCollapsed((v) => {
-      try {
-        localStorage.setItem('threados-layers-open', v ? '1' : '0')
-      } catch {
-        /* ignore */
-      }
-      return !v
-    })
-  }, [])
-
-  /**
-   * Drag the divider above the Layers panel to resize it. Stateless math: the
-   * panel height is simply the distance from the pointer to the aside's bottom,
-   * so the divider tracks the cursor exactly.
-   */
-  const startLayersResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const aside = e.currentTarget.closest('.ds-left')
-    if (!aside) return
-    const compute = (clientY: number) => {
-      const rect = aside.getBoundingClientRect()
-      const maxH = Math.max(220, rect.height - 220)
-      return Math.min(maxH, Math.max(150, Math.round(rect.bottom - clientY - 5)))
-    }
-    let last = compute(e.clientY)
-    const onMove = (ev: PointerEvent) => {
-      last = compute(ev.clientY)
-      setLayersH(last)
-    }
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      try {
-        localStorage.setItem('threados-layers-h', String(last))
-      } catch {
-        /* ignore */
-      }
-    }
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
   }, [])
 
   /** Drag the library's right edge to resize its width (tracks the cursor exactly). */
@@ -2799,63 +2738,36 @@ export function DesignStudio() {
           </div>
           )}
 
-          {/* Drag to resize the Layers panel (hidden while minimized) */}
-          {!layersCollapsed && (
-            <div
-              className="ds-resize"
-              role="separator"
-              aria-label="Resize layers panel"
-              title="Drag to resize"
-              onPointerDown={startLayersResize}
-              onDoubleClick={() => {
-                setLayersH(null)
-                try {
-                  localStorage.removeItem('threados-layers-h')
-                } catch {
-                  /* ignore */
-                }
-              }}
-            >
-              <span className="ds-resize__grip" />
+          {/* Layers — its own Library tab (Figma-grade: multi-select, rename, lock, groups, reorder) */}
+          {rail === 'Layers' && (
+            <div className="ds-left__layers">
+              <LayersPanel
+                layers={layers}
+                hidden={hidden}
+                selectedIds={liveSelected}
+                onCommit={commitLayers}
+                onSelect={(ids) => {
+                  setSelectedIds(ids)
+                  if (ids.length > 0) setRegionSel(null) // a layer selection replaces a region selection
+                }}
+                onAddLayer={addLayer}
+                baseGarmentName={activeGarment.name}
+                baseSelected={liveSelected.length === 0 && !regionSel}
+                onSelectBase={() => {
+                  setSelectedIds([])
+                  setRegionSel(null)
+                }}
+                garmentRegions={garmentRegionLayers}
+                garmentTitle={studioGarment?.name}
+                garmentSelectedId={regionSel}
+                onToggleRegion={toggleRegion}
+                onSelectRegion={selectRegion}
+                onCycleRegionColor={cycleRegionColor}
+                onRowContextMenu={onLayerContextMenu}
+                renameHandle={renameHandleRef}
+              />
             </div>
           )}
-
-          {/* Layers — Figma-grade: multi-select, rename, lock, groups, reorder */}
-          <div
-            className={`ds-layers-slot${layersCollapsed ? ' is-collapsed' : ''}`}
-            style={!layersCollapsed && layersH ? { height: layersH, flex: '0 0 auto' } : undefined}
-          >
-            <LayersPanel
-              layers={layers}
-              hidden={hidden}
-              selectedIds={liveSelected}
-              onCommit={commitLayers}
-              onSelect={(ids) => {
-                setSelectedIds(ids)
-                if (ids.length > 0) setRegionSel(null) // a layer selection replaces a region selection
-              }}
-              onAddLayer={() => {
-                if (layersCollapsed) toggleLayersCollapsed()
-                addLayer()
-              }}
-              collapsed={layersCollapsed}
-              onToggleCollapse={toggleLayersCollapsed}
-              baseGarmentName={activeGarment.name}
-              baseSelected={liveSelected.length === 0 && !regionSel}
-              onSelectBase={() => {
-                setSelectedIds([])
-                setRegionSel(null)
-              }}
-              garmentRegions={garmentRegionLayers}
-              garmentTitle={studioGarment?.name}
-              garmentSelectedId={regionSel}
-              onToggleRegion={toggleRegion}
-              onSelectRegion={selectRegion}
-              onCycleRegionColor={cycleRegionColor}
-              onRowContextMenu={onLayerContextMenu}
-              renameHandle={renameHandleRef}
-            />
-          </div>
         </aside>
         )}
 
@@ -3084,6 +2996,14 @@ function RailIcon({ name }: { name: string }) {
   switch (name) {
     case 'AI':
       return <IcoSparkle {...common} />
+    case 'Layers':
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M12 3.5 20.5 8 12 12.5 3.5 8 12 3.5Z" />
+          <path d="M4 12l8 4.5L20 12" />
+          <path d="M4 16l8 4.5L20 16" />
+        </svg>
+      )
     case 'Garments':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">

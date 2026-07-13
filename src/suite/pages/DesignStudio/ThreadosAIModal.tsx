@@ -316,6 +316,12 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   if (!open) return null
 
   const submit = () => run(prompt, true)
+  // Back to the "Design a Graphic vs Edit the Garment" chooser (e.g. you picked Graphic but meant Garment).
+  const backToChooser = () => {
+    setChoosing(true)
+    setConcepts([])
+    setHistoryOpen(false)
+  }
   // Commit the upfront choice: set the mode, leave the ask, and focus the prompt so the user types next.
   const pickMode = (m: AiMode) => {
     setMode(m)
@@ -481,6 +487,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         )}
         {/* Header */}
         <header className="tai__head">
+          {!choosing && (
+            <button type="button" className="tai__back" onClick={backToChooser} title="Back — choose Graphic or Edit Garment" aria-label="Back to chooser">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+            </button>
+          )}
           <span className="tai__title" id="tai-title">
             <IcoSparkle width="18" height="18" />
             THREADOS AI
@@ -530,18 +541,20 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           </div>
         ) : (
         <>
-        {/* Prompt row */}
+        {/* Prompt row — the input gets its own full-width line; the actions sit below so nothing is cramped */}
         <div className="tai__prompt">
-          <IcoSparkle width="16" height="16" />
-          <input
-            ref={inputRef}
-            className="tai__input"
-            value={prompt}
-            placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
-            aria-label="Design prompt"
-          />
+          <div className="tai__prompt-field">
+            <IcoSparkle width="16" height="16" />
+            <input
+              ref={inputRef}
+              className="tai__input"
+              value={prompt}
+              placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+              aria-label="Design prompt"
+            />
+          </div>
           <div className="tai__prompt-actions">
             {live && (
               <>

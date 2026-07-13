@@ -13,8 +13,8 @@ type Props = {
   interpret?: (text: string) => Proposal | null
   onApply?: (p: Proposal) => void
   onFix: (checkId: string) => void
-  /** Open THREADOS AI — 'graphic' to design an artwork, 'garment' to edit the garment itself. */
-  onGenerate: (prompt: string, mode: AiMode) => void
+  /** Kept for API compatibility — the AI now lives in the Library rail, opened from there. */
+  onGenerate?: (prompt: string, mode: AiMode) => void
   /** Open the Connect App panel (draw on iPad, live on the desktop canvas). */
   onConnectApp: () => void
 }

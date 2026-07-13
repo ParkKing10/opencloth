@@ -26,6 +26,7 @@ import { useAuth } from '../../auth/auth'
 import { uid } from '../../data/utils'
 import { saveDesignThumb, loadDesignThumb } from '../../data/designThumbs'
 import { DesignLauncher, type LauncherDesign } from './DesignLauncher'
+import { putGarmentImage, getGarmentImage, delGarmentImage } from './garmentImageStore'
 import { captureDesignThumbnail } from '../../export/real/capture'
 import type { RealExportProject } from '../../export/real/exportProject'
 import { computeReadiness } from '../../export/readiness'
@@ -82,10 +83,8 @@ import { InspirationPanel } from './InspirationPanel'
 import {
   INITIAL_CONFIG,
   deriveReadiness,
-  interpretCommand,
   objectNote,
   type ObjectNote,
-  type Proposal,
   type StudioAction,
   type StudioConfig,
   type StudioContext,
@@ -268,7 +267,7 @@ export function DesignStudio() {
   const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
   // THREADOS AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
   const [aiPrompt, setAiPrompt] = useState('')
-  const [aiMode, setAiMode] = useState<AiMode>('graphic')
+  const [aiMode] = useState<AiMode>('graphic')
   // Edit-Garment result: an AI-edited garment image that overrides the backdrop (persists in the doc).
   const [garmentEditUrl, setGarmentEditUrl] = useState<string | null>(null)
   // Neck Label — the garment's AI-generated woven care/brand tag (persists in the doc as a 3rd view).
@@ -544,6 +543,12 @@ export function DesignStudio() {
     const versionDocs = hasVersions
       ? versionsRef.current.map((v) => snapToVersionDoc(v, v.id === activeVersionIdRef.current ? snap : v.snapshot))
       : undefined
+    // Offload the AI garment-edit image (a multi-MB base64 URL) to IndexedDB — inlining it in the
+    // localStorage doc blew the ~5MB quota, so the save silently failed and the edit was lost on reload.
+    // The doc keeps only a lightweight key; the image persists reliably in IndexedDB.
+    const gEdit = garmentEditRef.current
+    if (gEdit) void putGarmentImage(gid, gEdit)
+    else void delGarmentImage(gid)
     // When versions exist they are the source of truth; keep the top-level layers/hidden EMPTY (not a
     // duplicate of the active version) so image payloads aren't stored twice — halving quota pressure.
     const ok = saveDoc(gid, {
@@ -558,7 +563,8 @@ export function DesignStudio() {
       collectionId: col ?? collectionIdRef.current,
       specs: specsRef.current,
       projectInfo: projectInfoRef.current,
-      garmentEdit: garmentEditRef.current ?? undefined,
+      garmentEdit: undefined, // offloaded to IndexedDB (see garmentEditKey)
+      garmentEditKey: gEdit ? gid : undefined,
       neckLabel: neckLabelRef.current ?? undefined,
       versions: versionDocs,
       activeVersionId: activeVersionIdRef.current || undefined,
@@ -1594,9 +1600,23 @@ export function DesignStudio() {
     const loadedInfo = doc?.projectInfo ?? {}
     setProjectInfo(loadedInfo)
     projectInfoRef.current = loadedInfo
-    // Restore (or clear) any AI garment-edit backdrop for this garment.
-    setGarmentEditUrl(doc?.garmentEdit ?? null)
-    garmentEditRef.current = doc?.garmentEdit ?? null
+    // Restore (or clear) any AI garment-edit backdrop for this garment. Old docs keep it inline; new
+    // docs offload it to IndexedDB (garmentEditKey) — read it back async, guarding a fast garment switch.
+    if (doc?.garmentEdit) {
+      setGarmentEditUrl(doc.garmentEdit)
+      garmentEditRef.current = doc.garmentEdit
+    } else if (doc?.garmentEditKey) {
+      setGarmentEditUrl(null)
+      garmentEditRef.current = null
+      void getGarmentImage(doc.garmentEditKey).then((url) => {
+        if (loadedGarmentRef.current !== gid || !url) return // a newer garment loaded meanwhile
+        setGarmentEditUrl(url)
+        garmentEditRef.current = url
+      })
+    } else {
+      setGarmentEditUrl(null)
+      garmentEditRef.current = null
+    }
     // Restore (or clear) the neck label for this garment.
     setNeckLabel(doc?.neckLabel ?? null)
     neckLabelRef.current = doc?.neckLabel ?? null
@@ -2336,16 +2356,6 @@ export function DesignStudio() {
     [MEMORY_DIMS, rememberChoice, applyRealField, patchSpec],
   )
 
-  const applyProposal = useCallback(
-    (p: Proposal) => {
-      p.actions.forEach(applyAction)
-      toast(`Applied — ${p.title.toLowerCase()}.`, 'accent')
-    },
-    [applyAction, toast],
-  )
-
-  const interpret = useCallback((text: string) => interpretCommand(text, studioCtx), [studioCtx])
-
   const fixCheck = useCallback(
     (id: string) => {
       const map: Record<string, StudioAction | undefined> = {
@@ -2478,6 +2488,12 @@ export function DesignStudio() {
             THREADOS
             <span className="ds-logo__beta">Beta</span>
           </button>
+          {/* Connect App + live readiness — next to the logo (no separate bar below). */}
+          <CommandBar
+            readiness={readiness}
+            onFix={fixCheck}
+            onConnectApp={() => setConnectOpen(true)}
+          />
         </div>
 
         <div className="ds-top__right">
@@ -2626,20 +2642,6 @@ export function DesignStudio() {
           </div>
         </div>
       </header>
-
-      {/* ---- AI command bar (Connect App + live readiness) ---- */}
-      <CommandBar
-        readiness={readiness}
-        interpret={interpret}
-        onApply={applyProposal}
-        onFix={fixCheck}
-        onGenerate={(prompt, m) => {
-          setAiPrompt(prompt)
-          setAiMode(m)
-          setRail('AI')
-        }}
-        onConnectApp={() => setConnectOpen(true)}
-      />
 
       {/* ---- Body ---- */}
       <div

@@ -1518,3 +1518,14 @@ select.ds-save__input {
   margin-top: 8px;
   flex-wrap: wrap;
 }
+
+/* CommandBar (Connect App + readiness) lives inline in the top header, next to the logo. */
+.ds-top__left .cb {
+  padding: 0;
+  margin-left: 10px;
+  border: none;
+  background: transparent;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+.ds-top__left .cb__right { margin-left: 0; }

@@ -74,8 +74,11 @@ export type DesignDoc = {
   collectionId?: string
   specs?: ProductSpecs
   projectInfo?: ProjectInfo
-  /** AI-edited garment image (data URL) that overrides the garment backdrop, when applied. */
+  /** AI-edited garment image (data URL) — legacy inline field, kept for back-compat with old docs.
+   *  New saves offload the image to IndexedDB (too big for localStorage) and store garmentEditKey instead. */
   garmentEdit?: string
+  /** IndexedDB key (the garment id) for the offloaded garment-edit image — see garmentImageStore. */
+  garmentEditKey?: string
   /** AI-generated neck label (data URL) — the garment's woven care/brand tag, shown as a third view. */
   neckLabel?: string
   /** Multiple versions/boards of this design. When present, `layers`/`hidden` above mirror the

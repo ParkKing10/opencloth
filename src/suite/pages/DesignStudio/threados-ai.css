@@ -51,7 +51,8 @@
   border: 1px solid var(--s-border-strong);
   background: var(--s-inset);
 }
-.tai__prompt > svg { color: var(--s-accent); flex: none; }
+.tai__prompt-field { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.tai__prompt-field > svg { color: var(--s-accent); flex: none; }
 .tai__input {
   flex: 1;
   min-width: 0;
@@ -62,6 +63,21 @@
   outline: none;
 }
 .tai__prompt-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+/* Header back button (return to the Graphic/Edit-Garment chooser). */
+.tai__back {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 9px;
+  border: 1px solid var(--s-border);
+  background: transparent;
+  color: var(--s-text-2);
+  cursor: pointer;
+  transition: color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
+}
+.tai__back:hover { color: var(--s-text); border-color: var(--s-border-strong); }
 .tai__hist-wrap { position: relative; }
 .tai__ghost {
   padding: 8px 12px; border-radius: 9px; border: 1px solid var(--s-border);
@@ -124,8 +140,8 @@
 /* Reflow the wide layouts into the narrow panel. */
 .tai--panel .tai-chooser__cards { grid-template-columns: 1fr; }
 .tai--panel .tai__grid { grid-template-columns: 1fr; }
-.tai--panel .tai__prompt { flex-wrap: wrap; }
-.tai--panel .tai__prompt-actions { flex-wrap: wrap; }
+.tai--panel .tai__prompt { flex-direction: column; align-items: stretch; }
+.tai--panel .tai__prompt-actions { flex-wrap: wrap; justify-content: flex-end; }
 
 /* ---- Embedded in the Library rail (no portal, fills the left panel) ---- */
 .tai-embed-root { display: flex; flex-direction: column; height: 100%; min-height: 0; }
@@ -146,9 +162,19 @@
 }
 .tai--embed .tai-chooser__cards { grid-template-columns: 1fr; }
 .tai--embed .tai__grid { grid-template-columns: 1fr; }
-.tai--embed .tai__prompt { flex-wrap: wrap; }
-.tai--embed .tai__prompt-actions { flex-wrap: wrap; }
+.tai--embed .tai__prompt { flex-direction: column; align-items: stretch; }
+.tai--embed .tai__prompt-actions { flex-wrap: wrap; justify-content: flex-end; }
 .tai--embed .tai__head { padding-top: 2px; }
+/* Make the input obviously a text field in the narrow panel. */
+.tai--embed .tai__prompt-field,
+.tai--panel .tai__prompt-field {
+  width: 100%;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--s-border);
+  margin-bottom: 8px;
+}
+.tai--embed .tai__go,
+.tai--panel .tai__go { flex: 1; }
 .tai__drop-card {
   display: flex;
   flex-direction: column;

@@ -135,7 +135,13 @@ export function AIDesigner() {
     if (coins < DESIGN_COST) return toast(`Not enough coins — each design costs ${DESIGN_COST}.`, 'info')
 
     const brief = { prompt: clean, style, type }
-    const references = refUrls.filter((u): u is string => !!u)
+    // Keep each reference's ROLE (Fabric/Silhouette/Palette) so the front prompt can tell the model
+    // exactly what to take loose inspiration from — a reference GUIDES, it is never reproduced.
+    const activeRefs = REF_SLOTS.map((role, i) => ({ role: role as string, url: refUrls[i] })).filter(
+      (r): r is { role: string; url: string } => !!r.url,
+    )
+    const references = activeRefs.map((r) => r.url)
+    const refRoles = activeRefs.map((r) => r.role)
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setGenerating(true)
@@ -147,7 +153,7 @@ export function AIDesigner() {
       try {
         setProgress(`Rendering front ${i + 1}/${count}…`)
         const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(GEN_TIMEOUT_MS)])
-        const front = (await generateImages(frontPrompt(brief), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
+        const front = (await generateImages(frontPrompt(brief, refRoles), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
         if (!front) throw new Error('No front render returned.')
         setProgress(`Rendering back ${i + 1}/${count}…`)
         // Condition the back on the front so it's the SAME garment, from behind.

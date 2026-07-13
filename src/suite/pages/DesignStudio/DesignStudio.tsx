@@ -3085,6 +3085,7 @@ export function DesignStudio() {
           }}
           onNew={() => setLauncherOpen(false)}
           onGetApp={() => toast('The THREADOS mobile app is coming soon — design your clothes on the go.', 'info')}
+          onBack={() => guardedNavigate('/suite')}
         />
       )}
 

@@ -17,8 +17,9 @@ import { GarmentsHome } from './suite/pages/Garments/GarmentsHome'
 import { AIDesigner } from './suite/pages/AIDesigner/AIDesigner'
 import { TechPacks } from './suite/pages/TechPacks/TechPacks'
 import { Manufacturers } from './suite/pages/Manufacturers/Manufacturers'
-import { Production } from './suite/pages/Production/Production'
 import { Collections } from './suite/pages/Collections/Collections'
+import { CollectionDetail } from './suite/pages/Collections/CollectionDetail'
+import { Assets } from './suite/pages/Assets/Assets'
 import { Community } from './suite/pages/Community/Community'
 import { Marketplace } from './suite/pages/Marketplace/Marketplace'
 import { GarmentShop } from './suite/pages/Shop/GarmentShop'
@@ -80,8 +81,9 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="ai" element={<AIDesigner />} />
                 <Route path="tech-packs" element={<TechPacks />} />
                 <Route path="manufacturers" element={<Manufacturers />} />
-                <Route path="production" element={<Production />} />
                 <Route path="collections" element={<Collections />} />
+                <Route path="collections/:id" element={<CollectionDetail />} />
+                <Route path="assets" element={<Assets />} />
                 <Route path="community" element={<Community />} />
                 <Route path="marketplace" element={<Marketplace />} />
                 <Route path="analytics" element={<Analytics />} />

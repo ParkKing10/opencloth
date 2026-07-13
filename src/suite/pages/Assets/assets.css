@@ -1,0 +1,6 @@
+/* Assets page — give the AssetLibrary (height:100% flex panel) a bounded height so it scrolls
+   internally instead of collapsing to zero. */
+.assets-page {
+  height: calc(100vh - 240px);
+  min-height: 460px;
+}

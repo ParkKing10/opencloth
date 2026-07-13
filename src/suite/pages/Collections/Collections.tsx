@@ -264,10 +264,10 @@ export function Collections() {
     setOpenMenuId((current) => (current === id ? null : id))
   }
 
-  /* --- Real: open a collection (Design Studio is the real destination) ------ */
-  const openCollection = () => {
+  /* --- Real: open a collection → its detail view (the designs saved inside it) --- */
+  const openCollection = (id: string) => {
     setOpenMenuId(null)
-    navigate('/suite/design')
+    navigate(`/suite/collections/${id}`)
   }
 
   /* --- Real: create a collection → persist to the store -------------------- */
@@ -382,7 +382,7 @@ export function Collections() {
             key={card.collection.id}
             card={card}
             menuOpen={openMenuId === card.collection.id}
-            onOpen={openCollection}
+            onOpen={() => openCollection(card.collection.id)}
             onToggleMenu={() => toggleMenu(card.collection.id)}
             onExport={() => exportCollection(card)}
             onDelete={() => deleteCollection(card)}

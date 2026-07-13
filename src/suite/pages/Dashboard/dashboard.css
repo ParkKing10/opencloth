@@ -245,6 +245,8 @@
   gap: 16px;
 }
 .design {
+  display: flex;
+  flex-direction: column;
   border-radius: var(--s-r-lg);
   background: var(--s-panel);
   border: 1px solid var(--s-line);
@@ -283,14 +285,20 @@
   display: block;
 }
 .design__meta {
+  position: relative;
+  z-index: 1;
   padding: 12px 13px 13px;
   display: flex;
   flex-direction: column;
   gap: 3px;
+  /* A solid box below the thumbnail — the title is never overlaid on the image (stays readable). */
+  background: var(--s-panel);
+  border-top: 1px solid var(--s-line);
 }
 .design__name {
   font-size: 13px;
   font-weight: 600;
+  color: var(--s-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

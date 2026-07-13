@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { IcoSparkle, IcoPlus, IcoCoins, IcoBolt, IcoStar, IcoArrowRight } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
@@ -77,6 +78,8 @@ export function AIDesigner() {
   const [modelBusy, setModelBusy] = useState<Set<string>>(() => new Set())
   const [history, setHistory] = useState<string[]>(loadHistory)
   const [live] = useState(() => hasImageAi())
+  // Lightbox: an enlarged design image (front, back or an on-model shot) with actions.
+  const [lightbox, setLightbox] = useState<{ design: AIDesign; url: string } | null>(null)
   const refInputs = useRef<Array<HTMLInputElement | null>>([])
   const abortRef = useRef<AbortController | null>(null)
 
@@ -96,6 +99,14 @@ export function AIDesigner() {
 
   // Abort any in-flight generation on unmount so a late result never sets state on a dead component.
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  // Close the lightbox on Escape.
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   const totalCost = count * DESIGN_COST
   const canGenerate = live && prompt.trim().length > 0 && !generating && coins >= DESIGN_COST
@@ -234,18 +245,6 @@ export function AIDesigner() {
     navigate(`/suite/design?garment=${summary.id}`)
   }
 
-  function newSession() {
-    abortRef.current?.abort()
-    setPrompt(DEFAULT_PROMPT)
-    setStyle('Vintage Wash')
-    setType('Hoodie')
-    setCount(2)
-    setRefUrls([null, null, null])
-    setGenerating(false)
-    setProgress('')
-    toast('Started a fresh session.', 'info')
-  }
-
   return (
     <div className="aid-root">
       {/* Header */}
@@ -266,9 +265,6 @@ export function AIDesigner() {
             <b>{coins}</b>
             <small>coins</small>
           </span>
-          <button className="s-btn s-btn--ghost" type="button" onClick={newSession}>
-            <IcoPlus width="15" height="15" /> New session
-          </button>
         </div>
       </header>
 
@@ -405,6 +401,7 @@ export function AIDesigner() {
                 key={d.id}
                 design={d}
                 modelBusy={modelBusy.has(d.id)}
+                onOpen={(url) => setLightbox({ design: d, url })}
                 onModel={() => void generateModel(d)}
                 onFav={() => void toggleFav(d)}
                 onStudio={() => sendToStudio(d)}
@@ -440,6 +437,27 @@ export function AIDesigner() {
           )}
         </section>
       </div>
+
+      {lightbox &&
+        createPortal(
+          <div className="aid-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
+            <div className="aid-lightbox__panel" onClick={(e) => e.stopPropagation()}>
+              <button type="button" className="aid-lightbox__x" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+              <img className="aid-lightbox__img" src={lightbox.url} alt={lightbox.design.name} />
+              <div className="aid-lightbox__bar">
+                <span className="aid-lightbox__name" title={lightbox.design.name}>{lightbox.design.name}</span>
+                <div className="aid-lightbox__actions">
+                  <button type="button" className="s-btn" onClick={() => void download(lightbox.url, lightbox.design.name)}>Download</button>
+                  <button type="button" className="s-btn" onClick={() => { sendToStudio(lightbox.design); setLightbox(null) }}>Open in Design Studio</button>
+                  <button type="button" className="s-btn s-btn--accent" disabled={modelBusy.has(lightbox.design.id)} onClick={() => void generateModel(lightbox.design)}>
+                    {modelBusy.has(lightbox.design.id) ? 'Shooting…' : 'On a Model'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }
@@ -448,20 +466,21 @@ export function AIDesigner() {
 function AIDesignCard(props: {
   design: AIDesign
   modelBusy: boolean
+  onOpen: (url: string) => void
   onModel: () => void
   onFav: () => void
   onStudio: () => void
   onDownload: (url: string, name: string) => void
   onDelete: () => void
 }) {
-  const { design: d, modelBusy, onModel, onFav, onStudio, onDownload, onDelete } = props
+  const { design: d, modelBusy, onOpen, onModel, onFav, onStudio, onDownload, onDelete } = props
   const [view, setView] = useState<'front' | 'back'>('front')
   const current = view === 'front' ? d.frontUrl : d.backUrl
 
   return (
     <article className="aid-card">
       <div className="aid-card__canvas">
-        <img className="aid-card__img" src={current} alt={`${d.name} — ${view}`} draggable={false} />
+        <img className="aid-card__img" src={current} alt={`${d.name} — ${view}`} draggable={false} style={{ cursor: 'zoom-in' }} onClick={() => onOpen(current)} />
         <button type="button" className={`aid-card__fav${d.favorite ? ' is-fav' : ''}`} onClick={onFav} aria-label={d.favorite ? 'Unfavorite' : 'Favorite'}>
           <IcoStar width="15" height="15" />
         </button>
@@ -492,7 +511,7 @@ function AIDesignCard(props: {
       {d.modelUrls.length > 0 && (
         <div className="aid-models">
           {d.modelUrls.map((m, i) => (
-            <button key={i} type="button" className="aid-model" onClick={() => onDownload(m, `${d.name}-model-${i + 1}`)} title="Download on-model photo">
+            <button key={i} type="button" className="aid-model" onClick={() => onOpen(m)} title="Enlarge on-model photo">
               <img src={m} alt={`${d.name} on a model ${i + 1}`} draggable={false} />
             </button>
           ))}

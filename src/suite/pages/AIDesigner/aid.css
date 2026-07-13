@@ -942,3 +942,64 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* Lightbox — enlarged design image + actions (Download / Open in Design Studio / On a Model). */
+.aid-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.aid-lightbox__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: min(560px, 92vw);
+  width: 100%;
+}
+.aid-lightbox__x {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+.aid-lightbox__img {
+  width: 100%;
+  max-height: 74vh;
+  object-fit: contain;
+  border-radius: 14px;
+  background: #f4f4f2;
+}
+.aid-lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.aid-lightbox__name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--s-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 38%;
+}
+.aid-lightbox__actions { display: flex; gap: 8px; flex-wrap: wrap; }

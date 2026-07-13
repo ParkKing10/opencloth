@@ -9,7 +9,13 @@ import { relativeTime } from '../../data/utils'
 import { loadDesignThumb } from '../../data/designThumbs'
 import teeImg from '../../../assets/cards/tee.png'
 import hoodieImg from '../../../assets/cards/hoodie.png'
+import avatar1 from '../../../assets/avatars/1.jpg'
+import avatar2 from '../../../assets/avatars/2.jpg'
+import avatar3 from '../../../assets/avatars/3.jpg'
+import avatar4 from '../../../assets/avatars/4.jpg'
 import './dashboard.css'
+
+const HERO_AVATARS = [avatar1, avatar2, avatar3, avatar4]
 
 type ArtKind = 'tee' | 'hoodie' | 'techpack' | 'globe' | 'shop'
 type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
@@ -141,10 +147,9 @@ export function Dashboard() {
               </div>
               <div className="dash-hero__social">
                 <div className="dash-hero__avatars" aria-hidden="true">
-                  <span className="dash-hero__avatar dash-hero__avatar--1" />
-                  <span className="dash-hero__avatar dash-hero__avatar--2" />
-                  <span className="dash-hero__avatar dash-hero__avatar--3" />
-                  <span className="dash-hero__avatar dash-hero__avatar--4" />
+                  {HERO_AVATARS.map((src, i) => (
+                    <img key={i} className="dash-hero__avatar" src={src} alt="" loading="lazy" />
+                  ))}
                 </div>
                 <p className="dash-hero__social-text">
                   Join <b>12,400+</b> designers<br />building the future of fashion

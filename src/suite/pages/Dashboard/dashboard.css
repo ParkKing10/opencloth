@@ -149,18 +149,15 @@
 }
 .dash-hero__avatars { display: inline-flex; }
 .dash-hero__avatar {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 2px solid #0e0e12;
-  margin-left: -9px;
-  background-size: cover;
+  margin-left: -10px;
+  object-fit: cover;
+  background: var(--s-inset, #1c1c22);
 }
 .dash-hero__avatar:first-child { margin-left: 0; }
-.dash-hero__avatar--1 { background: linear-gradient(135deg, #c9f24f, #6fae2e); }
-.dash-hero__avatar--2 { background: linear-gradient(135deg, #6b4de6, #a78bfa); }
-.dash-hero__avatar--3 { background: linear-gradient(135deg, #f5a44d, #e5674d); }
-.dash-hero__avatar--4 { background: linear-gradient(135deg, #4da2ff, #5ad0d0); }
 .dash-hero__social-text {
   font-size: 12.5px;
   line-height: 1.4;

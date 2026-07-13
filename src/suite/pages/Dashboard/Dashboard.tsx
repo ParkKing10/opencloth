@@ -35,6 +35,14 @@ const FEATURES: Feature[] = [
     primary: true,
   },
   {
+    title: 'Garments Studio',
+    desc: 'Build fully editable garments with real region layers.',
+    cta: 'Open Studio',
+    to: '/suite/garments',
+    tint: 'slate',
+    art: 'techpack',
+  },
+  {
     title: 'AI Designer',
     desc: 'Generate unique designs with the power of AI.',
     cta: 'Generate',

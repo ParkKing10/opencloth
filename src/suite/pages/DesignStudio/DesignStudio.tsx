@@ -2396,7 +2396,7 @@ export function DesignStudio() {
         <div className="ds-top__left">
           <button className="ds-logo" type="button" onClick={() => guardedNavigate('/suite')}>
             <span className="ds-logo__mark">
-              <svg viewBox="0 0 32 32" width="17" height="17">
+              <svg viewBox="0 0 32 32" width="24" height="24">
                 <path d="M16 4 L28 11 L16 18 L4 11 Z M4 15 L16 22 L28 15 L28 18 L16 25 L4 18 Z" fill="currentColor" />
               </svg>
             </span>

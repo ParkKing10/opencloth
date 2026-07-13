@@ -54,7 +54,7 @@ export function Sidebar() {
     <aside className="sb">
       <div className="sb__brand">
         <span className="sb__mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" width="20" height="20">
+          <svg viewBox="0 0 32 32" width="30" height="30">
             <path d="M16 4 L28 11 L16 18 L4 11 Z M4 15 L16 22 L28 15 L28 18 L16 25 L4 18 Z" fill="currentColor" />
           </svg>
         </span>

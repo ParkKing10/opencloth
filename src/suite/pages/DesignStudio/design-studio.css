@@ -36,11 +36,7 @@
 .ds-logo__mark {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  color: var(--s-accent-ink);
-  background: linear-gradient(150deg, var(--s-accent-2), var(--s-accent));
+  color: var(--s-accent);
 }
 .ds-logo__beta {
   font-size: 10px;

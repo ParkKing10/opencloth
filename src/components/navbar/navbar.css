@@ -25,11 +25,7 @@
 .brand__mark {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  color: var(--accent);
 }
 
 .brand__text {
@@ -43,6 +39,7 @@
   font-size: 1.2rem;
   letter-spacing: 0.02em;
   line-height: 1;
+  color: var(--accent);
 }
 
 .brand__tag {

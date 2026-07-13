@@ -21,6 +21,7 @@ import './admin.css'
 const NAV = [
   { to: '/admin', label: 'Overview', icon: IcoDashboard, end: true },
   { to: '/admin/garments', label: 'Garments', icon: IcoGrid },
+  { to: '/admin/accessories', label: 'Accessories', icon: IcoDesign },
   { to: '/admin/users', label: 'Users', icon: IcoCommunity },
   { to: '/admin/designs', label: 'Designs', icon: IcoDesign },
   { to: '/admin/manufacturers', label: 'Manufacturers', icon: IcoFactory },

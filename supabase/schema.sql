@@ -402,3 +402,32 @@ create policy garment_objects_admin on storage.objects
 -- Make yourself an admin AFTER you have signed up once:
 --   update public.profiles set role = 'admin' where email = 'you@brand.com';
 -- ============================================================================
+
+-- ============================================================================
+-- Accessory Library — the shared, admin-curated accessories every user can drop
+-- onto a garment for FREE (hats, jewelry, bags, patches…). Images are stored
+-- inline as data URLs (accessories are small graphics), so no bucket is needed.
+-- Run this block once to make the studio's Accessories rail cross-user; until
+-- then the app falls back to a per-browser localStorage copy.
+-- ============================================================================
+create table if not exists public.accessories (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null default 'Accessory',
+  category   text not null default 'other',
+  image      text not null,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists accessories_category_idx on public.accessories(category);
+
+alter table public.accessories enable row level security;
+
+grant select, insert, update, delete on public.accessories to authenticated;
+grant select on public.accessories to anon;
+
+-- Everyone reads the shared library (free access); only admins curate it.
+drop policy if exists accessories_read on public.accessories;
+create policy accessories_read on public.accessories for select using (true);
+drop policy if exists accessories_admin on public.accessories;
+create policy accessories_admin on public.accessories
+  for all using (public.is_admin()) with check (public.is_admin());

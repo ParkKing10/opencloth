@@ -76,6 +76,8 @@ import { COLOR_SWATCHES } from '../../garment-model/garmentColors'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { ProductSpecsEditor } from './ProductSpecsEditor'
 import { GraphicsPanel } from './GraphicsPanel'
+import { AccessoriesPanel, ACCESSORY_DRAG_MIME } from './AccessoriesPanel'
+import type { Accessory } from '../../accessories/accessoryClient'
 import { ElementsPanel } from './ElementsPanel'
 import { GarmentSwitchDialog } from './GarmentSwitchDialog'
 import { InspirationPanel } from './InspirationPanel'
@@ -95,7 +97,7 @@ import './design-studio.css'
 const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => ({ default: m.ExportMenu })))
 
 /** The Library — six human categories, every one opens a real panel. */
-const RAIL = ['AI', 'Layers', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
+const RAIL = ['AI', 'Accessories', 'Layers', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
 
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
@@ -1666,6 +1668,20 @@ export function DesignStudio() {
     [commit, toast],
   )
 
+  // Place a shared-library accessory: its image is already a self-contained data URL, so it drops
+  // straight in as a centered, movable image layer (free for every user).
+  const placeAccessory = useCallback(
+    (acc: Pick<Accessory, 'name' | 'image'>) => {
+      if (!acc.image) return
+      const base = makeImageLayer(acc.name || 'Accessory', acc.image)
+      const layer: Layer = { ...base, obj: { ...base.obj!, x: 0.5, y: 0.5, width: 0.4 } }
+      commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
+      setSelectedIds([layer.id])
+      toast(`“${layer.name}” placed on the garment.`, 'success')
+    },
+    [commit, toast],
+  )
+
   function doSelectGarment(g: Garment) {
     setActiveName(g.name)
     toast(`Loaded ${g.name} blank onto the canvas.`, 'success')
@@ -2644,6 +2660,7 @@ export function DesignStudio() {
               onApplyGarment={applyGarmentToPage}
             />
           </div>
+          {rail === 'Accessories' && <AccessoriesPanel onPlace={placeAccessory} />}
           {rail === 'Assets' && <AssetLibrary userId={user?.id} onPlace={(id) => void placeAsset(id)} />}
           {rail === 'Brand Kit' && <BrandKitPanel onApplyDefaults={applyBrandKit} />}
           {rail === 'Inspiration' && (
@@ -2793,16 +2810,24 @@ export function DesignStudio() {
           style={{ display: 'contents' }}
           onDragOver={(e) => {
             const t = e.dataTransfer.types
-            if (t.includes('application/x-threados-asset') || t.includes('application/x-threados-graphic') || t.includes(ASSET_DRAG_TYPE)) e.preventDefault()
+            if (
+              t.includes('application/x-threados-asset') ||
+              t.includes('application/x-threados-graphic') ||
+              t.includes(ACCESSORY_DRAG_MIME) ||
+              t.includes(ASSET_DRAG_TYPE)
+            )
+              e.preventDefault()
           }}
           onDrop={(e) => {
             const assetId = e.dataTransfer.getData(ASSET_DRAG_TYPE)
             const asset = e.dataTransfer.getData('application/x-threados-asset')
             const graphic = e.dataTransfer.getData('application/x-threados-graphic')
-            if (!assetId && !asset && !graphic) return
+            const accessory = e.dataTransfer.getData(ACCESSORY_DRAG_MIME)
+            if (!assetId && !asset && !graphic && !accessory) return
             e.preventDefault()
             try {
               if (assetId) void placeAsset(assetId)
+              else if (accessory) placeAccessory(JSON.parse(accessory) as { name: string; image: string })
               else if (asset) addAssetLayer(JSON.parse(asset) as { name: string; folder: string; url?: string })
               else addGraphicObject(graphic)
             } catch {
@@ -3013,6 +3038,15 @@ function RailIcon({ name }: { name: string }) {
   switch (name) {
     case 'AI':
       return <IcoSparkle {...common} />
+    case 'Accessories':
+      // A cap — the friendly stand-in for the accessories library.
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M4 15c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+          <path d="M12 7v8" />
+          <path d="M20 15c1.6 0 2.6.7 2.6 1.5S21.6 18 20 18H4c-.8 0-1.4-.5-1.4-1s.6-1 1.4-1Z" />
+        </svg>
+      )
     case 'Layers':
       return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">

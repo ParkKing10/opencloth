@@ -31,6 +31,7 @@ import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
 import { AdminOverview } from './suite/admin/pages/AdminOverview'
 import { AdminGarments } from './suite/admin/pages/AdminGarments'
+import { AdminAccessories } from './suite/admin/pages/AdminAccessories'
 import { AdminUsers } from './suite/admin/pages/AdminUsers'
 import { AdminDesigns } from './suite/admin/pages/AdminDesigns'
 import { AdminManufacturers } from './suite/admin/pages/AdminManufacturers'
@@ -108,6 +109,7 @@ createRoot(document.getElementById('root')!).render(
               >
                 <Route index element={<AdminOverview />} />
                 <Route path="garments" element={<AdminGarments />} />
+                <Route path="accessories" element={<AdminAccessories />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="designs" element={<AdminDesigns />} />
                 <Route path="manufacturers" element={<AdminManufacturers />} />

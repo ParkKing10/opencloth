@@ -198,6 +198,57 @@
   color: var(--s-text-3);
 }
 
+/* ---------- Accessories (category chips + image cards) ---------- */
+.lib-chips {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 10px;
+}
+.lib-chip {
+  padding: 5px 11px;
+  border-radius: var(--s-r-pill);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text-3);
+  font-size: 11px;
+  font-weight: 560;
+  cursor: pointer;
+  transition: border-color var(--s-dur) var(--s-ease), color var(--s-dur) var(--s-ease),
+    background var(--s-dur) var(--s-ease);
+}
+.lib-chip:hover {
+  color: var(--s-text);
+  border-color: var(--s-line-2);
+}
+.lib-chip.is-active {
+  background: var(--s-accent-soft);
+  border-color: var(--s-accent-line);
+  color: var(--s-text);
+}
+.lib-acc-thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--s-r-sm);
+  background: var(--s-panel-2);
+  overflow: hidden;
+}
+.lib-acc-thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.lib-empty {
+  padding: 28px 8px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--s-text-3);
+}
+
 /* ---------- Footer hint ---------- */
 .lib-foot {
   flex-shrink: 0;

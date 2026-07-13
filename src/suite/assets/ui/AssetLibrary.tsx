@@ -8,11 +8,13 @@ import {
   type DragEvent,
   type SVGProps,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { useAssets } from '../useAssets'
 import { filterAssets, recentAssets, FILTER_LABELS, type AssetFilter, type AssetSort } from '../assetFilter'
 import { touchAsset, type Asset } from '../assetStore'
 import { ACCEPT_ATTR } from '../assetThumb'
 import { useToast } from '../../components/ui/Toast'
+import { downloadBlob } from '../../lib/download'
 import { IcoPlus, IcoUpload } from '../../components/ui/Icons'
 import './asset-library.css'
 
@@ -62,12 +64,26 @@ function Thumb({ asset }: { asset: Asset }) {
   return <img src={url} alt={asset.filename} loading="lazy" draggable={false} />
 }
 
+/** Full-resolution image for the lightbox — uses the asset's real blob (not the thumb). */
+function LightboxImg({ asset }: { asset: Asset }) {
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    const objUrl = URL.createObjectURL(asset.blob)
+    setUrl(objUrl)
+    return () => URL.revokeObjectURL(objUrl)
+  }, [asset.blob])
+  return <img className="al-lb__img" src={url || undefined} alt={asset.filename} draggable={false} />
+}
+
 type Props = {
   userId: string | undefined
   onPlace: (assetId: string) => void
+  /** Full-page mode (the Assets page): clicking a graphic opens a large lightbox with actions,
+   *  and the grid uses more columns. In the narrow Studio rail this stays off. */
+  page?: boolean
 }
 
-export function AssetLibrary({ userId, onPlace }: Props) {
+export function AssetLibrary({ userId, onPlace, page = false }: Props) {
   const toast = useToast()
   const { assets, loading, busy, upload, rename, duplicate, remove, toggleFavorite, refresh } = useAssets(userId)
 
@@ -78,8 +94,17 @@ export function AssetLibrary({ userId, onPlace }: Props) {
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
+  const [lightbox, setLightbox] = useState<Asset | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dragDepth = useRef(0)
+
+  // Close the lightbox on Escape.
+  useEffect(() => {
+    if (!lightbox) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [lightbox])
 
   const visible = useMemo(() => filterAssets(assets, { query, filter, sort }), [assets, query, filter, sort])
   const recent = useMemo(() => recentAssets(assets), [assets])
@@ -298,12 +323,17 @@ export function AssetLibrary({ userId, onPlace }: Props) {
                 {visible.map((asset) => (
                   <article
                     key={asset.id}
-                    className="al-card"
+                    className={`al-card${page ? ' al-card--page' : ''}`}
                     draggable={renamingId !== asset.id}
                     onDragStart={(e) => handleDragStart(e, asset)}
-                    onDoubleClick={() => void handlePlace(asset.id)}
+                    onDoubleClick={page ? undefined : () => void handlePlace(asset.id)}
                   >
-                    <div className="al-card__thumb">
+                    <div
+                      className="al-card__thumb"
+                      onClick={page ? () => setLightbox(asset) : undefined}
+                      role={page ? 'button' : undefined}
+                      title={page ? `Open “${asset.filename}”` : undefined}
+                    >
                       <Thumb asset={asset} />
                       <button
                         type="button"
@@ -311,16 +341,18 @@ export function AssetLibrary({ userId, onPlace }: Props) {
                         title={asset.favorite ? 'Remove from favorites' : 'Add to favorites'}
                         aria-label={asset.favorite ? 'Remove from favorites' : 'Add to favorites'}
                         aria-pressed={asset.favorite}
-                        onClick={() => void toggleFavorite(asset.id)}
+                        onClick={(e) => { e.stopPropagation(); void toggleFavorite(asset.id) }}
                       >
                         <IcoStar fill={asset.favorite ? 'currentColor' : 'none'} stroke="currentColor" />
                       </button>
-                      <div className="al-card__hover">
-                        <button type="button" className="al-add" title="Place in center" aria-label={`Place ${asset.filename}`} onClick={() => void handlePlace(asset.id)}>
-                          <IcoPlus width={13} height={13} />
-                          Place
-                        </button>
-                      </div>
+                      {!page && (
+                        <div className="al-card__hover">
+                          <button type="button" className="al-add" title="Place in center" aria-label={`Place ${asset.filename}`} onClick={(e) => { e.stopPropagation(); void handlePlace(asset.id) }}>
+                            <IcoPlus width={13} height={13} />
+                            Place
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="al-card__meta">
@@ -404,6 +436,32 @@ export function AssetLibrary({ userId, onPlace }: Props) {
           </span>
         </div>
       )}
+
+      {lightbox &&
+        createPortal(
+          <div className="suite">
+            <div className="al-lb" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
+              <div className="al-lb__panel" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="al-lb__x" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+                <div className="al-lb__stage al-checker">
+                  <LightboxImg asset={lightbox} />
+                </div>
+                <div className="al-lb__bar">
+                  <div className="al-lb__info">
+                    <span className="al-lb__name" title={lightbox.filename}>{lightbox.filename}</span>
+                    <span className="al-lb__sub">{lightbox.width}×{lightbox.height} · {fileTypeLabel(lightbox)} · {fmtDate(lightbox.createdAt)}</span>
+                  </div>
+                  <div className="al-lb__actions">
+                    <button type="button" className="s-btn" onClick={() => downloadBlob(lightbox.blob, lightbox.filename)}>Download</button>
+                    <button type="button" className="s-btn s-btn--accent" onClick={() => { void handlePlace(lightbox.id); setLightbox(null) }}>Use in design</button>
+                    <button type="button" className="s-btn" onClick={() => { const a = lightbox; setLightbox(null); void remove(a.id); toast('Removed from library. Projects that use it keep their own copy.') }}>Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   )
 }

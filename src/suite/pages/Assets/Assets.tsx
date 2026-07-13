@@ -20,7 +20,7 @@ export function Assets() {
       wide
     >
       <div className="assets-page">
-        <AssetLibrary userId={user?.id} onPlace={() => navigate('/suite/design')} />
+        <AssetLibrary userId={user?.id} onPlace={() => navigate('/suite/design')} page />
       </div>
     </SuitePage>
   )

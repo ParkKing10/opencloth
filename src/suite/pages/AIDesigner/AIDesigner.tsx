@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { IcoSparkle, IcoPlus, IcoCoins, IcoBolt, IcoStar, IcoArrowRight } from '../../components/ui/Icons'
+import { IcoSparkle, IcoPlus, IcoCoins, IcoBolt, IcoStar } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { useAuth } from '../../auth/auth'
 import { useStore } from '../../data/store'
@@ -406,12 +406,8 @@ export function AIDesigner() {
               <AIDesignCard
                 key={d.id}
                 design={d}
-                modelBusy={modelBusy.has(d.id)}
                 onOpen={(url) => setLightbox({ design: d, url })}
-                onModel={() => void generateModel(d)}
                 onFav={() => void toggleFav(d)}
-                onStudio={() => sendToStudio(d)}
-                onDownload={(url, name) => void download(url, name)}
                 onDelete={() => void removeDesign(d)}
               />
             ))}
@@ -458,6 +454,7 @@ export function AIDesigner() {
                   <button type="button" className="s-btn s-btn--accent" disabled={modelBusy.has(lightbox.design.id)} onClick={() => void generateModel(lightbox.design)}>
                     {modelBusy.has(lightbox.design.id) ? 'Shooting…' : 'On a Model'}
                   </button>
+                  <button type="button" className="s-btn" onClick={() => { const dsg = lightbox.design; setLightbox(null); void removeDesign(dsg) }}>Delete</button>
                 </div>
               </div>
             </div>
@@ -471,15 +468,11 @@ export function AIDesigner() {
 /** One design in the library: front/back toggle, on-model strip, and per-card actions. */
 function AIDesignCard(props: {
   design: AIDesign
-  modelBusy: boolean
   onOpen: (url: string) => void
-  onModel: () => void
   onFav: () => void
-  onStudio: () => void
-  onDownload: (url: string, name: string) => void
   onDelete: () => void
 }) {
-  const { design: d, modelBusy, onOpen, onModel, onFav, onStudio, onDownload, onDelete } = props
+  const { design: d, onOpen, onFav, onDelete } = props
   const [view, setView] = useState<'front' | 'back'>('front')
   const current = view === 'front' ? d.frontUrl : d.backUrl
 
@@ -494,19 +487,9 @@ function AIDesignCard(props: {
           <button type="button" className={view === 'front' ? 'is-active' : ''} onClick={() => setView('front')}>Front</button>
           <button type="button" className={view === 'back' ? 'is-active' : ''} onClick={() => setView('back')}>Back</button>
         </div>
+        {/* Only Delete lives on the card — every other action (download, on-a-model, open in studio)
+            is in the lightbox that opens when you click the image. */}
         <div className="aid-toolbar">
-          <button className="aid-tool aid-tool--primary" type="button" onClick={onModel} disabled={modelBusy}>
-            <IcoSparkle width="14" height="14" /> {modelBusy ? 'Shooting…' : 'On a model'}
-            <span className="aid-tool__tip">See it on a person · {MODEL_COST} coins</span>
-          </button>
-          <button className="aid-tool" type="button" aria-label="Send to Design Studio" onClick={onStudio}>
-            <IcoArrowRight width="16" height="16" />
-            <span className="aid-tool__tip">Send to Design Studio</span>
-          </button>
-          <button className="aid-tool" type="button" aria-label="Download" onClick={() => onDownload(current, `${d.name}-${view}`)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v12" /><path d="M8 11l4 4 4-4" /><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" /></svg>
-            <span className="aid-tool__tip">Download {view}</span>
-          </button>
           <button className="aid-tool" type="button" aria-label="Delete" onClick={onDelete}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" /></svg>
             <span className="aid-tool__tip">Delete</span>

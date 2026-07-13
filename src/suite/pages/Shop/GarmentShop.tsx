@@ -3,7 +3,8 @@
  * user's real coin balance, turns the file-based garment into a fully-editable garment in My Garments,
  * and opens it in the Design Studio. Owned garments show "Open" so nothing is ever bought twice.
  */
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useAuth } from '../../auth/auth'
@@ -27,6 +28,15 @@ export function GarmentShop() {
   const [query, setQuery] = useState('')
   const [owned, setOwned] = useState<Record<string, string>>(() => (user ? readOwned(user.id) : {}))
   const [buyingId, setBuyingId] = useState<string | null>(null)
+  // Zoom preview — click a card to see the garment large before buying.
+  const [preview, setPreview] = useState<Garment | null>(null)
+
+  useEffect(() => {
+    if (!preview) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPreview(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [preview])
 
   // Category chips built from what's actually in the shop (id + label), plus an "All".
   const cats = useMemo(() => {
@@ -109,10 +119,10 @@ export function GarmentShop() {
           const busy = buyingId === item.id
           return (
             <article key={item.id} className="shop-card">
-              <div className="shop-card__thumb">
+              <button type="button" className="shop-card__thumb" onClick={() => setPreview(item)} title={`Preview “${item.name}”`} aria-label={`Preview ${item.name}`}>
                 {item.thumbUrl ? <img src={item.thumbUrl} alt={item.name} loading="lazy" /> : <div className="shop-card__noimg" aria-hidden="true">🧥</div>}
                 {isOwned && <span className="shop-owned-badge">Owned</span>}
-              </div>
+              </button>
               <div className="shop-card__body">
                 <div className="shop-card__row">
                   <h3 className="shop-card__name" title={item.name}>{item.name}</h3>
@@ -149,6 +159,35 @@ export function GarmentShop() {
         )}
         {loading && <p className="shop-empty">Loading the shop…</p>}
       </div>
+
+      {preview &&
+        createPortal(
+          <div className="suite">
+            <div className="shop-lb" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
+              <div className="shop-lb__panel" onClick={(e) => e.stopPropagation()}>
+                <button type="button" className="shop-lb__x" aria-label="Close" onClick={() => setPreview(null)}>×</button>
+                <div className="shop-lb__stage">
+                  {preview.thumbUrl ? <img src={preview.thumbUrl} alt={preview.name} /> : <div className="shop-lb__noimg" aria-hidden="true">🧥</div>}
+                </div>
+                <div className="shop-lb__bar">
+                  <div className="shop-lb__info">
+                    <span className="shop-lb__name" title={preview.name}>{preview.name}</span>
+                    <span className="shop-lb__cat">{categoryLabel(preview.category)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="s-btn s-btn--accent shop-lb__buy"
+                    disabled={buyingId === preview.id || (!owned[preview.id] && preview.price > 0 && coins < preview.price)}
+                    onClick={() => { const it = preview; setPreview(null); void buy(it) }}
+                  >
+                    {owned[preview.id] ? 'Open in editor' : preview.price > 0 ? <><IcoCoins width="14" height="14" /> Buy · {preview.price}</> : 'Get free'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </SuitePage>
   )
 }

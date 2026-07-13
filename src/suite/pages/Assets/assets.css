@@ -1,6 +1,17 @@
-/* Assets page — give the AssetLibrary (height:100% flex panel) a bounded height so it scrolls
-   internally instead of collapsing to zero. */
+/* Assets page — the app shell doesn't window-scroll, so the library must fill the content area and
+   scroll INTERNALLY. A fixed calc(100vh - …) height left a black gap below the grid; instead the page
+   flex-fills the available height exactly. `:has()` scopes the flex fill to the Assets page so other
+   pages are untouched. `.al-panel` stays height:100% + internal scroll (its default). */
+.suite__content:has(.assets-page) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.page:has(.assets-page) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
 .assets-page {
-  height: calc(100vh - 240px);
-  min-height: 460px;
+  flex: 1 1 auto;
+  min-height: 0;
 }

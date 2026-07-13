@@ -4,6 +4,7 @@ import { GARMENT_GLYPHS } from '../../components/ui/Garments'
 import { TechPackFlats, GlobePins, ShopArt } from './FeatureArt'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
+import { useToast } from '../../components/ui/Toast'
 import { relativeTime } from '../../data/utils'
 import { loadDesignThumb } from '../../data/designThumbs'
 import teeImg from '../../../assets/cards/tee.png'
@@ -69,6 +70,18 @@ const FEATURES: Feature[] = [
   },
 ]
 
+// Decorative hero showcase content (the floating Layers/Colors panel + mini toolbar).
+const HERO_LAYERS = ['Front Design', 'Back Design', 'Left Sleeve', 'Right Sleeve', 'Hood', 'Pocket']
+const HERO_COLORS = ['#c9f24f', '#d7d7dc', '#8b8b93', '#2b2b52', '#6b4de6']
+const HERO_TOOLS = [
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3l7 17 2.5-6.5L20 11z" /></svg>,
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M2 12h20M12 2l-3 3m3-3l3 3M12 22l-3-3m3 3l3-3M2 12l3-3m-3 3l3 3M22 12l-3-3m3 3l-3 3" /></svg>,
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-1.5M2 2l7.5 7.5M2 2l3 8 3-3z" /></svg>,
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7V5h16v2M9 5v14M7 19h4" /></svg>,
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>,
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>,
+]
+
 function FeatureArt({ art }: { art: ArtKind }) {
   switch (art) {
     case 'tee':
@@ -90,8 +103,7 @@ export function Dashboard() {
   const navigate = useNavigate()
   const { data } = useStore()
   const { user } = useAuth()
-
-  const firstName = user?.name.split(' ')[0] ?? 'there'
+  const toast = useToast()
 
   // Real designs, scoped to the current user. When the user owns none, fall
   // back to showing all designs so the dashboard never looks empty for a fresh
@@ -104,12 +116,67 @@ export function Dashboard() {
     <div className="dash">
       <div className="dash-grid">
         <div className="dash-main">
-          {/* Hero */}
+          {/* Hero — Design Studio showcase */}
           <header className="dash-hero">
-            <h1 className="dash-hero__title">
-              Welcome back, {firstName} <span className="dash-hero__wave">👋</span>
-            </h1>
-            <p className="dash-hero__sub">Let's bring your next collection to life.</p>
+            <div className="dash-hero__glow" aria-hidden="true" />
+            <div className="dash-hero__grid" aria-hidden="true" />
+            <div className="dash-hero__left">
+              <span className="dash-hero__kicker">
+                <span className="dash-hero__kicker-mark" aria-hidden="true" />
+                Design Studio
+              </span>
+              <h1 className="dash-hero__headline">
+                Design without<br />
+                <span className="dash-hero__headline-accent">limits.</span>
+              </h1>
+              <p className="dash-hero__tagline">Create. Customize. Launch.</p>
+              <div className="dash-hero__cta">
+                <button type="button" className="dash-hero__start" onClick={() => navigate('/suite/design')}>
+                  Start Designing <IcoArrowRight width="16" height="16" />
+                </button>
+                <button type="button" className="dash-hero__demo" onClick={() => toast('A product walkthrough is coming soon.', 'info')}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+                  Watch Demo
+                </button>
+              </div>
+              <div className="dash-hero__social">
+                <div className="dash-hero__avatars" aria-hidden="true">
+                  <span className="dash-hero__avatar dash-hero__avatar--1" />
+                  <span className="dash-hero__avatar dash-hero__avatar--2" />
+                  <span className="dash-hero__avatar dash-hero__avatar--3" />
+                  <span className="dash-hero__avatar dash-hero__avatar--4" />
+                </div>
+                <p className="dash-hero__social-text">
+                  Join <b>12,400+</b> designers<br />building the future of fashion
+                </p>
+              </div>
+            </div>
+
+            <div className="dash-hero__stage">
+              <img className="dash-hero__product" src={hoodieImg} alt="" loading="lazy" />
+              <div className="dash-hero__tools" aria-hidden="true">
+                {HERO_TOOLS.map((t, i) => (
+                  <span key={i} className={`dash-hero__tool${i === 0 ? ' is-active' : ''}`}>{t}</span>
+                ))}
+              </div>
+              <div className="dash-hero__panel" aria-hidden="true">
+                <span className="dash-hero__panel-head">Layers</span>
+                <ul className="dash-hero__layers">
+                  {HERO_LAYERS.map((l) => (
+                    <li key={l}>
+                      <span className="dash-hero__layer-name">{l}</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="2.6" /></svg>
+                    </li>
+                  ))}
+                </ul>
+                <span className="dash-hero__panel-head">Colors</span>
+                <div className="dash-hero__swatches">
+                  {HERO_COLORS.map((c) => (
+                    <span key={c} className="dash-hero__swatch" style={{ background: c }} />
+                  ))}
+                </div>
+              </div>
+            </div>
           </header>
 
           {/* Feature cards */}

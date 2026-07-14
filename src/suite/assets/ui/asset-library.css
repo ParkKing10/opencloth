@@ -521,3 +521,81 @@
 .al-lb__name { font-size: 14px; font-weight: 600; color: var(--s-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46vw; }
 .al-lb__sub { font-size: 12px; color: var(--s-text-3); }
 .al-lb__actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ============================================================================
+   Mobile (≤768px) — desktop layout is unchanged; these rules only apply on
+   phones/small tablets. Keeps zero horizontal page scroll and comfortable
+   touch targets for the Assets page + Studio rail library.
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Header: keep title + Upload on one row, but give the button a touch height. */
+  .al-head {
+    gap: 8px;
+  }
+  .al-upload {
+    min-height: 40px;
+  }
+
+  /* Search field: a little taller so it is easy to tap. */
+  .al-search input {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  /* Full-page grid: auto-fill's 188px minimum collapses to a single column on a
+     phone. Force two readable columns instead so graphics stay browsable. */
+  .assets-page .al-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* Lightbox: tighten the oversized backdrop padding and let the panel use the
+     full width so nothing overflows the viewport. */
+  .al-lb {
+    padding: 14px;
+  }
+  .al-lb__panel {
+    width: 100%;
+    max-height: 92vh;
+  }
+
+  /* Action bar stacks: info on top, full-width buttons below. */
+  .al-lb__bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 14px;
+  }
+  .al-lb__name {
+    max-width: 100%;
+    white-space: normal;
+  }
+  .al-lb__actions {
+    width: 100%;
+  }
+  .al-lb__actions .s-btn {
+    flex: 1 1 0;
+    justify-content: center;
+    text-align: center;
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra-small phones: cap the preview height so the action bar stays in view. */
+  .al-lb__img {
+    max-height: 58vh;
+  }
+
+  /* .s-btn is white-space:nowrap with 32px side padding, so three side-by-side
+     action buttons ("Download" / "Use in design" / "Delete") can't shrink below
+     their content and overflow (get clipped by the panel) below ~375px. Stack
+     them vertically so each is a full-width, comfortably tappable target. */
+  .al-lb__actions {
+    flex-direction: column;
+  }
+  .al-lb__actions .s-btn {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}

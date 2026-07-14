@@ -223,3 +223,62 @@
 .shop-lb__name { font-size: 15px; font-weight: 600; color: var(--s-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .shop-lb__cat { font-size: 12px; color: var(--s-text-3); }
 .shop-lb__buy { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* ============================================================
+   MOBILE — phones + small tablets (portrait). Desktop unchanged.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Balance chip in the page header can stretch on its own row. */
+  .shop-balance { padding: 7px 12px; }
+
+  /* Category chips: let a long row scroll instead of stacking tall. */
+  .shop-cats {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 14px;
+    padding-bottom: 2px;
+  }
+  .shop-cats::-webkit-scrollbar { display: none; }
+  .shop-cat { flex: 0 0 auto; }
+
+  /* Two comfortable columns of garment tiles — still read well on a phone.
+     minmax(0,1fr) (not the default minmax(auto,1fr)) lets each track shrink
+     below its content so a long, nowrap garment name can't blow the grid
+     wider than the viewport and cause horizontal page scroll. */
+  .shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  /* Belt-and-suspenders: card is a grid item — allow it to shrink fully. */
+  .shop-card { min-width: 0; }
+  .shop-card__body { padding: 11px 11px 12px; gap: 9px; min-width: 0; }
+  .shop-card__row { min-width: 0; }
+  /* Keep a comfortable touch target on the buy/open button. */
+  .shop-buy { min-height: 42px; }
+
+  .shop-empty { padding: 32px 16px; }
+
+  /* Zoom lightbox: tighter frame on small screens. */
+  .shop-lb { padding: 16px; }
+  .shop-lb__panel { width: min(560px, 96vw); }
+  .shop-lb__stage {
+    max-height: 58vh;
+    aspect-ratio: 1 / 1;
+  }
+  .shop-lb__stage img { padding: 20px; }
+  .shop-lb__bar { padding: 12px 14px; gap: 12px; }
+}
+
+@media (max-width: 480px) {
+  .shop-grid { gap: 10px; }
+  .shop-card__body { padding: 10px 10px 11px; }
+  .shop-card__thumb img { padding: 10px; }
+
+  .shop-lb { padding: 10px; }
+  .shop-lb__stage { max-height: 52vh; }
+  .shop-lb__stage img { padding: 14px; }
+  .shop-lb__bar { padding: 11px 12px; gap: 10px; }
+  .shop-lb__buy { padding-left: 12px; padding-right: 12px; }
+}

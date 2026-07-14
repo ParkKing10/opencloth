@@ -146,3 +146,41 @@
   border-radius: 4px;
   background: var(--s-panel);
 }
+
+/* ============================================================
+   Mobile responsive — canonical breakpoints. Desktop unchanged.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Provider heading + status chip stack instead of squeezing side by side */
+  .aiset__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .aiset__sub {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Save button spans the row for an easy tap target */
+  .aiset__actions {
+    align-items: stretch;
+  }
+  .aiset__actions .s-btn {
+    width: 100%;
+  }
+}
+
+/* ============================================================
+   Hardening pass — 375px audit. Keep the monospace key input from
+   resisting shrink and forcing horizontal scroll. Desktop untouched.
+   ============================================================ */
+@media (max-width: 768px) {
+  .aiset__key {
+    min-width: 0;
+  }
+  .aiset__key input {
+    min-width: 0;
+  }
+}

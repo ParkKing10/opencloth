@@ -761,3 +761,84 @@
     order: 3;
   }
 }
+
+/* ===========================================================================
+   Mobile responsive — canonical breakpoints (phones + small tablets).
+   Appended last so these win where they overlap the older 860/560 rules.
+   Desktop layout is unchanged.
+   =========================================================================== */
+@media (max-width: 768px) {
+  /* Summary KPI strip → 2-up grid; tiny cells still read well at 2 columns. */
+  .tp-summary {
+    flex-wrap: wrap;
+  }
+  .tp-summary__cell {
+    flex: 1 1 44%;
+    padding: 12px 14px;
+  }
+  /* The vertical divider is only correct between columns; the third cell now
+     starts a new row, so its left divider is spurious — hide it. */
+  .tp-summary__cell:nth-child(3)::before {
+    display: none;
+  }
+
+  /* Toolbar stacks: filter tabs on their own row, controls wrap below. */
+  .tp-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  /* Keep the filter chips from ever pushing the page wider than the phone. */
+  .tp-toolbar .s-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .tp-toolbar__right {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tp-search {
+    flex: 1 1 100%;
+    min-width: 0;
+    order: -1;
+  }
+  /* The ⌘K hint is a keyboard-only affordance and overlaps typed text on the
+     narrower mobile input — decorative on touch, so hide it. */
+  .tp-search__kbd {
+    display: none;
+  }
+  .tp-export {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Card grid → single column (cards are rich, not tiny tiles). */
+  .tp-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Meta line ("Updated … · N pages · PDF · X MB") is a no-wrap flex row that
+     clips against the card's overflow:hidden on narrow phones — let it wrap. */
+  .tp-card__meta {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tighten KPI type + spacing on small phones. */
+  .tp-summary__cell {
+    padding: 11px 12px;
+  }
+  .tp-summary__value {
+    font-size: 19px;
+  }
+
+  /* Trim horizontal padding so content breathes on narrow screens. */
+  .tp-row {
+    padding: 12px 14px;
+  }
+  .tp-card__body,
+  .tp-card__foot {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

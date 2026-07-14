@@ -1,0 +1,80 @@
+/* Desktop-only gate — shown on phones for the heavy editor + admin surfaces. */
+.do-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 90% at 50% -10%, color-mix(in oklab, var(--s-accent) 12%, transparent), transparent 60%),
+    var(--s-bg, #0b0b0f);
+  color: var(--s-text, #f4f4f6);
+  overflow-y: auto;
+}
+.do-gate__card {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 16px;
+  padding: 8px;
+}
+.do-gate__logo {
+  height: 30px;
+  width: auto;
+}
+.do-gate__preview {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--s-r-lg, 16px);
+  overflow: hidden;
+  border: 1px solid var(--s-line, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-2, #16161c);
+  box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.7);
+}
+.do-gate__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.do-gate__preview-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8, 8, 11, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  backdrop-filter: blur(6px);
+}
+.do-gate__icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  color: var(--s-accent-2, #b9f24a);
+  background: var(--s-accent-soft, rgba(185, 242, 74, 0.12));
+  border: 1px solid var(--s-accent-line, rgba(185, 242, 74, 0.28));
+}
+.do-gate__title {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.do-gate__msg {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--s-text-2, #b7b7c2);
+  max-width: 34ch;
+}
+.do-gate__back {
+  margin-top: 4px;
+}

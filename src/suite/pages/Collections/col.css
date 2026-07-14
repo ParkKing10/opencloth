@@ -515,3 +515,85 @@
   color: var(--s-text-3);
   font-size: 14px;
 }
+
+/* ============================================================= */
+/* Mobile responsive — phones + small tablets. Desktop untouched. */
+/* ============================================================= */
+@media (max-width: 768px) {
+  /* Toolbar: let the view/sort controls span the row and the count
+     drop onto its own line rather than getting squeezed. */
+  .col-toolbar {
+    gap: 10px;
+  }
+  .col-toolbar__left {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .col-count {
+    padding-left: 0;
+  }
+
+  /* Comfortable touch targets for the segmented control + sort pill. */
+  .col-seg__btn {
+    width: 40px;
+    height: 36px;
+  }
+  .col-sort {
+    height: 40px;
+  }
+
+  /* Large collection cards stack into a single column. */
+  .col-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Create-new tile: shorter so it doesn't dominate the first screen. */
+  .col-new {
+    min-height: 180px;
+  }
+
+  /* List view: drop secondary metadata so a row fits a phone width. */
+  .col-grid.is-list .col-metrics,
+  .col-grid.is-list .col-updated {
+    display: none;
+  }
+  .col-grid.is-list .col-body {
+    gap: 10px;
+  }
+
+  /* Detail empty-state: trim the generous desktop padding. */
+  .col-detail__empty {
+    padding: 40px 18px;
+  }
+
+  /* Per-card actions menu: keep it fully on-screen on a phone. Cap its width
+     to the viewport as insurance, and in list view — where the head collapses
+     into a narrow left-aligned column — flip the menu to open into the card
+     instead of off the clipped left edge. */
+  .col-menu {
+    max-width: calc(100vw - 24px);
+  }
+  .col-grid.is-list .col-menu {
+    right: auto;
+    left: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tighten the create tile + card cover on small phones. */
+  .col-new {
+    min-height: 150px;
+  }
+  .col-cover {
+    height: 128px;
+  }
+
+  /* Decorative fake-team avatar stack is non-essential on a phone. */
+  .col-foot .col-team {
+    display: none;
+  }
+  .col-foot {
+    justify-content: flex-end;
+  }
+}

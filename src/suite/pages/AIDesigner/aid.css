@@ -1003,3 +1003,116 @@
   max-width: 38%;
 }
 .aid-lightbox__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ============================================================
+   Mobile responsive — phones & small tablets (added; desktop unchanged)
+   The .aid-studio 2-pane grid and sticky panel already collapse
+   below 1080px, so these blocks handle header stacking, spacing,
+   touch affordances and the lightbox action bar.
+   ============================================================ */
+@media (max-width: 768px) {
+  .aid-root {
+    gap: 18px;
+  }
+
+  /* Header: stack the title block above the coins pill */
+  .aid-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .aid-head__sub {
+    max-width: none;
+  }
+
+  /* Control panel is already full-width here (see the 1080px rule) — just tighten it */
+  .aid-panel {
+    padding: 16px;
+    gap: 18px;
+  }
+
+  /* Front / Back toggle is hover-only on desktop; touch has no hover, so keep it visible */
+  .aid-viewtabs {
+    opacity: 1;
+  }
+
+  /* Lightbox: tighten padding and stack the name above full-width actions */
+  .aid-lightbox {
+    padding: 16px;
+  }
+  .aid-lightbox__bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .aid-lightbox__name {
+    max-width: 100%;
+  }
+  .aid-lightbox__actions {
+    width: 100%;
+  }
+  .aid-lightbox__actions .s-btn {
+    flex: 1 1 40%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .aid-head__title {
+    font-size: 22px;
+  }
+  .aid-panel {
+    padding: 14px;
+    gap: 16px;
+  }
+  /* Garment cards stay a 2-up gallery (set at 560px) — just tighten the gutters */
+  .aid-grid {
+    gap: 12px;
+  }
+  /* Stack the lightbox actions one per row on the smallest phones for comfortable taps */
+  .aid-lightbox__actions .s-btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* ============================================================
+   Hardening pass — 375px robustness (phones only; desktop untouched)
+   Adversarial fixes for narrow-viewport edge cases the base rules
+   didn't fully cover: CTA label clipping, an over-wide history chip,
+   and a crushed 2-up card meta row.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* The generate button is a fixed-height flex button on desktop. Its label can grow long
+     ("Add a Runware key to generate", "Rendering front 1/2…") — let it wrap instead of clipping. */
+  .aid-generate {
+    height: auto;
+    min-height: 46px;
+    padding-block: 10px;
+    line-height: 1.3;
+  }
+  /* History chips live in a horizontal-scroll row; cap a single chip so it can't span the whole
+     viewport on the narrowest phones. */
+  .aid-hist {
+    max-width: min(300px, 80vw);
+  }
+}
+
+@media (max-width: 480px) {
+  /* 2-up garment cards are tight — give the name its own line so the style tag doesn't crush it. */
+  .aid-card__meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+  }
+  .aid-card__name {
+    max-width: 100%;
+  }
+  .aid-card__style {
+    flex-shrink: 1;
+  }
+  /* On-model thumbnail strip: trim slightly so a full row fits inside a ~160px card. */
+  .aid-model {
+    width: 42px;
+    height: 56px;
+  }
+}

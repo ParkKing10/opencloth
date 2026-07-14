@@ -13,9 +13,9 @@ import { Login } from './suite/pages/Auth/Login'
 import { Signup } from './suite/pages/Auth/Signup'
 import { SuiteApp } from './suite/SuiteApp'
 import { Dashboard } from './suite/pages/Dashboard/Dashboard'
-import { DesignStudio } from './suite/pages/DesignStudio/DesignStudio'
+import { StudioMobileGate } from './suite/pages/DesignStudio/StudioMobileGate'
 import { DesignStudioLanding } from './suite/pages/DesignStudio/DesignStudioLanding'
-import { GarmentLab } from './suite/pages/GarmentLab/GarmentLab'
+import { GarmentLabMobileGate } from './suite/pages/GarmentLab/GarmentLabMobileGate'
 import { GarmentsHome } from './suite/pages/Garments/GarmentsHome'
 import { AIDesigner } from './suite/pages/AIDesigner/AIDesigner'
 import { TechPacks } from './suite/pages/TechPacks/TechPacks'
@@ -59,7 +59,7 @@ createRoot(document.getElementById('root')!).render(
                 path="/suite/studio"
                 element={
                   <RequireAuth>
-                    <DesignStudio />
+                    <StudioMobileGate />
                   </RequireAuth>
                 }
               />
@@ -67,7 +67,7 @@ createRoot(document.getElementById('root')!).render(
                 path="/suite/garment-lab/:garmentId"
                 element={
                   <RequireAuth>
-                    <GarmentLab />
+                    <GarmentLabMobileGate />
                   </RequireAuth>
                 }
               />

@@ -128,3 +128,26 @@
     display: none;
   }
 }
+
+/* ===== Mobile responsive (canonical breakpoints) ===== */
+@media (max-width: 768px) {
+  .navbar {
+    padding-block: 0.9rem;
+  }
+  .navbar__inner {
+    gap: 1rem;
+  }
+  .navbar__actions {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand__logo {
+    height: 26px;
+  }
+  .navbar__actions .btn--accent {
+    padding: 0.7rem 1rem;
+    font-size: 0.9rem;
+  }
+}

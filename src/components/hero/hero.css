@@ -169,3 +169,32 @@
     max-width: 46ch;
   }
 }
+
+/* ===== Mobile responsive (canonical breakpoints) ===== */
+@media (max-width: 768px) {
+  /* The 960px rule resets width but not the base translate — undo the
+     off-centre shift so the product render is centred, not clipped. */
+  .hero-visual__stage {
+    transform: none;
+  }
+  .hero__headline {
+    margin-top: 1rem;
+  }
+  .hero__lead {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero__ctas {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+  .hero__ctas .btn {
+    width: 100%;
+  }
+  .hero__trust {
+    gap: 0.6rem 1rem;
+  }
+}

@@ -791,3 +791,109 @@
     flex: 1;
   }
 }
+
+/* =========================================================
+   Mobile responsive — phones + small tablets (≤768px)
+   ========================================================= */
+@media (max-width: 768px) {
+  .com-root {
+    gap: 22px;
+  }
+
+  /* Header search: full width so it never overflows the actions row */
+  .com-search {
+    min-width: 0;
+    width: 100%;
+    flex: 1 1 100%;
+    height: 42px;
+  }
+  /* The "/" keyboard hint is a keyboard-only affordance — drop it on touch */
+  .com-search kbd {
+    display: none;
+  }
+
+  /* Tabs + category filters stack onto their own rows */
+  .com-tabsrow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  /* Section head: title stacks above the "browse…" link */
+  .com-sechead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  /* Masonry gallery + collection grid collapse to a single column */
+  .com-gallery {
+    columns: 1;
+  }
+  .com-colgrid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Designer cards become a swipeable one-at-a-time carousel with peek */
+  .com-scroller {
+    grid-auto-columns: minmax(86%, 1fr);
+  }
+
+  /* No hover on touch — reveal the save affordance permanently */
+  .com-proj__save {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Comfortable touch targets on the primary card actions */
+  .com-follow,
+  .com-hire {
+    height: 42px;
+  }
+
+  /* Designer meta wraps early so the three stats can't be clipped by the
+     card's overflow:hidden on tablet-portrait widths */
+  .com-designer__meta {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  /* Trim the tallest covers so glyphs don't dominate a phone screen */
+  .com-proj__cover--tall {
+    height: 232px;
+  }
+  .com-proj__cover--mid {
+    height: 196px;
+  }
+}
+
+/* =========================================================
+   Mobile responsive — small phones (≤480px)
+   ========================================================= */
+@media (max-width: 480px) {
+  .com-root {
+    gap: 18px;
+  }
+
+  /* Designer meta wraps instead of squeezing three stats onto one line */
+  .com-designer__meta {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  /* Single card fills the viewport with a small peek of the next */
+  .com-scroller {
+    grid-auto-columns: minmax(88%, 1fr);
+  }
+
+  /* Further tighten oversized covers on small screens */
+  .com-proj__cover--tall {
+    height: 208px;
+  }
+  .com-proj__cover--mid {
+    height: 176px;
+  }
+  .com-proj__cover--short {
+    height: 160px;
+  }
+}

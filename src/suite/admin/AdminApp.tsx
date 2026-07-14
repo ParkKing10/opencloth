@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/auth'
 import { useSuiteTheme } from '../theme'
+import { useIsPhone } from '../lib/useMediaQuery'
+import { DesktopOnly } from '../components/DesktopOnly'
 import {
   IcoDashboard,
   IcoCommunity,
@@ -33,6 +35,19 @@ export function AdminApp() {
   const { user, logout } = useAuth()
   const { theme, toggle } = useSuiteTheme()
   const navigate = useNavigate()
+  const isPhone = useIsPhone()
+
+  // The admin console is a dense, desktop-oriented internal tool — gate it on phones.
+  if (isPhone) {
+    return (
+      <DesktopOnly
+        title="Admin Console is desktop-only"
+        message="The admin tools (garments, accessories, users, orders) are built for a desktop. Open loom studios on a larger screen to manage them."
+        backTo="/suite"
+        backLabel="Back to app"
+      />
+    )
+  }
 
   return (
     <div className="suite adm">

@@ -802,3 +802,122 @@ select.set-input:hover {
     justify-content: flex-end;
   }
 }
+
+/* ============================================================
+   Mobile responsive — canonical breakpoints.
+   Desktop layout unchanged; these only tighten small screens.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Card heads pairing a title with actions / a form / a chip stack vertically */
+  .set-card__head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .set-head-actions {
+    flex-wrap: wrap;
+  }
+  /* Team "invite by email" form spans the row; its input flexes (overrides inline width:220) */
+  .set-card__head form {
+    width: 100%;
+  }
+  .set-card__head form .set-input {
+    width: 100% !important;
+    flex: 1 1 auto;
+  }
+
+  /* Two-column grids collapse to one column */
+  .set-fields,
+  .set-meters {
+    grid-template-columns: 1fr;
+  }
+
+  /* Plan header stacks the price beneath the description */
+  .set-plan {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .set-plan__price {
+    text-align: left;
+  }
+
+  /* Avatar actions flow under the meta instead of hugging the right edge */
+  .set-avatar-actions {
+    margin-left: 0;
+  }
+
+  /* Sticky save bar stacks; its actions fill the width */
+  .set-savebar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .set-savebar__actions {
+    justify-content: stretch;
+  }
+  .set-savebar__actions .s-btn {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Tighten card padding on small phones */
+  .set-card__head {
+    padding: 16px;
+  }
+  .set-card__body {
+    padding: 16px;
+    gap: 18px;
+  }
+  /* Danger-zone trigger buttons become full-width tap targets (not the nested confirm rows) */
+  .set-danger-row > .set-btn-danger {
+    margin-left: 0;
+    width: 100%;
+  }
+  /* Billing footer CTAs fill the row */
+  .set-billing-foot__actions {
+    width: 100%;
+  }
+  .set-billing-foot__actions .s-btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* ============================================================
+   Hardening pass — 375px audit. Guards against residual overflow
+   the earlier stacking rules don't cover. Desktop untouched.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Handle field: let the input shrink cleanly between the fixed prefix and
+     suffix so the padded row can never force horizontal scroll on a phone. */
+  .set-input-wrap {
+    min-width: 0;
+  }
+  .set-input-wrap .set-input {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  /* Team member rows: keep the name/email column shrinkable so a long name or
+     email ellipsises instead of shoving the role controls off-screen. */
+  .set-member__name {
+    min-width: 0;
+  }
+
+  /* Danger-zone confirm rows (inline-styled, no class): their selects/inputs
+     already cap at 260 and wrap — nothing to add. Guard the transfer select so
+     its intrinsic option width can't overflow the narrow column. */
+  .set-danger-row select.set-input,
+  .set-danger-row input.set-input {
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Decorative "✓ Available" handle indicator — non-essential status chrome;
+     hide it to give the handle input the full narrow row. */
+  .set-input-wrap__suffix {
+    display: none;
+  }
+}

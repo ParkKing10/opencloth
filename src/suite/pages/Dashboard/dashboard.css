@@ -693,3 +693,104 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---- Mobile: phones & small tablets (portrait) ---- */
+@media (max-width: 768px) {
+  .dash-main {
+    gap: 18px;
+  }
+
+  /* Hero — tighten padding & type; the decorative stage is already hidden ≤900px */
+  .dash-hero {
+    padding: 28px 20px;
+    min-height: 0;
+    border-radius: 20px;
+  }
+  .dash-hero__headline {
+    margin-top: 14px;
+    font-size: clamp(34px, 9vw, 46px);
+  }
+  .dash-hero__tagline {
+    margin-top: 12px;
+    font-size: 15px;
+  }
+  /* Stack the primary + demo CTAs full-width for comfortable touch targets */
+  .dash-hero__cta {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    margin-top: 22px;
+  }
+  .dash-hero__start,
+  .dash-hero__demo {
+    width: 100%;
+    justify-content: center;
+  }
+  .dash-hero__social {
+    margin-top: 24px;
+  }
+
+  /* Feature cards — 2-up and shorter (was 3-up in the 681–768px range) */
+  .dash-features {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .feat {
+    min-height: 220px;
+  }
+
+  /* Recent designs — reliable 2-up thumbnail grid */
+  .dash-designs {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+/* ---- Small phones — extra tightening ---- */
+@media (max-width: 480px) {
+  .dash-hero {
+    padding: 24px 18px;
+  }
+  .dash-hero__headline {
+    font-size: clamp(30px, 10vw, 40px);
+  }
+
+  /* Single column reads best for these large content cards on narrow phones */
+  .dash-features {
+    grid-template-columns: 1fr;
+  }
+  .feat {
+    min-height: 200px;
+  }
+}
+
+/* ---- Hardening pass — 375px-wide robustness ---- */
+@media (max-width: 768px) {
+  /* Defensive: nothing in the dashboard subtree may exceed the viewport width. */
+  .dash,
+  .dash-grid,
+  .dash-main {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* The decorative social-proof avatar stack (~106px) plus the two-line join
+     text overflow the padded hero on a 375px phone and get clipped. The stack
+     is aria-hidden decoration — drop it and let the text take the full width. */
+  .dash-hero__avatars {
+    display: none;
+  }
+  .dash-hero__social {
+    gap: 0;
+    flex-wrap: wrap;
+  }
+  .dash-hero__social-text {
+    min-width: 0;
+  }
+
+  /* Long single words in the headline should never force horizontal overflow. */
+  .dash-hero__headline {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+}

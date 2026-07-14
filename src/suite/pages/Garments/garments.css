@@ -645,3 +645,115 @@
   font-size: 12.5px;
   color: var(--s-text-3, #8a8b93);
 }
+
+/* ============================================================
+   Mobile responsive — phones + small tablets (portrait).
+   Desktop layout above is unchanged.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Tools: stack search over the sort pills, both full width. */
+  .gm-tools {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .gm-search {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+  }
+  /* Sort pills fill the row in one line (tighter padding so all four fit). */
+  .gm-sorts {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .gm-sort {
+    flex: 1 1 auto;
+    padding: 10px 6px;
+    text-align: center;
+    font-size: 11.5px;
+  }
+
+  /* Gallery: a clean 2-up grid on phones/small tablets. */
+  .gm-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .gm-card__body {
+    padding: 10px 11px 12px;
+  }
+  /* Two date stamps can't sit side-by-side in a narrow card — stack them. */
+  .gm-card__stamps {
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 2px;
+  }
+  /* Favorite is hover-revealed on desktop; touch has no hover, so keep it visible. */
+  .gm-fav {
+    opacity: 1;
+  }
+  .gm-kebab {
+    width: 32px;
+    height: 32px;
+  }
+  /* A bare <input> keeps an intrinsic min-width (~size:20) that won't shrink below its
+     content; in a narrow 2-up card the inline rename field would push the row wider than
+     the card and trigger horizontal page scroll. Let it (and its row) shrink to fit. */
+  .gm-card__row {
+    min-width: 0;
+  }
+  .gm-rename {
+    min-width: 0;
+  }
+
+  /* Onboarding empty-state: tighter padding + display type. */
+  .gm-onboard {
+    margin: 24px auto;
+    padding: 32px 22px;
+  }
+  .gm-onboard__glyph {
+    font-size: 44px;
+    margin-bottom: 14px;
+  }
+  .gm-onboard h2 {
+    font-size: 22px;
+  }
+  .gm-onboard__lead {
+    font-size: 14px;
+  }
+
+  /* Drag-import overlay: cap the card so it never exceeds the viewport. */
+  .gm-drop-overlay {
+    padding: 24px;
+  }
+  .gm-drop-overlay__card {
+    max-width: 100%;
+    padding: 36px 28px;
+  }
+  .gm-drop-overlay__glyph {
+    font-size: 38px;
+  }
+}
+
+@media (max-width: 480px) {
+  .gm-grid {
+    gap: 10px;
+  }
+  /* On the smallest cards the longest "category · N regions" line must wrap instead of
+     forcing the card (and the page) to scroll sideways. */
+  .gm-card__meta {
+    flex-wrap: wrap;
+  }
+  .gm-onboard {
+    padding: 26px 16px;
+  }
+  .gm-onboard h2 {
+    font-size: 20px;
+  }
+  .gm-drop-overlay__card {
+    padding: 28px 20px;
+  }
+  .gm-drop-overlay__card b {
+    font-size: 16px;
+  }
+}

@@ -65,3 +65,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Mobile responsive (canonical breakpoints) ===== */
+@media (max-width: 768px) {
+  .stats {
+    padding-top: 2rem;
+  }
+  /* Collapse to a single column across the whole phone/small-tablet band.
+     Below ~540px the 2-col track (~220px) is narrower than a stat's
+     min-content (icon + the unbreakable "250.000+" value ~123px + padding),
+     so the big number clips. One column removes the overflow entirely. */
+  .stats__grid {
+    grid-template-columns: 1fr;
+  }
+  .stat {
+    gap: 0.85rem;
+  }
+  /* Belt-and-suspenders: let the text column shrink so an unbreakable
+     value can never force horizontal overflow of the flex row. */
+  .stat__body {
+    min-width: 0;
+  }
+}

@@ -572,3 +572,102 @@
     width: 100%;
   }
 }
+
+/* ---- Mobile (canonical breakpoints) ---- */
+@media (max-width: 768px) {
+  .mk-root {
+    gap: 20px;
+  }
+
+  /* Toolbar: search takes the full row width */
+  .mk-toolbar {
+    gap: 12px;
+  }
+  .mk-search {
+    width: 100%;
+    min-width: 0;
+  }
+  .mk-search__input {
+    height: 44px;
+    font-size: 14px;
+  }
+
+  /* Seller onboarding panel — tighter, stacked full-width actions */
+  .mk-panel {
+    padding: 16px;
+  }
+  .mk-panel__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mk-panel__row .s-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Featured drop banner — single column, tighter padding */
+  .mk-featured {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 20px 18px;
+  }
+  .mk-featured__gallery {
+    justify-content: flex-start;
+  }
+  /* Primary CTAs stack full-width; meta reads on its own line */
+  .mk-featured__row .s-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .mk-featured__meta {
+    width: 100%;
+  }
+
+  /* Card grid → single column */
+  .mk-grid {
+    grid-template-columns: 1fr;
+  }
+  /* Comfortable touch target on the card action */
+  .mk-use {
+    height: 40px;
+  }
+
+  /* Seller footer CTA — stack + full-width button */
+  .mk-seller {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 18px;
+  }
+  .mk-seller .s-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .mk-featured {
+    padding: 18px 14px;
+  }
+  .mk-featured__title {
+    font-size: 18px;
+  }
+  /* Hide the layered garment gallery — pure ornament, crowds small phones */
+  .mk-featured__gallery {
+    display: none;
+  }
+  .mk-listhead {
+    gap: 10px;
+  }
+
+  /* Card foot: stats + action can't share one line on the narrowest
+     phones without clipping the button (.mk-card is overflow:hidden).
+     Stack the action full-width below the stats for a safe touch target. */
+  .mk-card__foot {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .mk-use {
+    width: 100%;
+    justify-content: center;
+  }
+}

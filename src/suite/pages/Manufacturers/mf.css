@@ -587,3 +587,84 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   Mobile — phones + small tablets (portrait). Desktop layout
+   is untouched; these only add small-screen behavior.
+   ============================================================ */
+@media (max-width: 768px) {
+  .mf-root {
+    gap: 18px;
+  }
+
+  /* Toolbar stacks: capability pills row, then the filter controls
+     row spanning full width so nothing overflows the viewport. */
+  .mf-toolbar {
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+  .mf-caps {
+    width: 100%;
+  }
+  .mf-toolbar__right {
+    margin-left: 0;
+    width: 100%;
+    gap: 8px;
+  }
+  /* Country + MOQ selects share one row; search drops to its own
+     full-width row (its 220px min-width would otherwise overflow). */
+  .mf-select {
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: space-between;
+  }
+  .mf-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  /* Result meta: count on top, sort control below-left. */
+  .mf-meta {
+    gap: 10px;
+  }
+
+  /* One card per row. */
+  .mf-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Stack the filter selects too — long labels like "Any country"
+     get their own comfortable full-width tap targets. */
+  .mf-toolbar__right {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .mf-select {
+    width: 100%;
+    flex: none;
+    height: 40px;
+  }
+  /* Reset the row-layout flex basis inherited from the 768px block:
+     in this column container `flex: 1 1 100%` would size the MAIN axis
+     (height) and collapse the field, so pin it back to its 40px height. */
+  .mf-search {
+    flex: none;
+    width: 100%;
+    height: 40px;
+  }
+
+  /* Card footer stacks: specialty above, full-width primary CTA. */
+  .mf-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .mf-sample {
+    width: 100%;
+    justify-content: center;
+    height: 40px;
+  }
+}

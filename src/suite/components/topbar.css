@@ -12,6 +12,25 @@
   border-bottom: 1px solid var(--s-line);
 }
 
+/* Hamburger — hidden on desktop, opens the nav drawer on compact viewports. */
+.tb__menu {
+  display: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--s-r-sm);
+  color: var(--s-text);
+  background: var(--s-panel);
+  border: 1px solid var(--s-line);
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
+}
+.tb__menu:hover {
+  background: var(--s-panel-2);
+  border-color: var(--s-line-strong);
+}
+
 .tb__search {
   display: flex;
   align-items: center;
@@ -184,14 +203,36 @@
   flex-shrink: 0;
 }
 
+@media (max-width: 1024px) {
+  .tb__menu {
+    display: grid;
+  }
+}
+
 @media (max-width: 720px) {
   .tb__coins,
-  .tb__new .s-btn,
   .tb__kbd {
+    display: none;
+  }
+  /* Collapse the "New Design" button down to its icon to save width. */
+  .tb__new.s-btn {
+    padding: 0;
+    width: 40px;
+  }
+  .tb__new.s-btn span,
+  .tb__new-label {
     display: none;
   }
   .tb__search {
     width: auto;
     flex: 1;
+    min-width: 0;
+  }
+  .tb {
+    gap: 10px;
+    padding: 0 14px;
+  }
+  .tb__actions {
+    gap: 4px;
   }
 }

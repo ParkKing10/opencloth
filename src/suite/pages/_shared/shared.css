@@ -97,8 +97,25 @@
   border-color: transparent;
 }
 
-/* Empty / coming-soon state used by scaffolded pages */
-.page-empty {
+/* Phones — the shared page header stacks and its action row wraps full-width. Applies to every
+   SuitePage-based screen at once (Dashboard, Shop, Manufacturers, Settings, Tech Packs, …). */
+@media (max-width: 768px) {
+  .page {
+    gap: 18px;
+  }
+  .page__head {
+    align-items: stretch;
+    gap: 14px;
+  }
+  .page__actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .s-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+}
   display: grid;
   place-items: center;
   min-height: 320px;

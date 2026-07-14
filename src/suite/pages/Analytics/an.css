@@ -535,3 +535,71 @@
     align-items: flex-start;
   }
 }
+
+/* ============================================================
+   Mobile responsive — phones & small tablets (added)
+   Canonical breakpoints only. Desktop layout unchanged.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Tighten vertical rhythm so more fits above the fold */
+  .an-root {
+    gap: 16px;
+  }
+
+  /* KPI tiles stay two-up here (they still read well) — just trim */
+  .an-kpi {
+    padding: 14px 15px 13px;
+  }
+  .an-kpi__value {
+    margin-top: 10px;
+    font-size: 24px;
+  }
+
+  /* Cards — trim padding so the charts get more usable width */
+  .an-card {
+    padding: 16px 16px 15px;
+  }
+  /* Title + legend stack instead of crowding on one line */
+  .an-card__head {
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 2px;
+  }
+  .an-card__big {
+    font-size: 23px;
+  }
+
+  /* Slightly tighter chart spacing */
+  .an-area {
+    margin-top: 14px;
+  }
+  .an-bars {
+    margin-top: 16px;
+  }
+  .an-donut {
+    margin-top: 14px;
+  }
+
+  /* Hover-only bar caption: never fires on touch, and a sticky-hover
+     latch on the rightmost bar could push its nowrap label past the
+     viewport edge → hide it to guarantee zero horizontal scroll. */
+  .an-bar__cap {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .an-card {
+    padding: 14px 13px 14px;
+  }
+  .an-kpi {
+    padding: 13px 13px 12px;
+  }
+  .an-kpi__value {
+    font-size: 22px;
+  }
+  /* Shorter bar chart so the full page fits a small phone */
+  .an-bars {
+    height: 150px;
+  }
+}

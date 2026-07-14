@@ -21,7 +21,7 @@ const SEARCH_ROUTES: { keywords: string[]; to: string; label: string }[] = [
   { keywords: ['setting', 'account', 'billing'], to: '/suite/settings', label: 'Settings' },
 ]
 
-export function Topbar() {
+export function Topbar({ onMenu }: { onMenu?: () => void }) {
   const { theme, toggle } = useSuiteTheme()
   const { user } = useAuth()
   const { data, mutate } = useStore()
@@ -59,6 +59,12 @@ export function Topbar() {
 
   return (
     <header className="tb">
+      <button className="tb__menu" type="button" aria-label="Open navigation" onClick={onMenu}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+
       <label className="tb__search">
         <IcoSearch className="tb__search-ico" width="17" height="17" />
         <input
@@ -121,9 +127,9 @@ export function Topbar() {
 
         <span className="tb__divider" aria-hidden="true" />
 
-        <button className="s-btn s-btn--accent tb__new" type="button" onClick={() => navigate('/suite/design')}>
+        <button className="s-btn s-btn--accent tb__new" type="button" onClick={() => navigate('/suite/design')} aria-label="New Design">
           <IcoPlus width="17" height="17" />
-          New Design
+          <span className="tb__new-label">New Design</span>
         </button>
       </div>
     </header>

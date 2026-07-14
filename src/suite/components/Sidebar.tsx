@@ -43,7 +43,7 @@ function initials(name: string): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U'
 }
 
-export function Sidebar() {
+export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void } = {}) {
   const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -52,7 +52,10 @@ export function Sidebar() {
   const storage = useStorageEstimate()
 
   return (
-    <aside className="sb">
+    <>
+      {/* Scrim behind the off-canvas drawer (compact viewports only; hidden on desktop via CSS). */}
+      <div className={`sb__scrim${open ? ' is-open' : ''}`} onClick={onClose} aria-hidden="true" />
+      <aside className={`sb${open ? ' is-open' : ''}`}>
       <div className="sb__brand">
         <img className="sb__logo" src={loomLogo} alt="loom studios" />
         <span className="sb__tag">Design. Build. Brand.</span>
@@ -64,6 +67,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={end}
+            onClick={onClose}
             className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}
           >
             <span className="sb__glow" aria-hidden="true" />
@@ -73,7 +77,7 @@ export function Sidebar() {
           </NavLink>
         ))}
         {isAdmin && (
-          <NavLink to="/admin" className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}>
+          <NavLink to="/admin" onClick={onClose} className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}>
             <span className="sb__glow" aria-hidden="true" />
             <IcoShield className="sb__ico" width="19" height="19" />
             <span className="sb__label">Admin Console</span>
@@ -150,6 +154,7 @@ export function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }

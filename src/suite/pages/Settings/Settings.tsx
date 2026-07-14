@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
@@ -8,6 +8,8 @@ import { useT } from '@/i18n'
 import { uid } from '../../data/utils'
 import { downloadCsv, downloadJson, downloadText, slugify } from '../../lib/download'
 import { useStorageEstimate, formatBytes as formatBytesLabel } from '../../lib/useStorageEstimate'
+import { planTier } from '../../economy/economy'
+import { requestTour } from '../../onboarding/tourBus'
 import { AiSettings } from './AiSettings'
 import {
   IcoSettings,
@@ -30,14 +32,6 @@ import './set.css'
 const DOCS_URL = 'https://docs.threados.co'
 const AVATAR_MAX_BYTES = 4 * 1024 * 1024
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-/** Next plan up from the current one, or null when already on the top tier. */
-const PLAN_ORDER = ['Free', 'Studio', 'Scale'] as const
-type Plan = (typeof PLAN_ORDER)[number]
-function nextPlan(plan: Plan): Plan | null {
-  const idx = PLAN_ORDER.indexOf(plan)
-  return idx >= 0 && idx < PLAN_ORDER.length - 1 ? PLAN_ORDER[idx + 1] : null
-}
 
 /* ---------------------------------------------- local profile persistence */
 
@@ -80,6 +74,7 @@ type NavKey =
   | 'team'
   | 'integrations'
   | 'ai'
+  | 'tour'
 
 type NavItem = {
   key: NavKey
@@ -179,6 +174,7 @@ const NAV: NavItem[] = [
   { key: 'team', label: 'Team', icon: IcoCommunity },
   { key: 'integrations', label: 'Integrations', icon: IcoMarketplace },
   { key: 'ai', label: 'AI', icon: IcoBolt },
+  { key: 'tour', label: 'App tour', icon: IcoStar },
 ]
 
 export function Settings() {
@@ -187,6 +183,7 @@ export function Settings() {
   const toast = useToast()
   const t = useT()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const [active, setActive] = useState<NavKey>('profile')
 
@@ -357,20 +354,6 @@ export function Settings() {
     )
   }
 
-  /* -- Upgrade: real plan change persisted to the store -- */
-  const upgrade = () => {
-    if (!user) return
-    const target = nextPlan(user.plan as Plan)
-    if (!target) {
-      toast(t('settings.billing.alreadyTop'), 'default')
-      return
-    }
-    mutate((d) => ({
-      ...d,
-      users: d.users.map((u) => (u.id === user.id ? { ...u, plan: target } : u)),
-    }))
-    toast(t('settings.billing.upgraded', { plan: target }), 'success')
-  }
 
   /* -- Billing history: exports the REAL account state. No payment processor is wired yet,
      so there are no charges to invent — the export reflects the current plan only. -- */
@@ -504,9 +487,11 @@ export function Settings() {
 
   /* -- Real plan + coins from the signed-in user -- */
   const planName = user?.plan ?? 'Studio'
-  const planPriceLabel = planName === 'Scale' ? '$199' : planName === 'Studio' ? '$79' : '$0'
+  // Plans are priced in COINS — never currency. Currency lives only on the coin packs (Earn Coins page).
+  const planCoinsPerMonth = planTier(planName).coinsPerMonth
+  const planPriceLabel = planCoinsPerMonth === 0 ? 'Free' : `${planCoinsPerMonth.toLocaleString()} coins / month`
   const coins = user?.coins ?? 0
-  const coinCap = planName === 'Scale' ? 100000 : planName === 'Studio' ? 25000 : 2500
+  const coinCap = planTier(planName).coinCap
   const coinPct = Math.min(100, Math.round((coins / coinCap) * 100))
   const storage = useStorageEstimate() // real browser storage — no fabricated GB figures
   const memberCount = members.length + 1 // + the owner (you)
@@ -1003,8 +988,14 @@ export function Settings() {
                   </p>
                 </div>
                 <div className="set-plan__price">
-                  <b>{planName === 'Scale' ? '$199' : planName === 'Studio' ? '$79' : '$0'}</b>
-                  <span>{t('settings.billing.perMonth')}</span>
+                  {planCoinsPerMonth === 0 ? (
+                    <b>{t('common.free')}</b>
+                  ) : (
+                    <>
+                      <b>{planCoinsPerMonth.toLocaleString()}</b>
+                      <span>{t('rewards.balance.coins')} {t('settings.billing.perMonth')}</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1068,15 +1059,9 @@ export function Settings() {
                   <button className="s-btn s-btn--subtle" type="button" onClick={downloadInvoice}>
                     <IcoUpload width="15" height="15" /> {t('settings.billing.downloadSummary')}
                   </button>
-                  {nextPlan(planName as Plan) ? (
-                    <button className="s-btn s-btn--accent" type="button" onClick={upgrade}>
-                      <IcoStar width="16" height="16" /> {t('settings.billing.upgradeTo', { plan: nextPlan(planName as Plan) as string })}
-                    </button>
-                  ) : (
-                    <span className="s-chip s-chip--accent">
-                      <IcoStar width="13" height="13" /> {t('settings.billing.topPlan')}
-                    </span>
-                  )}
+                  <button className="s-btn s-btn--accent" type="button" onClick={() => navigate('/suite/pricing')}>
+                    <IcoStar width="16" height="16" /> {t('shell.upgrade')}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1228,6 +1213,27 @@ export function Settings() {
 
           {/* ===== AI ===== */}
           {active === 'ai' && <AiSettings />}
+
+          {/* ===== App tour ===== */}
+          {active === 'tour' && (
+            <section className="set-card">
+              <div className="set-card__head">
+                <div className="set-card__head-text">
+                  <h2>{t('settings.tour.title')}</h2>
+                  <p>{t('settings.tour.desc')}</p>
+                </div>
+                <span className="s-chip s-chip--accent">{t('settings.tour.chip')}</span>
+              </div>
+              <div className="set-card__body">
+                <p className="set-hint">{t('settings.tour.hint')}</p>
+                <div style={{ marginTop: 12 }}>
+                  <button className="s-btn s-btn--accent" type="button" onClick={requestTour}>
+                    <IcoSparkle width="16" height="16" /> {t('settings.tour.start')}
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* ===== Sticky save bar ===== */}
           {isDirty && (

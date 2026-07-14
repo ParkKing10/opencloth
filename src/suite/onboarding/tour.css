@@ -1,0 +1,240 @@
+/* App tour — spotlight walkthrough. Prefix: tour.
+   Mounted inside .suite, so all --s-* tokens resolve directly.
+   z-index 1200: above the command palette (1100) and the mobile
+   drawer (60), below the toaster (9999). */
+
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+/* The cut-out: a transparent hole whose giant shadow dims everything else. */
+.tour__hole {
+  position: fixed;
+  border-radius: 14px;
+  box-shadow: 0 0 0 200vmax rgba(5, 5, 10, 0.66);
+  outline: 2px solid var(--s-accent, #d1f94f);
+  outline-offset: 2px;
+  pointer-events: none;
+  transition: left 0.32s var(--s-ease, ease), top 0.32s var(--s-ease, ease), width 0.32s var(--s-ease, ease),
+    height 0.32s var(--s-ease, ease);
+}
+
+/* Steps without a target: plain dim veil behind a centred card. */
+.tour__veil {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 5, 10, 0.66);
+}
+
+.tour__card {
+  position: fixed;
+  width: min(350px, calc(100vw - 24px));
+  padding: 18px 18px 16px;
+  border-radius: var(--s-r-lg, 16px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel, #101016);
+  color: var(--s-text, #f4f4f6);
+  box-shadow: var(--s-shadow-lg, 0 24px 60px rgba(0, 0, 0, 0.5));
+  transition: left 0.32s var(--s-ease, ease), top 0.32s var(--s-ease, ease);
+}
+
+.tour__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.tour__kicker {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--s-accent, #d1f94f);
+}
+.tour__count {
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--s-text-3, #6f6f7c);
+}
+
+.tour__title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.tour__body {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--s-text-2, #a6a6b2);
+}
+
+/* ---- KI-Designer mini demo (prompt types itself → jacket appears) ---- */
+.tour-demo {
+  margin: 2px 0 14px;
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  border-radius: 12px;
+  background: var(--s-inset, #0c0c11);
+  overflow: hidden;
+}
+.tour-demo__prompt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--s-line, rgba(255, 255, 255, 0.06));
+  font-size: 12.5px;
+  color: var(--s-text, #f4f4f6);
+}
+.tour-demo__spark {
+  color: var(--s-accent, #d1f94f);
+  flex: 0 0 auto;
+}
+.tour-demo__caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 13px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  background: var(--s-accent, #d1f94f);
+  animation: tour-caret 0.8s steps(1) infinite;
+}
+@keyframes tour-caret {
+  50% {
+    opacity: 0;
+  }
+}
+.tour-demo__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 200px;
+  background: radial-gradient(90% 70% at 50% 100%, color-mix(in oklab, var(--s-accent, #d1f94f) 9%, transparent), transparent 70%);
+}
+.tour-demo__img {
+  max-height: 178px;
+  max-width: 82%;
+  opacity: 0;
+  transform: scale(0.9) translateY(8px);
+  transition: opacity 0.55s ease, transform 0.55s var(--s-ease, ease);
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.5));
+  user-select: none;
+}
+.tour-demo__stage.is-done .tour-demo__img {
+  opacity: 1;
+  transform: none;
+}
+.tour-demo__dots {
+  position: absolute;
+  display: flex;
+  gap: 6px;
+}
+.tour-demo__dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--s-accent, #d1f94f);
+  animation: tour-gen 0.9s ease-in-out infinite;
+}
+.tour-demo__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.tour-demo__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes tour-gen {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.tour__dots {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+.tour__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--s-line-strong, rgba(255, 255, 255, 0.16));
+  transition: background 0.2s, transform 0.2s;
+}
+.tour__dot.is-done {
+  background: var(--s-accent-line, rgba(209, 249, 79, 0.3));
+}
+.tour__dot.is-on {
+  background: var(--s-accent, #d1f94f);
+  transform: scale(1.25);
+}
+
+.tour__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.tour__nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tour__btn {
+  padding: 8px 14px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-3, #191922);
+  color: var(--s-text, #f4f4f6);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s, border-color 0.16s, transform 0.16s;
+}
+.tour__btn:hover {
+  background: var(--s-hover, #1c1c26);
+  transform: translateY(-1px);
+}
+.tour__btn--accent {
+  background: var(--s-accent, #d1f94f);
+  border-color: transparent;
+  color: var(--s-accent-ink, #0c1500);
+}
+.tour__btn--accent:hover {
+  background: var(--s-accent-2, #dcff66);
+}
+
+.tour__skip {
+  border: none;
+  background: none;
+  padding: 6px 2px;
+  font-size: 12px;
+  color: var(--s-text-3, #6f6f7c);
+  cursor: pointer;
+}
+.tour__skip:hover {
+  color: var(--s-text-2, #a6a6b2);
+  text-decoration: underline;
+}
+
+/* Compact: the card becomes a bottom sheet so it never covers the spotlight. */
+@media (max-width: 640px) {
+  .tour__card--sheet {
+    left: 10px;
+    right: 10px;
+    bottom: 12px;
+    top: auto;
+    width: auto;
+  }
+}

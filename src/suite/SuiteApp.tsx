@@ -2,6 +2,8 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
+import { PaywallProvider } from './economy/PaywallProvider'
+import { TourOverlay } from './onboarding/TourOverlay'
 import './suite.css'
 
 export function SuiteApp() {
@@ -18,16 +20,20 @@ export function SuiteApp() {
   }, [pathname])
 
   return (
-    <div className="suite">
-      <div className="suite__body">
-        <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
-        <div className="suite__main">
-          <Topbar onMenu={() => setNavOpen(true)} />
-          <div className="suite__content">
-            <Outlet />
+    <PaywallProvider>
+      <div className="suite">
+        <div className="suite__body">
+          <Sidebar open={navOpen} onClose={() => setNavOpen(false)} />
+          <div className="suite__main">
+            <Topbar onMenu={() => setNavOpen(true)} />
+            <div className="suite__content">
+              <Outlet />
+            </div>
           </div>
         </div>
+        {/* Guided app tour — auto-starts once per user, restartable from Settings. */}
+        <TourOverlay onNavDrawer={setNavOpen} />
       </div>
-    </div>
+    </PaywallProvider>
   )
 }

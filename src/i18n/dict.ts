@@ -33,6 +33,9 @@ import { labMain } from './locales/labMain'
 import { labPanels } from './locales/labPanels'
 import { presentation } from './locales/presentation'
 import { explainer } from './locales/explainer'
+import { rewards } from './locales/rewards'
+import { pricing } from './locales/pricing'
+import { tour } from './locales/tour'
 
 // Every feature bundle. Adding a namespace = import it above and drop it in this list.
 const BUNDLES: LocaleBundle[] = [
@@ -70,6 +73,9 @@ const BUNDLES: LocaleBundle[] = [
   labPanels,
   presentation,
   explainer,
+  rewards,
+  pricing,
+  tour,
 ]
 
 function merge(lang: Lang): Record<string, string> {

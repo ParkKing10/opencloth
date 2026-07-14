@@ -6,6 +6,7 @@ import { useAuth } from '../auth/auth'
 import { useStore } from '../data/store'
 import { useToast } from './ui/Toast'
 import { useT, LanguageToggle } from '@/i18n'
+import { requestTour } from '../onboarding/tourBus'
 import './topbar.css'
 
 // `label` is an i18n nav key, translated when a search match navigates.
@@ -68,7 +69,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
         </svg>
       </button>
 
-      <label className="tb__search">
+      <label className="tb__search" data-tour="topbar-search">
         <IcoSearch className="tb__search-ico" width="17" height="17" />
         <input
           type="text"
@@ -99,7 +100,8 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
           {theme === 'dark' ? <IcoSun width="19" height="19" /> : <IcoMoon width="18" height="18" />}
         </button>
 
-        <button className="s-icon-btn" type="button" aria-label={t('tb.help')} onClick={() => toast(t('tb.helpSoon'), 'info')}>
+        {/* "?" restarts the guided app tour. */}
+        <button className="s-icon-btn" type="button" aria-label={t('tb.help')} title={t('tb.help')} onClick={requestTour}>
           <IcoHelp width="19" height="19" />
         </button>
 

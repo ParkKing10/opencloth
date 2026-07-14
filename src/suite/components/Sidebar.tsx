@@ -37,6 +37,7 @@ const PRIMARY: NavItem[] = [
   { to: '/suite/manufacturers', label: 'nav.manufacturers', icon: IcoFactory },
   { to: '/suite/community', label: 'nav.community', icon: IcoCommunity },
   { to: '/suite/marketplace', label: 'nav.marketplace', icon: IcoMarketplace },
+  { to: '/suite/rewards', label: 'nav.rewards', icon: IcoCoins, badge: true },
   { to: '/suite/analytics', label: 'nav.analytics', icon: IcoAnalytics },
   { to: '/suite/explainer', label: 'nav.explainer', icon: IcoBolt, badge: true },
   { to: '/suite/settings', label: 'nav.settings', icon: IcoSettings },
@@ -67,12 +68,13 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       </div>
 
       <nav className="sb__nav" aria-label="Suite Navigation">
-        {PRIMARY.map(({ to, label, icon: Icon, end, badge }) => (
+        {PRIMARY.filter((i) => i.to !== '/suite/explainer' || isAdmin).map(({ to, label, icon: Icon, end, badge }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
             onClick={onClose}
+            data-tour={`nav-${to.split('/')[2] ?? 'dashboard'}`}
             className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}
           >
             <span className="sb__glow" aria-hidden="true" />
@@ -92,7 +94,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
       <div className="sb__foot">
         <div className="sb__meters">
-          <div className="sb__coins">
+          <div className="sb__coins" data-tour="sidebar-coins">
             <span className="sb__coins-left">
               <IcoCoins className="sb__coins-ico" width="17" height="17" />
               <span>
@@ -100,7 +102,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
                 <small>{t('shell.coins')}</small>
               </span>
             </span>
-            <button className="sb__buy" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
+            <button className="sb__buy" type="button" onClick={() => navigate('/suite/rewards')}>
               {t('shell.buy')}
             </button>
           </div>
@@ -125,7 +127,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             <span className="sb__plan-label">{t('shell.currentPlan')}</span>
             <span className="sb__plan-name">{user?.plan ?? t('common.free')}</span>
           </div>
-          <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
+          <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/pricing')}>
             {t('shell.upgrade')}
           </button>
         </div>

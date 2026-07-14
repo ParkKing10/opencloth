@@ -132,7 +132,7 @@ export function Dashboard() {
       <div className="dash-grid">
         <div className="dash-main">
           {/* Hero — Design Studio showcase */}
-          <header className="dash-hero">
+          <header className="dash-hero" data-tour="dash-hero">
             <div className="dash-hero__glow" aria-hidden="true" />
             <div className="dash-hero__grid" aria-hidden="true" />
             <div className="dash-hero__left">
@@ -194,7 +194,7 @@ export function Dashboard() {
           </header>
 
           {/* Feature cards */}
-          <section className="dash-features">
+          <section className="dash-features" data-tour="dash-features">
             {FEATURES.map((f) => (
               <article
                 key={f.titleKey}

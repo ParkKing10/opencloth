@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adOutputDuration, mapOutputToSource, DEFAULT_AD_CONFIG } from './adCompose'
+import { adOutputDuration, footageLayout, mapOutputToSource, DEFAULT_AD_CONFIG } from './adCompose'
 import type { AdPlan } from './adPlan'
 
 const cfg = { ...DEFAULT_AD_CONFIG, intro: 1, outro: 2, headline: 'Hi' }
@@ -48,5 +48,38 @@ describe('mapOutputToSource', () => {
     const m = mapOutputToSource(plan, cfg, 6.5) // intro1 + body5 = 6; +0.5 into outro
     expect(m.section).toBe('outro')
     if (m.section === 'outro') expect(m.p).toBeCloseTo(0.25)
+  })
+})
+
+describe('footageLayout', () => {
+  it('landscape output: footage covers the whole frame', () => {
+    const l = footageLayout(1920, 1080, 1920, 1080)
+    expect(l.cover).toBe(true)
+    expect(l.w).toBe(1920)
+    expect(l.h).toBe(1080)
+  })
+
+  it('TikTok 9:16: a landscape screencast becomes a width-fitted card, aspect preserved', () => {
+    const l = footageLayout(1080, 1920, 1920, 1080)
+    expect(l.cover).toBe(false)
+    expect(l.w).toBeCloseTo(1080 * 0.92)
+    expect(l.w / l.h).toBeCloseTo(1920 / 1080)
+    // fully inside the frame, sitting above centre
+    expect(l.x).toBeGreaterThanOrEqual(0)
+    expect(l.y).toBeGreaterThan(0)
+    expect(l.y + l.h).toBeLessThan(1920)
+  })
+
+  it('caps very tall sources at 64% of the frame height', () => {
+    const l = footageLayout(1080, 1920, 1080, 1920) // portrait source in portrait frame
+    expect(l.cover).toBe(false)
+    expect(l.h).toBeCloseTo(1920 * 0.64)
+    expect(l.w / l.h).toBeCloseTo(1080 / 1920)
+  })
+
+  it('square output also uses the card layout', () => {
+    const l = footageLayout(1080, 1080, 1920, 1080)
+    expect(l.cover).toBe(false)
+    expect(l.w).toBeCloseTo(1080 * 0.92)
   })
 })

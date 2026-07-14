@@ -46,7 +46,13 @@ function headlineFrom(prompt: string): string {
   return words || 'Watch this'
 }
 
-const OUT = { '16:9': { w: 1920, h: 1080 } } // ad output is landscape for v1
+/** Output formats — TikTok/Reels vertical first, classic landscape, square feed. */
+const OUT = {
+  '9:16': { w: 1080, h: 1920, label: '9:16 · TikTok' },
+  '16:9': { w: 1920, h: 1080, label: '16:9 · YouTube' },
+  '1:1': { w: 1080, h: 1080, label: '1:1 · Feed' },
+} as const
+type OutFormat = keyof typeof OUT
 
 const EXAMPLE =
   'Show how I generate a hoodie from a prompt, then add distressed holes, then create a mockup. End with the logo and a CTA.'
@@ -68,6 +74,7 @@ export function AdDirector() {
   const [edits, setEdits] = useState<LocalEdit[]>([])
   const [refineText, setRefineText] = useState('')
   const [editMenu, setEditMenu] = useState(false)
+  const [format, setFormat] = useState<OutFormat>('9:16')
 
   const recRef = useRef<HTMLInputElement>(null)
   const logoRef = useRef<HTMLInputElement>(null)
@@ -169,7 +176,7 @@ export function AdDirector() {
   const paint = (outT: number) => {
     const canvas = canvasRef.current
     if (!canvas || !plan) return
-    const { w, h } = OUT['16:9']
+    const { w, h } = OUT[format]
     if (canvas.width !== w) canvas.width = w
     if (canvas.height !== h) canvas.height = h
     const ctx = canvas.getContext('2d')
@@ -219,13 +226,13 @@ export function AdDirector() {
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, outDur, adCfg])
+  }, [plan, outDur, adCfg, format])
 
   // Repaint a still frame when the plan/config changes but we're paused.
   useEffect(() => {
     if (!playingRef.current && plan) paint(Math.min(outRef.current, outDur))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, adCfg, logo])
+  }, [plan, adCfg, logo, format])
 
   const togglePlay = () => {
     if (!plan) return
@@ -254,7 +261,7 @@ export function AdDirector() {
     exportingRef.current = true
     setExporting(true)
     setExpPct(0)
-    const { w, h } = OUT['16:9']
+    const { w, h } = OUT[format]
     canvas.width = w
     canvas.height = h
     paint(0)
@@ -311,7 +318,7 @@ export function AdDirector() {
       pauseAllVideos()
     }
     const blob = await done
-    downloadBlob(blob, `loom-ad.${fileExtFor(mime)}`)
+    downloadBlob(blob, `loom-ad-${format.replace(':', 'x')}.${fileExtFor(mime)}`)
     setExporting(false)
     setExpPct(0)
     toast('Ad exported — check your downloads.', 'success')
@@ -479,6 +486,20 @@ export function AdDirector() {
               onLoadedData={() => paint(outRef.current)}
             />
           ))}
+          {/* output format — TikTok vertical is the default */}
+          <div className="dir-formats" role="group" aria-label="Output format">
+            {(Object.keys(OUT) as OutFormat[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`dir-format${format === f ? ' is-on' : ''}`}
+                onClick={() => setFormat(f)}
+                disabled={exporting}
+              >
+                {OUT[f].label}
+              </button>
+            ))}
+          </div>
           <div className="dir-stage">
             <canvas ref={canvasRef} className="dir-video" />
             {exporting && (

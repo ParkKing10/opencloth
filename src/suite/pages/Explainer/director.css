@@ -215,16 +215,49 @@
   flex-direction: column;
   gap: 14px;
 }
+/* Output format chips (9:16 TikTok / 16:9 / 1:1) */
+.dir-formats {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.dir-format {
+  padding: 7px 14px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-2, #14141b);
+  color: var(--s-text-2, #a6a6b2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s, color 0.16s, background 0.16s;
+}
+.dir-format:hover {
+  color: var(--s-text, #f4f4f6);
+}
+.dir-format.is-on {
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  border-color: var(--s-accent-line, rgba(209, 249, 79, 0.3));
+  color: var(--s-accent-2, #dcff66);
+}
+
 .dir-stage {
+  display: grid;
+  place-items: center;
   border-radius: var(--s-r-lg, 16px);
   overflow: hidden;
   background: #000;
   border: 1px solid var(--s-line);
 }
+/* The canvas keeps its own aspect (from its width/height attributes):
+   landscape fills the row width, TikTok portrait is height-capped and centred. */
 .dir-video {
   display: block;
-  width: 100%;
-  max-height: 62vh;
+  margin: 0 auto;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 66vh;
   background: #000;
 }
 .dir-summary {

@@ -72,6 +72,28 @@ export function mapOutputToSource(plan: AdPlan, cfg: AdConfig, outT: number): So
   return { section: 'body', srcTime: 0, clip: 0, video: 0, clipP: 0 }
 }
 
+/* ---------------- layout ---------------- */
+
+export type FootageLayout = { cover: boolean; x: number; y: number; w: number; h: number }
+
+/**
+ * Where the footage sits in the output frame. PURE.
+ * Landscape output: the footage covers the whole frame (v1 look).
+ * Portrait/square (TikTok, Reels, feed): a width-fitted rounded card floating
+ * on the stage — cover-cropping a landscape screencast into 9:16 would leave
+ * an unreadable center slice.
+ */
+export function footageLayout(W: number, H: number, sw: number, sh: number): FootageLayout {
+  if (W > H) return { cover: true, x: 0, y: 0, w: W, h: H }
+  const maxW = W * 0.92
+  const maxH = H * 0.64
+  const s = Math.min(maxW / Math.max(1, sw), maxH / Math.max(1, sh))
+  const w = sw * s
+  const h = sh * s
+  // Slightly above centre — leaves breathing room for the accent glow below.
+  return { cover: false, x: (W - w) / 2, y: H * 0.44 - h / 2, w, h }
+}
+
 /* ---------------- drawing ---------------- */
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
@@ -186,16 +208,35 @@ export function composeAdFrame(ctx: CanvasRenderingContext2D, plan: AdPlan, cfg:
     const fy = 0.46
     // A short scale-in at each clip start reads as a cut with weight.
     const cutIn = 0.94 + 0.06 * easeOutCubic(clamp01(map.clipP / 0.12))
+    const lay = footageLayout(W, H, v.videoWidth, v.videoHeight)
+    // The footage frame: full-bleed (landscape) or the floating card (portrait/square).
+    const frame = lay.cover
+      ? (() => {
+          const inset = Math.round(Math.min(W, H) * 0.03)
+          return { x: inset, y: inset, w: W - inset * 2, h: H - inset * 2 }
+        })()
+      : lay
+    const radius = Math.round(Math.min(W, H) * 0.03)
+
+    if (!lay.cover) {
+      // Stage glow behind the card so the vertical frame never feels empty.
+      const g = ctx.createRadialGradient(W / 2, lay.y + lay.h * 0.85, lay.w * 0.1, W / 2, lay.y + lay.h * 0.75, lay.w * 0.95)
+      g.addColorStop(0, `${cfg.accent}2e`)
+      g.addColorStop(1, `${cfg.accent}00`)
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, W, H)
+    }
+
     ctx.save()
     ctx.translate(W / 2, H / 2)
     ctx.scale(cutIn, cutIn)
     ctx.translate(-W / 2, -H / 2)
-    const inset = Math.round(Math.min(W, H) * 0.03)
-    roundRect(ctx, inset, inset, W - inset * 2, H - inset * 2, Math.round(Math.min(W, H) * 0.03))
+    roundRect(ctx, frame.x, frame.y, frame.w, frame.h, radius)
     ctx.clip()
-    drawCover(ctx, v, v.videoWidth, v.videoHeight, W, H, zoom, fx, fy)
+    ctx.translate(frame.x, frame.y)
+    drawCover(ctx, v, v.videoWidth, v.videoHeight, frame.w, frame.h, zoom, fx, fy)
     ctx.restore()
-    vignette(ctx, W, H, 0.35 * cfg.vignette)
+    vignette(ctx, W, H, (lay.cover ? 0.35 : 0.26) * cfg.vignette)
 
     // Accent highlight ring: on a reveal moment, or on an "emphasis" local edit — unless "text away".
     const revealPulse = map.focus != null && focusPhase > 0.6 ? (focusPhase - 0.6) / 0.4 : 0
@@ -205,7 +246,7 @@ export function composeAdFrame(ctx: CanvasRenderingContext2D, plan: AdPlan, cfg:
       ctx.globalAlpha = ring * 0.8 * cfg.accentUse
       ctx.strokeStyle = cfg.accent
       ctx.lineWidth = Math.max(2, H * 0.006 * (1 + emph * 0.6))
-      roundRect(ctx, inset, inset, W - inset * 2, H - inset * 2, Math.round(Math.min(W, H) * 0.03))
+      roundRect(ctx, frame.x, frame.y, frame.w, frame.h, radius)
       ctx.stroke()
       ctx.globalAlpha = 1
     }

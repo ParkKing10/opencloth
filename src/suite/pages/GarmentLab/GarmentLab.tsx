@@ -6,7 +6,7 @@
  * editing tool and can never destroy manual work. No AI model is connected; the AI edits run
  * through a deterministic placeholder that returns an editable garment, never an image.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
@@ -14,13 +14,14 @@ import { useAuth } from '../../auth/auth'
 import { defaultCapabilities, type EditableGarment, type GarmentRegion, type GarmentViewId } from '../../garment-model/editableGarment'
 import type { ShapeRole } from '../../garment-model/garmentStyle'
 import { getRegion, moveRegion, rename, setRegionColor, toggleLocked, toggleVisible } from '../../garment-model/regionTree'
-import { addRootRegion, mapRegionShapes } from '../../garment-model/regionEdit'
+import { addRootRegion, mapRegionShapes, removeRegions } from '../../garment-model/regionEdit'
 import { translateD } from '../../garment-model/pathTransform'
 import { loadReferenceGarment, FUTURE_PIPELINE_STAGES } from '../../garment-model/garmentGenerator'
 import { saveHistory } from '../../garment-model/garmentDocumentStore'
 import { isEmptyGarment, generateGarment, isLiveAi, GENERATION_PHASES } from '../../garment-model/garmentGeneration'
 import { buildFromTemplate } from '../../garment-model/garmentFactory'
 import { getGarment, toggleFavorite, updateGarmentOrigin, type GarmentOrigin, type GarmentSummary } from '../../garment-model/garmentLibrary'
+import { listAccessories, type Accessory } from '../../accessories/accessoryClient'
 import { exportGarmentFlatPng, exportGarmentThreados } from '../../garment-model/garmentExport'
 import { useGarmentHistory } from './useGarmentHistory'
 import { GarmentHeader } from './GarmentHeader'
@@ -43,6 +44,11 @@ function savedAgo(ms: number, t: (key: string, vars?: Record<string, string | nu
 }
 
 type RightTab = 'ai' | 'region'
+
+const ZOOM_MIN = 0.4
+const ZOOM_MAX = 5
+const ZOOM_STEP = 1.2
+const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z))
 
 export function GarmentLab() {
   const navigate = useNavigate()
@@ -69,8 +75,19 @@ export function GarmentLab() {
   const [savedAt, setSavedAt] = useState(() => Date.now())
   const [mode, setMode] = useState<'edit' | 'draw'>('edit')
   const [genPrompt, setGenPrompt] = useState<string | null>(null)
+  const [accessories, setAccessories] = useState<Accessory[]>([])
+  const [zoom, setZoom] = useState(1)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const drawCount = useRef(0)
   const empty = isEmptyGarment(garment)
+  // The current view's viewBox drives the canvas aspect ratio, so height-based sizing (which fits the
+  // portrait flat to the stage at 100%) can derive the width even for non-default proportions.
+  const viewBox = garment.views.find((v) => v.id === view)?.viewBox ?? { w: 400, h: 560 }
+
+  // Shared accessory library — the same admin-curated accessories as the Design Studio.
+  useEffect(() => {
+    void listAccessories().then(setAccessories)
+  }, [])
 
   // Track collection metadata (origin badge, favorite) + last-saved stamp.
   useEffect(() => {
@@ -154,6 +171,20 @@ export function GarmentLab() {
     if (id) setRightTab('region')
   }, [])
 
+  // Delete a region (button + keyboard). Removes it and its children, commits, clears selection.
+  const deleteRegion = useCallback(
+    (id: string) => {
+      const name = nameOf(id)
+      const res = removeRegions(garment, new Set([id]))
+      if (res.removed.length === 0) return
+      hist.commitManual(res.garment, t('labMain.revDeleted', { name }))
+      setSelectedId((cur) => (cur && res.removed.includes(cur) ? null : cur))
+      toast(t('labMain.toastRegionDeleted', { name }), 'default')
+    },
+    // nameOf reads the current garment via closure; garment is in deps.
+    [garment, hist, toast, t], // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
   // Keyboard undo/redo — ignored while typing in a field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -168,6 +199,70 @@ export function GarmentLab() {
     return () => window.removeEventListener('keydown', onKey)
     // undo/redo are stable useCallbacks — depend on them, not the whole (per-render) hist object.
   }, [hist.undo, hist.redo])
+
+  // Delete / Backspace removes the selected region (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return
+      const el = e.target as HTMLElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (!selectedId) return
+      e.preventDefault()
+      deleteRegion(selectedId)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selectedId, deleteRegion])
+
+  // ---- Canvas zoom & pan ----
+  // Zoom grows the canvas via a CSS var; the scroll container then pans natively. The canvas'
+  // client→viewBox math reads getBoundingClientRect (which reflects the scaled size), so selection
+  // and drag stay pixel-correct at any zoom without touching that code. Zoom is centre-anchored
+  // (the scroll position is left untouched) — simple and consistent across buttons, keys and wheel.
+  const zoomBy = useCallback((factor: number) => setZoom((z) => clampZoom(z * factor)), [])
+  const resetZoom = useCallback(() => setZoom(1), [])
+
+  // Only mount the zoom handlers when the zoomable edit canvas is actually on screen — never in Draw
+  // mode or the empty Create screen (where the canvas is absent), so we don't hijack the browser's
+  // own zoom keys or silently change a hidden zoom the user can't see.
+  const canvasVisible = mode === 'edit' && !empty
+
+  // Ctrl/⌘ + wheel (and trackpad pinch, which arrives as ctrl+wheel) zooms; a plain wheel pans
+  // natively. Attached non-passively so we can preventDefault the browser's page zoom.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el || !canvasVisible) return
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+      zoomBy(e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [zoomBy, canvasVisible])
+
+  // ⌘/Ctrl +, −, 0 — the universal zoom shortcuts. Only while the edit canvas is visible, and never
+  // while typing in a field.
+  useEffect(() => {
+    if (!canvasVisible) return
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return
+      const el = e.target as HTMLElement
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault()
+        zoomBy(ZOOM_STEP)
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        zoomBy(1 / ZOOM_STEP)
+      } else if (e.key === '0') {
+        e.preventDefault()
+        resetZoom()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zoomBy, resetZoom, canvasVisible])
 
   const handleApply = useCallback(
     async (prompt: string) => {
@@ -285,6 +380,8 @@ export function GarmentLab() {
             if (next !== garment) hist.commitManual(next, t('labMain.revReordered', { name: nameOf(id) }))
           }}
           onRename={(id, name) => hist.replaceCurrent(rename(garment, id, name))}
+          accessories={accessories}
+          onOpenAccessory={openDesignStudio}
         />
 
         <main className="eg-stage-wrap">
@@ -293,15 +390,45 @@ export function GarmentLab() {
           ) : empty ? (
             <GarmentCreateMethods onGenerate={(p) => setGenPrompt(p)} onDraw={() => setMode('draw')} onTemplate={handleTemplate} />
           ) : (
-            <EditableGarmentCanvas
-              garment={garment}
-              view={view}
-              selectedId={selectedId}
-              highlightId={highlightId}
-              onSelect={select}
-              onHighlight={setHighlightId}
-              onMoveRegion={moveRegionBy}
-            />
+            <>
+              {/* The scroll layer: zoom grows the canvas via --eg-zoom, panning is native scroll. */}
+              <div
+                className="eg-scroll"
+                ref={scrollRef}
+                style={{ '--eg-zoom': zoom, '--eg-aspect': `${viewBox.w} / ${viewBox.h}` } as CSSProperties}
+              >
+                <EditableGarmentCanvas
+                  garment={garment}
+                  view={view}
+                  selectedId={selectedId}
+                  highlightId={highlightId}
+                  onSelect={select}
+                  onHighlight={setHighlightId}
+                  onMoveRegion={moveRegionBy}
+                />
+              </div>
+              {/* Draw ON the existing flat: pen / line / curve / oval, each stroke a new editable region.
+                  Works with a mouse on desktop and a finger or Apple Pencil on iPad. */}
+              <button type="button" className="eg-draw-toggle" onClick={() => setMode('draw')} title={t('labMain.drawToggleTitle')}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+                {t('labMain.drawToggle')}
+              </button>
+              {/* Zoom controls float over the stage (outside the scroller, so they never pan away). */}
+              <div className="eg-zoom" role="group" aria-label={t('labMain.zoomAria')}>
+                <button type="button" className="eg-zoom__btn" onClick={() => zoomBy(1 / ZOOM_STEP)} disabled={zoom <= ZOOM_MIN + 0.001} aria-label={t('labMain.zoomOut')} title={t('labMain.zoomOut')}>
+                  −
+                </button>
+                <button type="button" className="eg-zoom__val" onClick={resetZoom} title={t('labMain.zoomReset')} aria-label={t('labMain.zoomReset')}>
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button type="button" className="eg-zoom__btn" onClick={() => zoomBy(ZOOM_STEP)} disabled={zoom >= ZOOM_MAX - 0.001} aria-label={t('labMain.zoomIn')} title={t('labMain.zoomIn')}>
+                  +
+                </button>
+              </div>
+            </>
           )}
         </main>
 
@@ -324,6 +451,7 @@ export function GarmentLab() {
               onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), t(getRegion(garment, id)?.visible ? 'labMain.revHid' : 'labMain.revShowed', { name: nameOf(id) }))}
               onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), t(getRegion(garment, id)?.locked ? 'labMain.revUnlocked' : 'labMain.revLocked', { name: nameOf(id) }))}
               onSetColor={(id, hex) => hist.commitManual(setRegionColor(garment, id, hex), hex ? t('labMain.revColoured', { name: nameOf(id) }) : t('labMain.revResetColour', { name: nameOf(id) }))}
+              onDelete={deleteRegion}
             />
           )}
         </div>

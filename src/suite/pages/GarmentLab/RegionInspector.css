@@ -192,3 +192,33 @@
 .eg-cap.is-na em {
   color: var(--s-text-3);
 }
+
+/* Delete region — danger action + keyboard hint. */
+.eg-inspector__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  height: 40px;
+  border-radius: var(--s-r-sm, 10px);
+  border: 1px solid color-mix(in oklab, #f0616d 45%, var(--s-line, rgba(255,255,255,0.1)));
+  background: transparent;
+  color: #f0616d;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.eg-inspector__delete:hover {
+  background: #e5484d;
+  border-color: #e5484d;
+  color: #fff;
+}
+.eg-inspector__delete em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.7;
+}

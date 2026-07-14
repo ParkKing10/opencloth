@@ -8,6 +8,7 @@ import { useMemo, useState, type SVGProps } from 'react'
 import { useT } from '@/i18n'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { flattenRegions } from '../../garment-model/regionTree'
+import type { Accessory } from '../../accessories/accessoryClient'
 
 const IcoEye = (p: SVGProps<SVGSVGElement>) => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" {...p}>
@@ -57,9 +58,13 @@ type Props = {
   onToggleLocked: (id: string) => void
   onMove: (id: string, dir: -1 | 1) => void
   onRename: (id: string, name: string) => void
+  /** Shared accessory library (same as the Design Studio). */
+  accessories?: Accessory[]
+  /** Open the Design Studio to actually place an accessory on this garment. */
+  onOpenAccessory?: () => void
 }
 
-export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, onToggleVisible, onToggleLocked, onMove, onRename }: Props) {
+export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, onToggleVisible, onToggleLocked, onMove, onRename, accessories = [], onOpenAccessory }: Props) {
   const t = useT()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
@@ -188,8 +193,27 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
           )
         })}
 
-        <span className="eg-tree__section eg-tree__section--design">{t('labPanels.tree.sectionDesign')}</span>
-        <p className="eg-tree__design-note">{t('labPanels.tree.designNote')}</p>
+        <span className="eg-tree__section eg-tree__section--design">{t('labPanels.tree.sectionAccessories')}</span>
+        {accessories.length === 0 ? (
+          <p className="eg-tree__design-note">{t('labPanels.tree.accessoriesEmpty')}</p>
+        ) : (
+          <div className="eg-acc-grid">
+            {accessories.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="eg-acc"
+                title={t('labPanels.tree.accessoryPlace', { name: a.name })}
+                onClick={onOpenAccessory}
+              >
+                <span className="eg-acc__thumb">
+                  <img src={a.image} alt="" draggable={false} />
+                </span>
+                <span className="eg-acc__name">{a.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

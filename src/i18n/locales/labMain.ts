@@ -28,6 +28,12 @@ export const labMain: LocaleBundle = {
     'labMain.revStartedFrom': 'Started from {name}',
     'labMain.regionDrawn': 'Drawn {n}',
     'labMain.revDrew': 'Drew {name}',
+    'labMain.drawToggle': 'Draw',
+    'labMain.drawToggleTitle': 'Draw on the flat — pen, line, curve, oval. Works on iPad too.',
+    'labMain.zoomAria': 'Zoom',
+    'labMain.zoomIn': 'Zoom in (⌘/Ctrl +)',
+    'labMain.zoomOut': 'Zoom out (⌘/Ctrl −)',
+    'labMain.zoomReset': 'Reset zoom to 100%',
     'labMain.revMoved': 'Moved {name}',
     'labMain.regionFallback': 'region',
     'labMain.revHid': 'Hid {name}',
@@ -36,6 +42,8 @@ export const labMain: LocaleBundle = {
     'labMain.revLocked': 'Locked {name}',
     'labMain.revReordered': 'Reordered {name}',
     'labMain.revColoured': 'Coloured {name}',
+    'labMain.revDeleted': 'Deleted {name}',
+    'labMain.toastRegionDeleted': 'Deleted “{name}”.',
     'labMain.revResetColour': 'Reset {name} colour',
 
     // GarmentLab — pipeline + right panel
@@ -125,6 +133,12 @@ export const labMain: LocaleBundle = {
     'labMain.revStartedFrom': 'Gestartet von {name}',
     'labMain.regionDrawn': 'Gezeichnet {n}',
     'labMain.revDrew': '{name} gezeichnet',
+    'labMain.drawToggle': 'Zeichnen',
+    'labMain.drawToggleTitle': 'Auf dem Flat zeichnen — Stift, Linie, Kurve, Oval. Funktioniert auch auf dem iPad.',
+    'labMain.zoomAria': 'Zoom',
+    'labMain.zoomIn': 'Vergrößern (⌘/Strg +)',
+    'labMain.zoomOut': 'Verkleinern (⌘/Strg −)',
+    'labMain.zoomReset': 'Zoom auf 100% zurücksetzen',
     'labMain.revMoved': '{name} verschoben',
     'labMain.regionFallback': 'Region',
     'labMain.revHid': '{name} ausgeblendet',
@@ -133,6 +147,8 @@ export const labMain: LocaleBundle = {
     'labMain.revLocked': '{name} gesperrt',
     'labMain.revReordered': '{name} neu angeordnet',
     'labMain.revColoured': '{name} eingefärbt',
+    'labMain.revDeleted': '{name} gelöscht',
+    'labMain.toastRegionDeleted': '„{name}" gelöscht.',
     'labMain.revResetColour': 'Farbe von {name} zurückgesetzt',
 
     // GarmentLab — pipeline + right panel

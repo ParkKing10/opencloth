@@ -33,3 +33,34 @@ export function rectPath(a: Pt, b: Pt): string {
 export function linePath(a: Pt, b: Pt): string {
   return `M${r(a.x)},${r(a.y)} L${r(b.x)},${r(b.y)}`
 }
+
+/**
+ * An oval/ellipse inscribed in the a→b bounding box, drawn as two arcs (so it stays a normal
+ * region `d` like every other shape). Corner-to-corner drag defines the box, exactly like the
+ * rectangle tool.
+ */
+export function ellipsePath(a: Pt, b: Pt): string {
+  const cx = (a.x + b.x) / 2
+  const cy = (a.y + b.y) / 2
+  const rx = Math.abs(b.x - a.x) / 2
+  const ry = Math.abs(b.y - a.y) / 2
+  if (rx < 0.5 || ry < 0.5) return ''
+  return `M${r(cx - rx)},${r(cy)} A${r(rx)},${r(ry)} 0 1 0 ${r(cx + rx)},${r(cy)} A${r(rx)},${r(ry)} 0 1 0 ${r(cx - rx)},${r(cy)} Z`
+}
+
+/**
+ * A single smooth curve fitted through a bowed drag — the "give a stroke a slight bump" tool.
+ * We fit ONE quadratic bézier that passes through the drag's start, its sampled midpoint and its
+ * end, so a straight drag stays a line and a bowed drag keeps exactly the bulge you traced.
+ */
+export function curvePath(pts: Pt[]): string {
+  if (pts.length < 2) return ''
+  const a = pts[0]
+  const b = pts[pts.length - 1]
+  if (pts.length < 3) return linePath(a, b)
+  const m = pts[Math.floor(pts.length / 2)]
+  // Control point so the quadratic hits `m` at t=0.5:  C = 2·M − ½·(A + B).
+  const cx = 2 * m.x - (a.x + b.x) / 2
+  const cy = 2 * m.y - (a.y + b.y) / 2
+  return `M${r(a.x)},${r(a.y)} Q${r(cx)},${r(cy)} ${r(b.x)},${r(b.y)}`
+}

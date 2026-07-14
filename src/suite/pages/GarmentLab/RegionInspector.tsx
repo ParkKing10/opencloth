@@ -25,9 +25,10 @@ type Props = {
   onToggleVisible: (id: string) => void
   onToggleLocked: (id: string) => void
   onSetColor: (id: string, hex: string | undefined) => void
+  onDelete?: (id: string) => void
 }
 
-export function RegionInspector({ garment, selectedId, onRename, onToggleVisible, onToggleLocked, onSetColor }: Props) {
+export function RegionInspector({ garment, selectedId, onRename, onToggleVisible, onToggleLocked, onSetColor, onDelete }: Props) {
   const t = useT()
   const region = selectedId ? getRegion(garment, selectedId) : undefined
 
@@ -125,6 +126,13 @@ export function RegionInspector({ garment, selectedId, onRename, onToggleVisible
           </label>
         </div>
       </div>
+
+      {onDelete && (
+        <button type="button" className="eg-inspector__delete" onClick={() => onDelete(region.id)}>
+          {t('labPanels.insp.delete')}
+          <em>{t('labPanels.insp.deleteHint')}</em>
+        </button>
+      )}
 
       <div className="eg-inspector__future">
         <span className="eg-inspector__future-label">{t('labPanels.insp.future')}</span>

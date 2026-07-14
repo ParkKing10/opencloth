@@ -7,7 +7,7 @@ export type User = {
   name: string
   email: string
   role: Role
-  plan: 'Free' | 'Studio' | 'Scale'
+  plan: 'Free' | 'Creator' | 'Studio' | 'Scale' | 'Brand'
   status: 'active' | 'suspended'
   /** SHA-256 hex of the password — never stored in plaintext. */
   passwordHash: string

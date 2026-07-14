@@ -325,9 +325,9 @@ export function GarmentsHome() {
               className="gm-card__thumb"
               role="button"
               tabIndex={0}
-              onClick={() => open(g.id)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(g.id) } }}
-              title={t('garments.card.designTitle')}
+              onClick={() => editStructure(g.id)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); editStructure(g.id) } }}
+              title={t('garments.menu.editStructure')}
               aria-label={t('garments.card.designAria', { name: g.name })}
             >
               <img src={g.thumb} alt={g.name} />

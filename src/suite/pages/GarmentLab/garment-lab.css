@@ -306,6 +306,7 @@
 
 /* ---- Stage / canvas ---- */
 .eg-stage-wrap {
+  position: relative;
   min-height: 0;
   display: grid;
   place-items: center;
@@ -313,12 +314,108 @@
   background:
     radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.03), transparent 60%),
     var(--s-bg, #0c0c10);
+  /* The edit canvas scrolls inside its own absolute .eg-scroll layer, so the stage has nothing to
+     scroll in edit mode (floating controls stay put). The Create / Draw states ARE direct children,
+     so keep overflow:auto here or a tall template gallery / draw surface would be clipped. */
   overflow: auto;
 }
+/* Scroll + zoom layer for the edit canvas. Fills the stage over the padding, scrolls to pan, and
+   centres the canvas when it fits (`safe center` keeps the top-left reachable when it overflows). */
+.eg-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  padding: 28px;
+  overscroll-behavior: contain;
+}
+/* Enter drawing on the existing flat — floats over the canvas, top-left of the stage. */
+.eg-draw-toggle {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel, #17171c);
+  color: var(--s-text, #f4f4f6);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+.eg-draw-toggle:hover {
+  border-color: var(--s-accent, #d1f94f);
+  color: var(--s-accent, #d1f94f);
+  transform: translateY(-1px);
+}
+/* Zoom controls — float bottom-right of the stage, never scroll with the canvas. */
+.eg-zoom {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel, #17171c);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+.eg-zoom__btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--s-text, #f4f4f6);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.eg-zoom__btn:hover:not(:disabled) {
+  background: var(--s-inset, rgba(255, 255, 255, 0.06));
+  color: var(--s-accent, #d1f94f);
+}
+.eg-zoom__btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.eg-zoom__val {
+  min-width: 46px;
+  padding: 0 4px;
+  border: none;
+  background: transparent;
+  color: var(--s-text-2, #b9b9c2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.eg-zoom__val:hover {
+  color: var(--s-accent, #d1f94f);
+}
 .eg-canvas {
-  width: min(100%, 460px);
-  height: auto;
-  max-height: 100%;
+  /* Height (with the zoom factor) is set by the canonical rule lower in this file; the explicit
+     aspect-ratio lets width:auto derive from it, so a portrait flat fits the stage height at 100%.
+     flex:0 0 auto stops the scroll layer squashing it, so zoom overflows → pans. touch-action:none
+     keeps a finger drag on a region moving the region instead of the browser stealing it as a pan. */
+  aspect-ratio: var(--eg-aspect, 400 / 560);
+  width: auto;
+  flex: 0 0 auto;
+  touch-action: none;
   background: #f6f6f4;
   border-radius: var(--s-r-lg, 14px);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
@@ -1423,6 +1520,15 @@
   font-size: 11.5px;
   color: var(--s-text-3);
 }
+.draw__hint-ipad {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  color: var(--s-text-2, #b9b9c2);
+  font-weight: 600;
+}
 
 /* ---- AI panel redesign (Part 4) ---- */
 .ai-composer {
@@ -2277,7 +2383,11 @@
     var(--s-bg);
 }
 .eg-canvas {
-  width: min(100%, 480px);
+  /* Canonical size (overrides the base rule). Sized by HEIGHT × zoom so a portrait flat fits the
+     stage height at 100%; width:auto derives from aspect-ratio (base rule). At zoom>1 it overflows
+     the scroll layer and pans. */
+  height: calc(min(100%, 680px) * var(--eg-zoom, 1));
+  width: auto;
   border-radius: var(--s-r-lg);
   border: 1px solid var(--s-line-2);
   box-shadow: var(--s-shadow-lg);
@@ -2506,4 +2616,51 @@
 }
 .eg-region.is-moving > path {
   opacity: 0.92;
+}
+
+/* Accessories section in the region tree (shared with the Design Studio). */
+.eg-acc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px 6px 4px;
+}
+.eg-acc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--s-r, 10px);
+  border: 1px solid var(--s-line, rgba(255, 255, 255, 0.08));
+  background: var(--s-panel-2, rgba(255, 255, 255, 0.03));
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.eg-acc:hover {
+  border-color: var(--s-accent-line, rgba(209, 249, 79, 0.4));
+  transform: translateY(-1px);
+}
+.eg-acc__thumb {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--s-r-sm, 8px);
+  background: var(--s-panel-3, rgba(255, 255, 255, 0.05));
+  overflow: hidden;
+}
+.eg-acc__thumb img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.eg-acc__name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--s-text-2, #b7b7c2);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -9,11 +9,14 @@ import { useT } from '@/i18n'
 import type { EditableGarment, GarmentViewId } from '../../garment-model/editableGarment'
 import { flattenRegions } from '../../garment-model/regionTree'
 import { styleForRole, type ShapeRole } from '../../garment-model/garmentStyle'
-import { pointsToPath, rectPath, linePath, type Pt } from '../../garment-model/drawPath'
+import { pointsToPath, rectPath, linePath, ellipsePath, curvePath, type Pt } from '../../garment-model/drawPath'
 import './garment-lab.css'
 
-type Tool = 'pen' | 'rect' | 'line'
-const TOOL_ROLE: Record<Tool, ShapeRole> = { pen: 'outline', rect: 'fill', line: 'seam' }
+type Tool = 'pen' | 'line' | 'curve' | 'rect' | 'oval'
+const TOOLS: Tool[] = ['pen', 'line', 'curve', 'rect', 'oval']
+const TOOL_ROLE: Record<Tool, ShapeRole> = { pen: 'outline', line: 'seam', curve: 'seam', rect: 'fill', oval: 'outline' }
+// Pen and curve sample the whole gesture; the geometric tools only need the start + current point.
+const FREEHAND: Record<Tool, boolean> = { pen: true, curve: true, line: false, rect: false, oval: false }
 
 type Props = {
   garment: EditableGarment
@@ -35,14 +38,23 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
     return { x: ((e.clientX - rect.left) / rect.width) * vb.w, y: ((e.clientY - rect.top) / rect.height) * vb.h }
   }
 
-  const preview =
-    pts.length === 0
-      ? ''
-      : tool === 'pen'
-        ? pointsToPath(pts)
-        : tool === 'rect'
-          ? rectPath(pts[0], pts[pts.length - 1])
-          : linePath(pts[0], pts[pts.length - 1])
+  const preview = (() => {
+    if (pts.length === 0) return ''
+    const a = pts[0]
+    const b = pts[pts.length - 1]
+    switch (tool) {
+      case 'pen':
+        return pointsToPath(pts)
+      case 'curve':
+        return curvePath(pts)
+      case 'rect':
+        return rectPath(a, b)
+      case 'oval':
+        return ellipsePath(a, b)
+      default:
+        return linePath(a, b)
+    }
+  })()
 
   const down = (e: ReactPointerEvent) => {
     try {
@@ -57,8 +69,9 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
   const move = (e: ReactPointerEvent) => {
     if (!drawing) return
     const p = toView(e)
-    // Guard against a batched-event race where `prev` is momentarily empty (rect/line need a start).
-    setPts((prev) => (tool === 'pen' ? [...prev, p] : prev.length > 0 ? [prev[0], p] : [p]))
+    // Freehand tools (pen, curve) keep every sample; geometric tools track only start + current.
+    // Guard against a batched-event race where `prev` is momentarily empty (they need a start).
+    setPts((prev) => (FREEHAND[tool] ? [...prev, p] : prev.length > 0 ? [prev[0], p] : [p]))
   }
   const up = () => {
     if (!drawing) return
@@ -72,9 +85,15 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
       <div className="draw__toolbar">
         <span className="draw__eyebrow">{t('labPanels.draw.eyebrow')}</span>
         <div className="draw__tools" role="toolbar" aria-label={t('labPanels.draw.toolsAria')}>
-          {(['pen', 'rect', 'line'] as Tool[]).map((toolId) => (
-            <button key={toolId} type="button" className={`draw__tool${tool === toolId ? ' is-active' : ''}`} onClick={() => setTool(toolId)}>
-              {toolId === 'pen' ? t('labPanels.draw.pen') : toolId === 'rect' ? t('labPanels.draw.rectangle') : t('labPanels.draw.line')}
+          {TOOLS.map((toolId) => (
+            <button
+              key={toolId}
+              type="button"
+              className={`draw__tool${tool === toolId ? ' is-active' : ''}`}
+              aria-pressed={tool === toolId}
+              onClick={() => setTool(toolId)}
+            >
+              {t(`labPanels.draw.${toolId}`)}
             </button>
           ))}
         </div>
@@ -104,11 +123,22 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
                 }),
             )}
           </g>
-          {preview && <path d={preview} fill={tool === 'rect' ? 'rgba(209,249,79,0.15)' : 'none'} stroke="#2f6bff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />}
+          {preview && (
+            <path
+              d={preview}
+              fill={tool === 'rect' || tool === 'oval' ? 'rgba(209,249,79,0.15)' : 'none'}
+              stroke="#2f6bff"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          )}
         </svg>
       </div>
 
-      <p className="draw__hint">{tool === 'pen' ? t('labPanels.draw.hintPen') : tool === 'rect' ? t('labPanels.draw.hintRect') : t('labPanels.draw.hintLine')}</p>
+      <p className="draw__hint">
+        {t(`labPanels.draw.hint_${tool}`)} <span className="draw__hint-ipad">{t('labPanels.draw.hintTouch')}</span>
+      </p>
     </div>
   )
 }

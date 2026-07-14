@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom'
 import { IcoSparkle, IcoPlus, IcoCoins, IcoBolt, IcoStar } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { useAuth } from '../../auth/auth'
-import { useStore } from '../../data/store'
 import { hasImageAi, generateImages } from '../../ai/imageProvider'
 import {
   frontPrompt,
@@ -23,13 +22,14 @@ import { createGarment } from '../../garment-model/garmentLibrary'
 import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
 import { saveDoc } from '../DesignStudio/designDoc'
 import { downloadBlob, slugify } from '../../lib/download'
+import { COSTS } from '../../economy/economy'
+import { usePaywall } from '../../economy/PaywallProvider'
 import { useT } from '@/i18n'
 import './aid.css'
 
 /** The AI Designer does real, production-grade work (front + back render, on-model shots), so it
  *  costs meaningfully more than a quick graphic. Charged per successful variation / photo. */
-const DESIGN_COST = 15
-const MODEL_COST = 10
+const DESIGN_COST = COSTS.design
 const PROMPT_MAX = 480
 // Reference images are plain, unlabelled slots — just drop in images for loose style guidance.
 const REF_COUNT = 3
@@ -68,7 +68,6 @@ export function AIDesigner() {
   const toast = useToast()
   const t = useT()
   const { user } = useAuth()
-  const { mutate } = useStore()
 
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT)
   const [style, setStyle] = useState<string>('Vintage Wash')
@@ -87,6 +86,7 @@ export function AIDesigner() {
   const abortRef = useRef<AbortController | null>(null)
 
   const coins = user?.coins ?? 0
+  const { requireGeneration } = usePaywall()
 
   // Load (and live-refresh) the user's AI design library.
   const refresh = useCallback(async () => {
@@ -112,12 +112,9 @@ export function AIDesigner() {
   }, [lightbox])
 
   const totalCost = count * DESIGN_COST
-  const canGenerate = live && prompt.trim().length > 0 && !generating && coins >= DESIGN_COST
-
-  const spend = (amount: number) => {
-    if (!user) return
-    mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: Math.max(0, u.coins - amount) } : u)) }))
-  }
+  // Enabled whenever there's a prompt — the paywall/coins are enforced on click (so blocked users
+  // actually see the wall instead of a silently dead button).
+  const canGenerate = prompt.trim().length > 0 && !generating
 
   async function addReference(i: number, file: File | undefined) {
     if (!file) return
@@ -133,9 +130,14 @@ export function AIDesigner() {
     const clean = prompt.trim()
     if (!clean) return toast(t('aiDesigner.toastDescribeFirst'), 'info')
     if (!user) return toast(t('aiDesigner.toastSignIn'), 'info')
-    if (!live) return toast(t('aiDesigner.toastNeedModel'), 'info')
     if (generating) return
-    if (coins < DESIGN_COST) return toast(t('aiDesigner.toastNotEnoughDesign', { n: DESIGN_COST }), 'info')
+
+    // Enforce the paywall the moment they try: the first ever design is free, then Free-plan users
+    // hit the wall and paid users spend coins. A blocked attempt shows the wall and stops here.
+    const first = requireGeneration('design')
+    if (!first.allow) return
+    // A provider must be configured to actually render — don't burn the free trial / coins otherwise.
+    if (!live) return toast(t('aiDesigner.toastNeedModel'), 'info')
 
     const brief = { prompt: clean, style, type }
     // References are plain images — loose STYLE guidance the model takes inspiration from, never copies.
@@ -146,14 +148,19 @@ export function AIDesigner() {
     let made = 0
     let firstError: unknown = null
 
-    for (let i = 0; i < count; i++) {
-      if (coins - made * DESIGN_COST < DESIGN_COST) break // ran out of coins mid-run
+    // A free trial makes exactly ONE design; paid users make the batch they asked for.
+    const runs = first.mode === 'free' ? 1 : count
+
+    for (let i = 0; i < runs; i++) {
+      // The first run is already granted; each further run needs its own grant (coins) or we stop.
+      const gate = i === 0 ? first : requireGeneration('design')
+      if (!gate.allow) break
       try {
-        setProgress(t('aiDesigner.progressFront', { i: i + 1, n: count }))
+        setProgress(t('aiDesigner.progressFront', { i: i + 1, n: runs }))
         const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(GEN_TIMEOUT_MS)])
         const front = (await generateImages(frontPrompt(brief, references.length > 0), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
         if (!front) throw new Error(t('aiDesigner.errNoFront'))
-        setProgress(t('aiDesigner.progressBack', { i: i + 1, n: count }))
+        setProgress(t('aiDesigner.progressBack', { i: i + 1, n: runs }))
         // Condition the back on the front so it's the SAME garment, from behind.
         const back = (await generateImages(backPrompt(brief), { n: 1, references: [front], size: DESIGN_SIZE, quality: 'high', signal }))[0] ?? front
         const design: AIDesign = {
@@ -171,7 +178,7 @@ export function AIDesigner() {
         }
         await saveDesign(design)
         setDesigns((prev) => [design, ...prev])
-        spend(DESIGN_COST) // charge only for a design that actually landed
+        gate.commit() // charge (free-mark or coin-deduct) only for a design that actually landed
         made++
       } catch (err) {
         if (!firstError) firstError = err
@@ -193,7 +200,8 @@ export function AIDesigner() {
   async function generateModel(design: AIDesign) {
     if (!user) return
     if (modelBusy.has(design.id)) return
-    if (coins < MODEL_COST) return toast(t('aiDesigner.toastNotEnoughModel', { n: MODEL_COST }), 'info')
+    const gate = requireGeneration('model')
+    if (!gate.allow) return // first is free, then the paywall / coins
     setModelBusy((s) => new Set(s).add(design.id))
     try {
       const signal = AbortSignal.timeout(GEN_TIMEOUT_MS)
@@ -207,7 +215,7 @@ export function AIDesigner() {
       if (!url) throw new Error(t('aiDesigner.errNoPhoto'))
       const next = await patchDesign(design.id, { modelUrls: [...design.modelUrls, url] })
       setDesigns((prev) => prev.map((d) => (d.id === design.id ? next ?? d : d)))
-      spend(MODEL_COST)
+      gate.commit()
       toast(t('aiDesigner.toastPhotoAdded', { name: design.name }), 'success')
     } catch (err) {
       toast(err instanceof Error ? err.message : t('aiDesigner.errNoModelPhoto'), 'info')

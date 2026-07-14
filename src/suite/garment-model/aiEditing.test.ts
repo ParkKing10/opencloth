@@ -110,6 +110,57 @@ describe('AI garment editor — edits ONLY the required regions', () => {
     expect(diff.removed).toEqual([])
   })
 
+  it('“add a chest pocket” adds a pocket region and keeps every original region', () => {
+    const g = makeReferenceBomber()
+    const res = editGarment(g, 'add a chest pocket')
+    expect(res.understood).toBe(true)
+    const diff = diffGarments(g, res.garment)
+    expect(diff.added).toEqual(['ai-chest-pocket'])
+    expect(diff.removed).toEqual([])
+    expect(diff.modified).toEqual([])
+    expect(res.garment.regions['ai-chest-pocket'].type).toBe('pocket')
+  })
+
+  it('“make it oversized” actually WIDENS the body (visible, not a timid 10%)', () => {
+    const g = makeReferenceBomber()
+    const res = editGarment(g, 'make it oversized')
+    expect(res.understood).toBe(true)
+    const width = (d: string) => {
+      const xs = (d.match(/-?\d*\.?\d+/g) ?? []).map(Number).filter((_, i) => i % 2 === 0)
+      return Math.max(...xs) - Math.min(...xs)
+    }
+    const before = g.regions['body'].shapes.find((s) => s.view === 'front')!.d
+    const after = res.garment.regions['body'].shapes.find((s) => s.view === 'front')!.d
+    // sx = 1.22 → the body is meaningfully wider, not just nudged.
+    expect(width(after) / width(before)).toBeGreaterThan(1.15)
+  })
+
+  it('“slim fit” reshapes the body narrower', () => {
+    const g = makeReferenceBomber()
+    const res = editGarment(g, 'slim fit')
+    expect(res.understood).toBe(true)
+    expect(res.intent).toBe('fit')
+    expect(res.changedRegionIds.length).toBeGreaterThan(0)
+  })
+
+  it('understands German prompts (the app ships DE and the chips are German)', () => {
+    const g = makeReferenceBomber()
+    // "make it oversized"
+    expect(editGarment(g, 'mach es oversized').understood).toBe(true)
+    // "make it wider"
+    expect(editGarment(g, 'mach es weiter').understood).toBe(true)
+    // "make the sleeves wider" → only sleeve + cuff regions
+    const sleeves = editGarment(g, 'ärmel weiter machen')
+    expect(sleeves.understood).toBe(true)
+    expect(new Set(sleeves.changedRegionIds)).toEqual(new Set(['sleeve-l', 'sleeve-r', 'cuff-l', 'cuff-r']))
+    // "add a chest pocket"
+    expect(editGarment(g, 'brusttasche hinzufügen').changedRegionIds).toEqual(['ai-chest-pocket'])
+    // "remove the buttons" → removes the snap-button region
+    const removed = editGarment(g, 'knöpfe entfernen')
+    expect(removed.understood).toBe(true)
+    expect(removed.garment.regions['snaps']).toBeUndefined()
+  })
+
   it('is honest about unknown prompts — unchanged garment, understood=false', () => {
     const g = makeReferenceBomber()
     const res = editGarment(g, 'convert into a varsity jacket')

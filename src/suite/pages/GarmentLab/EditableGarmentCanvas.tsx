@@ -65,10 +65,15 @@ export function EditableGarmentCanvas({ garment, view, selectedId, highlightId, 
       viewBox={`0 0 ${viewBox.w} ${viewBox.h}`}
       role="img"
       aria-label={t('labPanels.canvas.aria', { name: garment.name, view })}
-      onClick={() => !drag && onSelect(null)}
+      onClick={(e) => {
+        // Only a click on the bare background clears the selection — a click that bubbled up from a
+        // region must NOT deselect (that made every pick instantly un-stick).
+        if (!drag && e.target === e.currentTarget) onSelect(null)
+      }}
       onPointerMove={onMove}
       onPointerUp={endDrag}
       onPointerLeave={endDrag}
+      onPointerCancel={endDrag}
     >
       {order.map(({ region }) => {
         // Render ONLY this view's shapes — intentional single-view details must not leak across views.

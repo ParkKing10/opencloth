@@ -1,6 +1,7 @@
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { IcoSearch, IcoPlus, IcoBell, IcoHelp, IcoCoins, IcoSun, IcoMoon } from './ui/Icons'
+import { IcoSearch, IcoBell, IcoHelp, IcoCoins, IcoSun, IcoMoon } from './ui/Icons'
+import { TrialModal } from './TrialModal'
 import { useSuiteTheme } from '../theme'
 import { useAuth } from '../auth/auth'
 import { useStore } from '../data/store'
@@ -34,6 +35,7 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
   const [query, setQuery] = useState('')
   const [notifOpen, setNotifOpen] = useState(false)
+  const [trialOpen, setTrialOpen] = useState(false)
 
   const unread = useMemo(() => data.notifications.filter((n) => !n.read).length, [data.notifications])
 
@@ -134,11 +136,15 @@ export function Topbar({ onMenu }: { onMenu?: () => void }) {
 
         <span className="tb__divider" aria-hidden="true" />
 
-        <button className="s-btn s-btn--accent tb__new" type="button" onClick={() => navigate('/suite/design')} aria-label={t('tb.newDesign')}>
-          <IcoPlus width="17" height="17" />
-          <span className="tb__new-label">{t('tb.newDesign')}</span>
+        {/* Canva-style trial CTA — opens the plan-picker modal with our prices. */}
+        <button className="tb__trial" type="button" onClick={() => setTrialOpen(true)}>
+          <span aria-hidden="true">👑</span>
+          <span className="tb__trial-long">{t('trial.topCta')}</span>
+          <span className="tb__trial-short">{t('trial.topCtaShort')}</span>
         </button>
       </div>
+
+      <TrialModal open={trialOpen} onClose={() => setTrialOpen(false)} />
     </header>
   )
 }

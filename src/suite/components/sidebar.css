@@ -161,28 +161,52 @@
   background: var(--s-hover);
 }
 
-.sb__storage-top {
+/* "Connect MCP to Claude" — replaces the old storage meter. */
+.sb__mcp {
   display: flex;
-  justify-content: space-between;
-  font-size: 11.5px;
-  color: var(--s-text-3);
-  margin-bottom: 6px;
-}
-.sb__storage-pct {
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--s-r, 12px);
+  border: 1px dashed var(--s-accent-line, rgba(209, 249, 79, 0.3));
+  background: none;
   color: var(--s-text-2);
-  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--s-dur) var(--s-ease), color var(--s-dur) var(--s-ease);
 }
-.sb__bar {
-  height: 5px;
+.sb__mcp:hover {
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  color: var(--s-text);
+}
+.sb__mcp-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  color: var(--s-accent, #d1f94f);
+  font-size: 13px;
+}
+.sb__mcp-label {
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sb__mcp-beta {
+  margin-left: auto;
+  padding: 2px 7px;
   border-radius: 999px;
   background: var(--s-panel-3);
-  overflow: hidden;
-}
-.sb__bar span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--s-accent), var(--s-accent-2));
+  color: var(--s-text-3);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
 }
 
 .sb__plan {

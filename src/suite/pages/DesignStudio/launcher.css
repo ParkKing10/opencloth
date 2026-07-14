@@ -37,91 +37,219 @@
   position: relative;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 24px;
+  gap: clamp(24px, 4vw, 56px);
   align-items: center;
   overflow: hidden;
-  padding: 40px;
-  border-radius: 26px;
-  border: 1px solid var(--s-border, var(--s-line));
-  background: linear-gradient(135deg, #14140f, #101014 60%, #0d0d10);
+  isolation: isolate;
+  padding: clamp(30px, 3.4vw, 52px);
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(130% 130% at 100% 0%, color-mix(in oklab, var(--s-accent, #d1f94f) 10%, transparent), transparent 46%),
+    linear-gradient(152deg, #16170f 0%, #101118 56%, #0b0c10 100%);
+  box-shadow: 0 30px 80px -34px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+/* Gradient-sheen hairline border — a whisper of the accent in the top-left, fading to nothing. */
+.dl__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(150deg, color-mix(in oklab, var(--s-accent, #d1f94f) 55%, transparent), rgba(255, 255, 255, 0.05) 32%, transparent 62%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.75;
 }
 .dl__hero-glow {
   position: absolute;
-  top: -40%;
-  right: -10%;
-  width: 520px;
-  height: 520px;
+  top: -34%;
+  right: -6%;
+  z-index: 0;
+  width: min(560px, 62%);
+  aspect-ratio: 1;
   border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in oklab, var(--s-accent, #d1f94f) 55%, transparent), transparent 62%);
-  filter: blur(20px);
+  background: radial-gradient(circle, color-mix(in oklab, var(--s-accent, #d1f94f) 42%, transparent), transparent 60%);
+  filter: blur(34px);
   opacity: 0.5;
   pointer-events: none;
+}
+/* Fine dotted texture, masked toward the glow — reads as premium grain, not a pattern. */
+.dl__hero-grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.4px);
+  background-size: 22px 22px;
+  -webkit-mask: radial-gradient(150% 110% at 100% 0%, #000, transparent 62%);
+  mask: radial-gradient(150% 110% at 100% 0%, #000, transparent 62%);
 }
 .dl__hero-body { position: relative; z-index: 1; max-width: 560px; }
 .dl__hero-kicker {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--s-accent, #d1f94f) 28%, transparent);
+  background: color-mix(in oklab, var(--s-accent, #d1f94f) 9%, transparent);
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.16em;
+  text-transform: uppercase;
   color: var(--s-accent, #d1f94f);
 }
 .dl__hero-body h1 {
-  margin: 12px 0 10px;
-  font-size: clamp(30px, 5vw, 52px);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
+  margin: 18px 0 12px;
+  font-size: clamp(32px, 4.6vw, 56px);
+  line-height: 1.0;
+  letter-spacing: -0.028em;
   color: #fff;
   font-weight: 800;
 }
+.dl__hero-body h1 em { font-style: normal; color: var(--s-accent, #d1f94f); }
 .dl__hero-body p {
-  font-size: 14.5px;
+  font-size: clamp(14px, 1.2vw, 16px);
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.62);
-  max-width: 460px;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 440px;
 }
-.dl__hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.dl__hero-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
 .dl__store {
   display: inline-flex;
   align-items: center;
   gap: 11px;
-  padding: 11px 18px;
-  border-radius: 13px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.05);
+  padding: 10px 18px 10px 15px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.03));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   color: #fff;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 24px -14px rgba(0, 0, 0, 0.85);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
-.dl__store:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.28); }
-.dl__store-glyph { font-size: 20px; line-height: 1; }
-.dl__store span:last-child { display: flex; flex-direction: column; text-align: left; line-height: 1.15; }
-.dl__store small { font-size: 10px; opacity: 0.6; letter-spacing: 0.02em; }
-.dl__store b { font-size: 15px; }
+.dl__store:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.05));
+  border-color: color-mix(in oklab, var(--s-accent, #d1f94f) 45%, rgba(255, 255, 255, 0.2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 16px 32px -16px rgba(0, 0, 0, 0.9);
+}
+.dl__store:focus-visible { outline: 2px solid var(--s-accent, #d1f94f); outline-offset: 2px; }
+.dl__store-logo { width: 24px; height: 24px; flex: none; }
+.dl__store-txt { display: flex; flex-direction: column; text-align: left; line-height: 1.14; }
+.dl__store small { font-size: 9.5px; opacity: 0.62; letter-spacing: 0.04em; text-transform: uppercase; }
+.dl__store b { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 
-.dl__hero-phone { position: relative; z-index: 1; }
-.dl__phone {
-  width: 150px;
-  height: 300px;
-  border-radius: 30px;
-  border: 6px solid #23231f;
-  background: #000;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+/* ── Device mockup — the signature: the app caught mid-design ──────────────── */
+.dl__hero-phone { position: relative; z-index: 1; display: grid; place-items: center; }
+.dl__device {
+  position: relative;
+  width: clamp(196px, 19vw, 236px);
+  aspect-ratio: 212 / 436;
   padding: 8px;
-  transform: rotate(6deg);
+  border-radius: 42px;
+  background: linear-gradient(150deg, #42424a, #17171b 42%, #08080a);
+  box-shadow:
+    0 44px 90px -34px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14);
+  animation: dl-float 7s ease-in-out infinite;
 }
-.dl__phone-screen {
-  width: 100%;
+/* Accent rim light down the top-left edge of the frame. */
+.dl__device::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(150deg, color-mix(in oklab, var(--s-accent, #d1f94f) 45%, transparent), transparent 34%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.6;
+}
+.dl__device-island {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32%;
+  height: 17px;
+  border-radius: 999px;
+  background: #000;
+  z-index: 3;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.dl__device-screen {
+  position: relative;
   height: 100%;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 50% 30%, color-mix(in oklab, var(--s-accent, #d1f94f) 60%, transparent), transparent 55%),
-    linear-gradient(160deg, #1a1a1f, #0c0c10);
+  border-radius: 35px;
+  overflow: hidden;
+  background: linear-gradient(170deg, #15161c, #0b0b0e);
 }
-@media (max-width: 720px) {
-  .dl__hero { grid-template-columns: 1fr; padding: 28px; }
-  .dl__hero-phone { display: none; }
+.dl__app { display: flex; flex-direction: column; height: 100%; padding: 30px 12px 14px; gap: 10px; }
+.dl__app-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+.dl__app-time { font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.78); }
+.dl__app-brand { font-size: 11.5px; font-weight: 800; color: var(--s-accent, #d1f94f); }
+.dl__app-stage {
+  position: relative;
+  flex: 1;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fafafa, #ececed);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+.dl__app-flat { width: 60%; height: auto; }
+/* A lime graphic dropped on the chest, with a dashed selection box — "designing", frozen mid-edit. */
+.dl__app-graphic {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: radial-gradient(circle at 32% 28%, #ecff86, var(--s-accent, #d1f94f) 70%);
+  box-shadow: 0 5px 12px color-mix(in oklab, var(--s-accent, #d1f94f) 40%, transparent);
+  outline: 1.5px dashed rgba(20, 20, 20, 0.45);
+  outline-offset: 3px;
+}
+.dl__app-dock { display: flex; justify-content: center; gap: 9px; padding: 8px 0 2px; }
+.dl__app-dock i {
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dl__app-dock i.is-on {
+  background: var(--s-accent, #d1f94f);
+  border-color: transparent;
+  box-shadow: 0 5px 14px color-mix(in oklab, var(--s-accent, #d1f94f) 40%, transparent);
+}
+@keyframes dl-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-11px) rotate(-3deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl__device { animation: none; transform: rotate(-3deg); }
+}
+
+/* ── Tablet / iPad — keep the full two-column premium hero, sized up ───────── */
+@media (max-width: 1040px) and (min-width: 641px) {
+  .dl__hero { gap: 28px; }
+  .dl__hero-body h1 { font-size: clamp(32px, 6vw, 48px); }
+  .dl__device { width: clamp(188px, 26vw, 224px); }
 }
 
 /* Chooser */

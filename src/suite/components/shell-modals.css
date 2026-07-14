@@ -1,0 +1,297 @@
+/* Shell modals — trial (topbar crown) + MCP (sidebar). Prefix: shm.
+   z-index 1300: above the tour (1200), below the toaster (9999). */
+
+/* The portal wrapper only carries the .suite design tokens — no layout of its own. */
+.suite.shm-host {
+  display: contents;
+}
+
+.shm {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+.shm__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 5, 10, 0.7);
+  backdrop-filter: blur(3px);
+}
+.shm__card {
+  position: relative;
+  width: min(860px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: var(--s-r-xl, 22px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel, #101016);
+  color: var(--s-text, #f4f4f6);
+  box-shadow: var(--s-shadow-lg, 0 30px 80px rgba(0, 0, 0, 0.6));
+  padding: 28px;
+}
+.shm__card--trial {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 28px;
+}
+.shm__card--mcp {
+  width: min(560px, 100%);
+}
+.shm__x {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-3, #191922);
+  color: var(--s-text-2, #a6a6b2);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.shm__x:hover {
+  color: var(--s-text, #f4f4f6);
+}
+
+.shm__title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.shm__title-accent {
+  color: var(--s-accent, #d1f94f);
+}
+.shm__sub {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--s-text-2, #a6a6b2);
+}
+
+/* plan radio cards */
+.shm__plans {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.shm__plan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--s-r-lg, 16px);
+  border: 1.5px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-2, #14141b);
+  color: var(--s-text, #f4f4f6);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s, background 0.16s;
+}
+.shm__plan:hover {
+  border-color: var(--s-line-strong, rgba(255, 255, 255, 0.16));
+}
+.shm__plan.is-on {
+  border-color: var(--plan-accent, var(--s-accent, #d1f94f));
+  background: color-mix(in oklab, var(--plan-accent, #d1f94f) 7%, var(--s-panel-2, #14141b));
+}
+.shm__radio {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 2px solid var(--s-text-3, #6f6f7c);
+}
+.shm__plan.is-on .shm__radio {
+  border-color: var(--plan-accent, var(--s-accent, #d1f94f));
+  background: radial-gradient(circle, var(--plan-accent, #d1f94f) 0 45%, transparent 50%);
+}
+.shm__plan-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shm__plan-text b {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.shm__plan-text small {
+  font-size: 12px;
+  color: var(--s-text-2, #a6a6b2);
+}
+.shm__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  color: var(--s-accent-2, #dcff66);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.shm__cta {
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  border-radius: var(--s-r-pill, 999px);
+  background: var(--s-accent, #d1f94f);
+  color: var(--s-accent-ink, #0c1500);
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.16s, transform 0.16s;
+}
+.shm__cta:hover {
+  background: var(--s-accent-2, #dcff66);
+  transform: translateY(-1px);
+}
+.shm__cta--sm {
+  width: auto;
+  padding: 10px 22px;
+  font-size: 13px;
+}
+.shm__note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--s-text-3, #6f6f7c);
+  text-align: center;
+}
+
+/* right column — what the selected plan gives you */
+.shm__right {
+  border-left: 1px solid var(--s-line, rgba(255, 255, 255, 0.06));
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+}
+.shm__coins {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.shm__coins b {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--plan-accent, var(--s-accent, #d1f94f));
+}
+.shm__coins small {
+  font-size: 12.5px;
+  color: var(--s-text-2, #a6a6b2);
+}
+.shm__benefits-title {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-text-3, #6f6f7c);
+}
+.shm__benefits {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.shm__benefits li {
+  display: flex;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--s-text, #f4f4f6);
+}
+.shm__benefits li span {
+  color: var(--s-good, #3ecf8e);
+  font-weight: 800;
+}
+.shm__tagline {
+  margin: auto 0 0;
+  font-size: 12.5px;
+  font-style: italic;
+  color: var(--s-text-2, #a6a6b2);
+}
+
+/* ---- MCP modal bits ---- */
+.shm__mcp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.shm__mcp-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  color: var(--s-accent, #d1f94f);
+  font-size: 20px;
+}
+.shm__mcp-head .shm__title {
+  margin: 0;
+  font-size: 20px;
+}
+.shm__soon {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--s-accent-line, rgba(209, 249, 79, 0.3));
+  color: var(--s-accent-2, #dcff66);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+.shm__examples {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shm__examples li {
+  padding: 10px 12px;
+  border-radius: var(--s-r, 12px);
+  background: var(--s-inset, #0c0c11);
+  border: 1px solid var(--s-line, rgba(255, 255, 255, 0.06));
+  font-size: 12.5px;
+  color: var(--s-text-2, #a6a6b2);
+}
+.shm__cmd {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border-radius: var(--s-r, 12px);
+  background: #000;
+  border: 1px dashed var(--s-line-2, rgba(255, 255, 255, 0.1));
+}
+.shm__cmd code {
+  font-size: 12.5px;
+  color: var(--s-accent-2, #dcff66);
+}
+
+@media (max-width: 720px) {
+  .shm__card--trial {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .shm__right {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--s-line, rgba(255, 255, 255, 0.06));
+    padding-top: 18px;
+  }
+}

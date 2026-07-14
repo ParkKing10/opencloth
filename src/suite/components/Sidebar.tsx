@@ -18,7 +18,7 @@ import {
   IcoLogout,
 } from './ui/Icons'
 import { useAuth } from '../auth/auth'
-import { useStorageEstimate } from '../lib/useStorageEstimate'
+import { McpModal } from './McpModal'
 import { useT } from '@/i18n'
 import loomLogo from '../../assets/loom-logo.png'
 import './sidebar.css'
@@ -53,9 +53,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
   const navigate = useNavigate()
   const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
-
-  // Real browser-reported storage for this workspace — never a fabricated figure.
-  const storage = useStorageEstimate()
+  const [mcpOpen, setMcpOpen] = useState(false)
 
   return (
     <>
@@ -107,19 +105,11 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
             </button>
           </div>
 
-          <div className="sb__storage">
-            <div className="sb__storage-top">
-              <span>{t('shell.storage')}</span>
-              <span className="sb__storage-pct" title={storage.ready ? storage.label : t('shell.measuring')}>
-                {!storage.ready ? '…' : storage.pct && storage.pct > 0 ? `${storage.pct}%` : storage.usedLabel}
-              </span>
-            </div>
-            {storage.pct !== null && (
-              <div className="sb__bar">
-                <span style={{ width: `${Math.max(2, storage.pct)}%` }} />
-              </div>
-            )}
-          </div>
+          <button className="sb__mcp" type="button" onClick={() => setMcpOpen(true)}>
+            <span className="sb__mcp-mark" aria-hidden="true">✳</span>
+            <span className="sb__mcp-label">{t('mcp.button')}</span>
+            <span className="sb__mcp-beta">{t('mcp.beta')}</span>
+          </button>
         </div>
 
         <div className="sb__plan">
@@ -162,6 +152,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
         </div>
       </div>
       </aside>
+      <McpModal open={mcpOpen} onClose={() => setMcpOpen(false)} />
     </>
   )
 }

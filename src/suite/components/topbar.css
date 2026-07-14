@@ -203,6 +203,36 @@
   flex-shrink: 0;
 }
 
+/* Canva-style trial CTA — bright pill that pops against the dark shell. */
+.tb__trial {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--s-r-pill, 999px);
+  background: #ffffff;
+  color: #17171d;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(255, 255, 255, 0.12);
+  transition: transform 0.16s, box-shadow 0.16s;
+}
+.tb__trial:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(255, 255, 255, 0.2);
+}
+[data-theme='light'] .suite .tb__trial {
+  background: #17171d;
+  color: #ffffff;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
+}
+.tb__trial-short {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .tb__menu {
     display: grid;
@@ -214,14 +244,15 @@
   .tb__kbd {
     display: none;
   }
-  /* Collapse the "New Design" button down to its icon to save width. */
-  .tb__new.s-btn {
-    padding: 0;
-    width: 40px;
+  /* Collapse the trial CTA to its short label to save width. */
+  .tb__trial {
+    padding: 8px 12px;
   }
-  .tb__new.s-btn span,
-  .tb__new-label {
+  .tb__trial-long {
     display: none;
+  }
+  .tb__trial-short {
+    display: inline;
   }
   .tb__search {
     width: auto;

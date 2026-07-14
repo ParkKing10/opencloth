@@ -35,7 +35,9 @@ import { presentation } from './locales/presentation'
 import { explainer } from './locales/explainer'
 import { rewards } from './locales/rewards'
 import { pricing } from './locales/pricing'
+import { studioMobile } from './locales/studioMobile'
 import { tour } from './locales/tour'
+import { trial } from './locales/trial'
 
 // Every feature bundle. Adding a namespace = import it above and drop it in this list.
 const BUNDLES: LocaleBundle[] = [
@@ -75,7 +77,9 @@ const BUNDLES: LocaleBundle[] = [
   explainer,
   rewards,
   pricing,
+  studioMobile,
   tour,
+  trial,
 ]
 
 function merge(lang: Lang): Record<string, string> {

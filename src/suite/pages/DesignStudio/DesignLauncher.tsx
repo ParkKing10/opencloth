@@ -45,27 +45,54 @@ export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inlin
             {t('studioLanding.back')}
           </button>
         )}
-        {/* App-download hero */}
+        {/* App-download hero — the device shows the app mid-design, so the promise ("design your
+            clothes anywhere") is shown, not just told. */}
         <div className="dl__hero">
           <div className="dl__hero-glow" aria-hidden="true" />
+          <div className="dl__hero-grain" aria-hidden="true" />
           <div className="dl__hero-body">
-            <span className="dl__hero-kicker"><IcoSparkle width="15" height="15" /> {t('studioLanding.hero.kicker')}</span>
-            <h1>{t('studioLanding.hero.title1')}<br />{t('studioLanding.hero.title2')}</h1>
+            <span className="dl__hero-kicker"><IcoSparkle width="14" height="14" /> {t('studioLanding.hero.kicker')}</span>
+            <h1>{t('studioLanding.hero.title1')}<br /><em>{t('studioLanding.hero.title2')}</em></h1>
             <p>{t('studioLanding.hero.body')}</p>
             <div className="dl__hero-cta">
               <button type="button" className="dl__store" onClick={onGetApp}>
-                <span className="dl__store-glyph"></span>
-                <span><small>{t('studioLanding.store.appleSmall')}</small><b>App Store</b></span>
+                <svg className="dl__store-logo" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M17.56 12.85c-.02-2.3 1.88-3.4 1.96-3.46-1.07-1.56-2.73-1.78-3.32-1.8-1.41-.15-2.76.83-3.48.83-.72 0-1.52-.81-2.5-.79-1.29.02-2.48.75-3.14 1.9-1.34 2.33-.34 5.77.96 7.66.64.92 1.39 1.96 2.38 1.92.96-.04 1.32-.62 2.47-.62 1.15 0 1.48.62 2.49.6 1.03-.02 1.68-.94 2.31-1.87.73-1.07 1.03-2.11 1.05-2.16-.02-.01-2.02-.78-2.04-3.08 Z M15.28 5.15c.53-.65.89-1.55.79-2.45-.76.03-1.69.51-2.24 1.16-.49.57-.92 1.49-.8 2.37.85.07 1.72-.43 2.25-1.08 Z"/>
+                </svg>
+                <span className="dl__store-txt"><small>{t('studioLanding.store.appleSmall')}</small><b>App Store</b></span>
               </button>
               <button type="button" className="dl__store" onClick={onGetApp}>
-                <span className="dl__store-glyph">▶</span>
-                <span><small>{t('studioLanding.store.googleSmall')}</small><b>Google Play</b></span>
+                <svg className="dl__store-logo" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#00d0ff" d="M3.35 2.34A1.4 1.4 0 0 0 3 3.28v17.44c0 .37.14.69.36.9l9.53-9.55L3.35 2.34Z"/>
+                  <path fill="#00e17a" d="M3.35 2.34a1.4 1.4 0 0 1 1.53-.11l11.34 6.44-2.87 2.87L3.35 2.34Z"/>
+                  <path fill="#ffc400" d="M16.22 8.67l3.06 1.74c.99.56.99 2.02 0 2.58l-3.07 1.74-2.88-2.87 2.89-2.87Z"/>
+                  <path fill="#ff4133" d="M3.36 21.62a1.4 1.4 0 0 0 1.52.11l11.34-6.44-2.87-2.87L3.36 21.62Z"/>
+                </svg>
+                <span className="dl__store-txt"><small>{t('studioLanding.store.googleSmall')}</small><b>Google Play</b></span>
               </button>
             </div>
           </div>
           <div className="dl__hero-phone" aria-hidden="true">
-            <div className="dl__phone">
-              <div className="dl__phone-screen" />
+            <div className="dl__device">
+              <div className="dl__device-island" />
+              <div className="dl__device-screen">
+                <div className="dl__app">
+                  <div className="dl__app-bar">
+                    <span className="dl__app-time">9:41</span>
+                    <span className="dl__app-brand">loom</span>
+                  </div>
+                  <div className="dl__app-stage">
+                    <svg className="dl__app-flat" viewBox="0 0 120 140" fill="none" stroke="#17171b" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round">
+                      <path fill="#fff" d="M44 22 26 32 18 54 32 62 38 54 38 120 82 120 82 54 88 62 102 54 94 32 76 22C72 32 66 36 60 36 54 36 48 32 44 22Z"/>
+                      <path d="M44 22C48 32 54 36 60 36 66 36 72 32 76 22"/>
+                    </svg>
+                    <span className="dl__app-graphic" />
+                  </div>
+                  <div className="dl__app-dock">
+                    <i className="is-on" /><i /><i /><i />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

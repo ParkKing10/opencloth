@@ -1,0 +1,48 @@
+import type { LocaleBundle } from '../types'
+
+/* Topbar trial CTA + trial modal + sidebar "Connect MCP to Claude".
+   Keep en and de key sets identical. */
+export const trial: LocaleBundle = {
+  en: {
+    'trial.topCta': 'Start your trial for €0',
+    'trial.topCtaShort': '€0 trial',
+    'trial.title1': 'Try loom studios',
+    'trial.title2': 'Premium for free',
+    'trial.subtitle': 'Pick your plan. Cancel anytime.',
+    'trial.planLine': '€0 for 30 days, then €{price}/month',
+    'trial.start': 'Try free for 30 days',
+    'trial.note': 'We’ll remind you before your trial ends. Cancel anytime in a few clicks.',
+    'trial.coinsPerMonth': 'coins / month',
+    'trial.benefitsTitle': 'What you get',
+    'mcp.button': 'Connect MCP to Claude',
+    'mcp.beta': 'Beta',
+    'mcp.title': 'loom studios × Claude',
+    'mcp.body': 'Control your whole workspace straight from Claude via MCP — generate garments, pull tech packs, check your coins, launch drops.',
+    'mcp.ex1': '“Generate a black puffer with our logo and add it to the Winter drop.”',
+    'mcp.ex2': '“Export the tech pack for the slip dress as a PDF.”',
+    'mcp.ex3': '“How many coins do we have left this month?”',
+    'mcp.soon': 'Beta — coming soon',
+    'mcp.ok': 'Got it',
+  },
+  de: {
+    'trial.topCta': 'Starte deine Testphase für 0 €',
+    'trial.topCtaShort': '0 € testen',
+    'trial.title1': 'loom studios Premium',
+    'trial.title2': 'kostenlos ausprobieren',
+    'trial.subtitle': 'Wähle dein Abonnement aus. Jederzeit kündbar.',
+    'trial.planLine': '0 € für 30 Tage, dann {price} €/Monat',
+    'trial.start': '30 Tage lang kostenlos ausprobieren',
+    'trial.note': 'Wir erinnern dich vor Ablauf des Probeabos. Du kannst jederzeit mit wenigen Klicks kündigen.',
+    'trial.coinsPerMonth': 'Coins / Monat',
+    'trial.benefitsTitle': 'Das bekommst du',
+    'mcp.button': 'MCP mit Claude verbinden',
+    'mcp.beta': 'Beta',
+    'mcp.title': 'loom studios × Claude',
+    'mcp.body': 'Steuere deinen ganzen Workspace direkt aus Claude via MCP — Kleidungsstücke generieren, Tech Packs ziehen, Coins checken, Drops launchen.',
+    'mcp.ex1': '„Generiere eine schwarze Daunenjacke mit unserem Logo und leg sie in den Winter-Drop.“',
+    'mcp.ex2': '„Exportiere das Tech Pack vom Slip Dress als PDF.“',
+    'mcp.ex3': '„Wie viele Coins haben wir diesen Monat noch?“',
+    'mcp.soon': 'Beta — bald verfügbar',
+    'mcp.ok': 'Verstanden',
+  },
+}

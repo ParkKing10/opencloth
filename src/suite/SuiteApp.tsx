@@ -6,6 +6,7 @@ import { PaywallProvider } from './economy/PaywallProvider'
 import { TourOverlay } from './onboarding/TourOverlay'
 import { TrialModal } from './components/TrialModal'
 import { AuthGate } from './components/AuthGate'
+import { GuestWall } from './components/GuestWall'
 import { requestTour } from './onboarding/tourBus'
 import { useAuth } from './auth/auth'
 import './suite.css'
@@ -44,10 +45,14 @@ export function SuiteApp() {
      Allowed without an account: sidebar navigation, drawer/scrim, language,
      and the gate itself (its buttons must work). Capture-phase so page
      handlers (cards, buys, generators) never fire for guests. */
+  // Registration is MANDATORY beyond the dashboard: guests only ever see
+  // the storefront (/) — every other page renders the wall instead.
+  const walled = !initializing && !user && pathname !== '/'
+
   const guestGate = (e: MouseEvent) => {
     if (user || initializing) return
     const el = e.target as HTMLElement
-    if (el.closest('.shm, .sb__nav, .sb__scrim, .tb__menu, .lang-toggle, .lang-menu')) return
+    if (el.closest('.shm, .gwall, .sb__nav, .sb__scrim, .tb__menu, .lang-toggle, .lang-menu')) return
     if (el.closest('button, a, input, textarea, select, canvas, article, [role="button"]')) {
       e.preventDefault()
       e.stopPropagation()
@@ -63,7 +68,7 @@ export function SuiteApp() {
           <div className="suite__main">
             <Topbar onMenu={() => setNavOpen(true)} />
             <div className="suite__content">
-              <Outlet />
+              {walled ? <GuestWall /> : <Outlet />}
             </div>
           </div>
         </div>

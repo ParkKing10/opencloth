@@ -8,7 +8,7 @@ export const studioLanding: LocaleBundle = {
     'studioLanding.hero.title1': 'Design your clothes',
     'studioLanding.hero.title2': 'anywhere.',
     'studioLanding.hero.body':
-      'Get the loom studios app — paint, print and drop graphics on your garments from your phone, exactly like here, in your pocket.',
+      'Get the loom studios app — paint, print and drop graphics onto your garments on iPad and phone, the full studio wherever you are.',
     'studioLanding.store.appleSmall': 'Download on the',
     'studioLanding.store.googleSmall': 'Get it on',
     'studioLanding.open': 'Open a design',
@@ -30,7 +30,7 @@ export const studioLanding: LocaleBundle = {
     'studioLanding.hero.title1': 'Entwirf deine Kleidung',
     'studioLanding.hero.title2': 'überall.',
     'studioLanding.hero.body':
-      'Hol dir die loom studios App — male, drucke und platziere Grafiken auf deinen Kleidungsstücken direkt vom Handy, genau wie hier, in deiner Tasche.',
+      'Hol dir die loom studios App — male, drucke und platziere Grafiken auf deinen Kleidungsstücken, das komplette Studio auf iPad und Handy, wo immer du bist.',
     'studioLanding.store.appleSmall': 'Laden im',
     'studioLanding.store.googleSmall': 'Jetzt bei',
     'studioLanding.open': 'Design öffnen',

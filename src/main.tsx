@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import './styles/global.css'
 import { initTheme } from './suite/theme'
-import { I18nProvider } from '@/i18n'
+import { I18nProvider, LanguagePicker } from '@/i18n'
 import { StoreProvider } from './suite/data/store'
 import { AuthProvider, RequireAuth, RequireAdmin } from './suite/auth/auth'
 import { ToastProvider } from './suite/components/ui/Toast'
@@ -128,6 +128,8 @@ createRoot(document.getElementById('root')!).render(
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <PresentationOverlay />
+            {/* First-visit language gate — asks EN/DE before anything else, once. */}
+            <LanguagePicker />
             </PresentationProvider>
           </ToastProvider>
         </AuthProvider>

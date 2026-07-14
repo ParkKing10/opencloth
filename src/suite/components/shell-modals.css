@@ -224,6 +224,52 @@
   color: var(--s-text-2, #a6a6b2);
 }
 
+/* ---- guest wall (full-page: registration mandatory beyond the dashboard) ---- */
+.gwall {
+  min-height: 62vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.gwall__card {
+  width: min(460px, 100%);
+  padding: 34px 30px 26px;
+  border-radius: var(--s-r-xl, 22px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background:
+    radial-gradient(120% 110% at 50% 0%, color-mix(in oklab, var(--s-accent, #d1f94f) 8%, transparent), transparent 60%),
+    var(--s-panel, #101016);
+  text-align: center;
+}
+.gwall__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  background: var(--s-accent-soft, rgba(209, 249, 79, 0.12));
+  color: var(--s-accent, #d1f94f);
+  font-size: 22px;
+}
+.gwall__title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.gwall__sub {
+  margin: 0 0 20px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--s-text-2, #a6a6b2);
+}
+.gwall__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* ---- guest auth gate ---- */
 .shm__card--gate {
   width: min(440px, 100%);

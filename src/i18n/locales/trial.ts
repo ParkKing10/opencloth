@@ -29,6 +29,8 @@ export const trial: LocaleBundle = {
     'gate.signup': 'Create free account',
     'gate.login': 'Log in',
     'gate.note': 'No credit card needed. 100 coins to start.',
+    'wall.title': 'This is where you need an account',
+    'wall.sub': 'Create a free account in 30 seconds — then the studio, the shop, the AI designer and everything else is yours.',
   },
   de: {
     'trial.topCta': 'Starte deine Testphase für 0 €',
@@ -56,5 +58,7 @@ export const trial: LocaleBundle = {
     'gate.signup': 'Kostenlos registrieren',
     'gate.login': 'Einloggen',
     'gate.note': 'Keine Kreditkarte nötig. 100 Coins zum Start.',
+    'wall.title': 'Ab hier brauchst du einen Account',
+    'wall.sub': 'Erstell dir in 30 Sekunden einen kostenlosen Account — dann stehen dir Studio, Shop, KI-Designer und alles andere offen.',
   },
 }

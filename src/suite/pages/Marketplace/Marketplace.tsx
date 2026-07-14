@@ -446,7 +446,7 @@ export function Marketplace() {
     // Real persistence: add the design, then open it in the studio.
     mutate((d) => ({ ...d, designs: [design, ...d.designs] }))
     toast(t('marketplace.toast.addedDesign', { title: asset.title }), 'success')
-    navigate('/suite/design')
+    navigate('/design')
   }
 
   function buyAsset(asset: Asset) {
@@ -477,7 +477,7 @@ export function Marketplace() {
 
   /** Open the purchased asset in the Design studio. */
   function openInDesign() {
-    navigate('/suite/design')
+    navigate('/design')
   }
 
   /** Copy the seller application link (real clipboard write, guarded). */

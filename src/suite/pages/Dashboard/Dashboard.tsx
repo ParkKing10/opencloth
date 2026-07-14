@@ -37,7 +37,7 @@ const FEATURES: Feature[] = [
     titleKey: 'dashboard.feature.design.title',
     descKey: 'dashboard.feature.design.desc',
     ctaKey: 'dashboard.cta.startDesigning',
-    to: '/suite/design',
+    to: '/design',
     tint: 'violet',
     art: 'tee',
     primary: true,
@@ -46,7 +46,7 @@ const FEATURES: Feature[] = [
     titleKey: 'dashboard.feature.garments.title',
     descKey: 'dashboard.feature.garments.desc',
     ctaKey: 'dashboard.feature.garments.cta',
-    to: '/suite/garments',
+    to: '/garments',
     tint: 'slate',
     art: 'techpack',
   },
@@ -54,7 +54,7 @@ const FEATURES: Feature[] = [
     titleKey: 'dashboard.feature.ai.title',
     descKey: 'dashboard.feature.ai.desc',
     ctaKey: 'dashboard.feature.ai.cta',
-    to: '/suite/ai',
+    to: '/ai',
     tint: 'blue',
     art: 'hoodie',
     isNew: true,
@@ -63,7 +63,7 @@ const FEATURES: Feature[] = [
     titleKey: 'dashboard.feature.shop.title',
     descKey: 'dashboard.feature.shop.desc',
     ctaKey: 'dashboard.feature.shop.cta',
-    to: '/suite/shop',
+    to: '/shop',
     tint: 'teal',
     art: 'shop',
   },
@@ -71,7 +71,7 @@ const FEATURES: Feature[] = [
     titleKey: 'dashboard.feature.manufacturers.title',
     descKey: 'dashboard.feature.manufacturers.desc',
     ctaKey: 'dashboard.feature.manufacturers.cta',
-    to: '/suite/manufacturers',
+    to: '/manufacturers',
     tint: 'amber',
     art: 'globe',
   },
@@ -146,7 +146,7 @@ export function Dashboard() {
               </h1>
               <p className="dash-hero__tagline">{t('dashboard.hero.tagline')}</p>
               <div className="dash-hero__cta">
-                <button type="button" className="dash-hero__start" onClick={() => navigate('/suite/design')}>
+                <button type="button" className="dash-hero__start" onClick={() => navigate('/design')}>
                   {t('dashboard.cta.startDesigning')} <IcoArrowRight width="16" height="16" />
                 </button>
                 <button type="button" className="dash-hero__demo" onClick={() => toast(t('dashboard.hero.demoToast'), 'info')}>
@@ -236,7 +236,7 @@ export function Dashboard() {
                 <button
                   className="s-link"
                   type="button"
-                  onClick={() => navigate('/suite/collections')}
+                  onClick={() => navigate('/collections')}
                 >
                   {t('dashboard.recent.viewAll')} <IcoArrowRight width="13" height="13" />
                 </button>
@@ -253,7 +253,7 @@ export function Dashboard() {
                       className="design"
                       key={d.id}
                       title={t('dashboard.design.openTitle', { name: d.name })}
-                      onClick={() => navigate(`/suite/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)}
+                      onClick={() => navigate(`/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)}
                     >
                       <div className={`design__preview${thumb ? ' design__preview--img' : ''}`}>
                         {thumb ? (
@@ -285,7 +285,7 @@ export function Dashboard() {
                 <button
                   className="s-btn s-btn--accent dash-empty__cta"
                   type="button"
-                  onClick={() => navigate('/suite/design')}
+                  onClick={() => navigate('/design')}
                 >
                   <IcoPlus width="15" height="15" /> {t('dashboard.empty.cta')}
                 </button>

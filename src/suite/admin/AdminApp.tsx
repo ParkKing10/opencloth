@@ -46,7 +46,7 @@ export function AdminApp() {
       <DesktopOnly
         title={t('adminShell.gate.title')}
         message={t('adminShell.gate.message')}
-        backTo="/suite"
+        backTo="/"
         backLabel={t('adminShell.backToApp')}
       />
     )
@@ -81,7 +81,7 @@ export function AdminApp() {
           </nav>
 
           <div className="adm__foot">
-            <button className="adm__back" type="button" onClick={() => navigate('/suite')}>
+            <button className="adm__back" type="button" onClick={() => navigate('/')}>
               <IcoArrowRight width="15" height="15" style={{ transform: 'scaleX(-1)' }} />
               {t('adminShell.backToApp')}
             </button>

@@ -273,7 +273,7 @@ export function Collections() {
   /* --- Real: open a collection → its detail view (the designs saved inside it) --- */
   const openCollection = (id: string) => {
     setOpenMenuId(null)
-    navigate(`/suite/collections/${id}`)
+    navigate(`/collections/${id}`)
   }
 
   /* --- Real: create a collection → persist to the store -------------------- */

@@ -1266,7 +1266,7 @@ export function DesignStudio() {
     }
     const existing = map[editableTemplateId]
     if (existing && getEditableSummary(user.id, existing)) {
-      navigate(`/suite/garment-lab/${existing}`)
+      navigate(`/garment-lab/${existing}`)
       return
     }
     const built = buildFromTemplate(editableTemplateId)
@@ -1276,7 +1276,7 @@ export function DesignStudio() {
     } catch {
       /* non-fatal */
     }
-    navigate(`/suite/garment-lab/${summary.id}`)
+    navigate(`/garment-lab/${summary.id}`)
   }, [user?.id, editableTemplateId, navigate])
 
   // Resolve the editable garment behind the active design surface so EVERY part shows as a layer:
@@ -2184,7 +2184,7 @@ export function DesignStudio() {
         window.history.pushState(null, '', window.location.href)
         setPendingLeave('back')
       } else {
-        navigate('/suite')
+        navigate('/')
       }
     }
     window.addEventListener('popstate', onPop)
@@ -2205,7 +2205,7 @@ export function DesignStudio() {
     const to = pendingLeave
     setPendingLeave(null)
     if (to && to !== 'back') navigate(to)
-    else navigate('/suite')
+    else navigate('/')
   }, [pendingLeave, navigate])
 
   const saveAndLeave = useCallback(() => {
@@ -2468,7 +2468,7 @@ export function DesignStudio() {
       {/* ---- Editor top bar ---- */}
       <header className="ds-top">
         <div className="ds-top__left">
-          <button className="ds-logo" type="button" onClick={() => guardedNavigate('/suite')}>
+          <button className="ds-logo" type="button" onClick={() => guardedNavigate('/')}>
             <img className="ds-logo__img" src={loomLogo} alt="loom studios" />
             <span className="ds-logo__beta">Beta</span>
           </button>

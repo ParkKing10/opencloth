@@ -14,7 +14,7 @@ export function DesktopOnly({
   message,
   previewSrc,
   previewLabel,
-  backTo = '/suite',
+  backTo = '/',
   backLabel,
   children,
 }: {

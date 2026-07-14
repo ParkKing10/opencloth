@@ -12,13 +12,16 @@ import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, useState }
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/auth'
 import { useT } from '@/i18n'
-import { TOUR_STEPS } from './steps'
+import { TOURS, tourForPath, type TourId } from './steps'
 import { TOUR_START_EVENT } from './tourBus'
 import { AiDemo } from './AiDemo'
 import { isUsableRect, placeCard, type Box } from './geometry'
 import './tour.css'
 
-const seenKeyFor = (userId: string) => `threados-tour-v1-${userId}`
+/* The app tour keeps its historic key so nobody sees it twice after this update. */
+const seenKeyFor = (tourId: TourId, userId: string) =>
+  tourId === 'app' ? `threados-tour-v1-${userId}` : `threados-tour-v1-${tourId}-${userId}`
+const POST_SIGNUP_KEY = 'threados-post-signup' // trial modal runs first right after signup
 const HOLE_PAD = 6
 const COMPACT = 1024 // sidebar becomes an off-canvas drawer at/below this width
 const SHEET = 640 // card becomes a bottom sheet at/below this width
@@ -29,6 +32,7 @@ export function TourOverlay({ onNavDrawer }: { onNavDrawer?: (open: boolean) => 
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
+  const [tourId, setTourId] = useState<TourId>('app')
   const [step, setStep] = useState(-1) // -1 = inactive
   const [rect, setRect] = useState<Box | null>(null)
   const [cardSize, setCardSize] = useState({ w: 340, h: 230 })
@@ -36,32 +40,45 @@ export function TourOverlay({ onNavDrawer }: { onNavDrawer?: (open: boolean) => 
   const cardRef = useRef<HTMLDivElement>(null)
   const nextRef = useRef<HTMLButtonElement>(null)
 
+  const steps = TOURS[tourId].steps
   const active = step >= 0
-  const cur = active ? TOUR_STEPS[step] : null
-  const last = step === TOUR_STEPS.length - 1
+  const cur = active ? steps[step] : null
+  const last = step === steps.length - 1
 
-  const start = useCallback(() => {
-    if (document.documentElement.hasAttribute('data-presentation')) return
-    if (user) localStorage.setItem(seenKeyFor(user.id), '1')
-    if (pathname !== '/suite') navigate('/suite')
-    setRect(null)
-    setStep(0)
-  }, [user, pathname, navigate])
+  const start = useCallback(
+    (id: TourId) => {
+      if (document.documentElement.hasAttribute('data-presentation')) return
+      if (user) localStorage.setItem(seenKeyFor(id, user.id), '1')
+      const route = TOURS[id].route
+      if (pathname !== route) navigate(route)
+      setTourId(id)
+      setRect(null)
+      setStep(0)
+    },
+    [user, pathname, navigate],
+  )
 
-  /* Auto-start: first dashboard visit of a user who has never seen the tour. */
+  /* Auto-start: first visit of a page whose tour this user has never seen.
+     Suppressed right after signup — the trial modal runs first and then
+     requests the app tour itself. Guests never auto-start a tour. */
   useEffect(() => {
-    if (initializing || !user || active || pathname !== '/suite') return
-    if (localStorage.getItem(seenKeyFor(user.id))) return
-    const id = window.setTimeout(start, 900) // let the dashboard settle first
-    return () => clearTimeout(id)
+    if (initializing || !user || active) return
+    if (localStorage.getItem(POST_SIGNUP_KEY)) return
+    const id = tourForPath(pathname)
+    if (!id || localStorage.getItem(seenKeyFor(id, user.id))) return
+    const timer = window.setTimeout(() => start(id), 900) // let the page settle first
+    return () => clearTimeout(timer)
   }, [initializing, user, active, pathname, start])
 
-  /* Manual start (Settings card / topbar "?"). */
+  /* Manual start (Settings card / topbar "?" / post-signup chain). */
   useEffect(() => {
-    const h = () => start()
+    const h = (e: Event) => {
+      const detail = (e as CustomEvent).detail as TourId | undefined
+      start(detail && detail in TOURS ? detail : (tourForPath(pathname) ?? 'app'))
+    }
     window.addEventListener(TOUR_START_EVENT, h)
     return () => window.removeEventListener(TOUR_START_EVENT, h)
-  }, [start])
+  }, [start, pathname])
 
   const close = useCallback(() => {
     setStep(-1)
@@ -135,7 +152,7 @@ export function TourOverlay({ onNavDrawer }: { onNavDrawer?: (open: boolean) => 
     if (!active) return
     const h = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
-      else if (e.key === 'ArrowRight') setStep((s) => (s >= TOUR_STEPS.length - 1 ? -1 : s + 1))
+      else if (e.key === 'ArrowRight') setStep((s) => (s >= steps.length - 1 ? -1 : s + 1))
       else if (e.key === 'ArrowLeft') setStep((s) => Math.max(0, s - 1))
     }
     window.addEventListener('keydown', h)
@@ -185,16 +202,16 @@ export function TourOverlay({ onNavDrawer }: { onNavDrawer?: (open: boolean) => 
         <div className="tour__meta">
           <span className="tour__kicker">loom studios</span>
           <span className="tour__count">
-            {step + 1}/{TOUR_STEPS.length}
+            {step + 1}/{steps.length}
           </span>
         </div>
         <h3 className="tour__title" id="tour-title">
           {t(cur.title)}
         </h3>
         <p className="tour__body">{t(cur.body)}</p>
-        {cur.id === 'ai' && <AiDemo key={step} />}
+        {tourId === 'app' && cur.id === 'ai' && <AiDemo key={step} />}
         <div className="tour__dots" aria-hidden="true">
-          {TOUR_STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <span key={s.id} className={`tour__dot${i === step ? ' is-on' : ''}${i < step ? ' is-done' : ''}`} />
           ))}
         </div>
@@ -210,20 +227,28 @@ export function TourOverlay({ onNavDrawer }: { onNavDrawer?: (open: boolean) => 
             )}
             {last ? (
               <>
-                <button className="tour__btn" type="button" onClick={close}>
-                  {t('tour.finish')}
-                </button>
-                <button
-                  ref={nextRef}
-                  className="tour__btn tour__btn--accent"
-                  type="button"
-                  onClick={() => {
-                    close()
-                    navigate('/suite/design')
-                  }}
-                >
-                  {t('tour.cta')}
-                </button>
+                {tourId === 'app' ? (
+                  <>
+                    <button className="tour__btn" type="button" onClick={close}>
+                      {t('tour.finish')}
+                    </button>
+                    <button
+                      ref={nextRef}
+                      className="tour__btn tour__btn--accent"
+                      type="button"
+                      onClick={() => {
+                        close()
+                        navigate('/design')
+                      }}
+                    >
+                      {t('tour.cta')}
+                    </button>
+                  </>
+                ) : (
+                  <button ref={nextRef} className="tour__btn tour__btn--accent" type="button" onClick={close}>
+                    {t('tour.finish')}
+                  </button>
+                )}
               </>
             ) : (
               <button ref={nextRef} className="tour__btn tour__btn--accent" type="button" onClick={() => setStep((s) => s + 1)}>

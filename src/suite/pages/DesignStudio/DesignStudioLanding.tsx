@@ -39,8 +39,8 @@ export function DesignStudioLanding() {
     <DesignLauncher
       inline
       designs={designs}
-      onOpen={(id) => navigate(`/suite/studio?garment=${encodeURIComponent(id)}`)}
-      onNew={() => navigate('/suite/studio')}
+      onOpen={(id) => navigate(`/studio?garment=${encodeURIComponent(id)}`)}
+      onNew={() => navigate('/studio')}
       onGetApp={() => toast(t('studioLanding.toast.comingSoon'), 'info')}
     />
   )

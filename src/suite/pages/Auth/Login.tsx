@@ -16,7 +16,7 @@ export function Login() {
   const { login, signup } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const from = (location.state as LocationState | null)?.from ?? '/suite'
+  const from = (location.state as LocationState | null)?.from ?? '/'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

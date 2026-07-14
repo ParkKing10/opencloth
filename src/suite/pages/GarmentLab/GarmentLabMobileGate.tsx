@@ -16,7 +16,7 @@ export function GarmentLabMobileGate() {
       <DesktopOnly
         title={t('labMain.mobileTitle')}
         message={t('labMain.mobileMessage')}
-        backTo="/suite/garments"
+        backTo="/garments"
         backLabel={t('labMain.mobileBack')}
       />
     )

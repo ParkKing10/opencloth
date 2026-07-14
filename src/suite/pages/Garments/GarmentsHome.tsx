@@ -91,7 +91,7 @@ export function GarmentsHome() {
   const createNew = useCallback(() => {
     if (!userId) return
     const summary = createGarment(userId, makeEmptyGarment(), { name: 'Untitled Garment', category: 'Custom', origin: 'blank' })
-    navigate(`/suite/garment-lab/${summary.id}`)
+    navigate(`/garment-lab/${summary.id}`)
   }, [userId, navigate])
 
   // Import = the Garment Analysis Engine. Pick one or MANY SVG/AI/PDF flats → each is analyzed
@@ -139,7 +139,7 @@ export function GarmentsHome() {
           } else {
             toast(t('garments.toast.importedNoRegions', { name: garment.name }), 'info')
           }
-          navigate(`/suite/garment-lab/${single.id}`)
+          navigate(`/garment-lab/${single.id}`)
         } else {
           const base = created === 1 ? t('garments.toast.importedOne', { n: created }) : t('garments.toast.importedMany', { n: created })
           const suffix = skipped ? t('garments.toast.skippedSuffix', { n: skipped }) : ''
@@ -219,8 +219,8 @@ export function GarmentsHome() {
   // Always open a garment as a FRESH design (blank canvas) — never the previously-saved one. A new
   // design id per open keys it as its own new file (reachable across reloads); the garment is just
   // the reusable base.
-  const open = (id: string) => navigate(`/suite/studio?garment=${id}&design=${uid('des')}`)
-  const editStructure = (id: string) => navigate(`/suite/garment-lab/${id}`)
+  const open = (id: string) => navigate(`/studio?garment=${id}&design=${uid('des')}`)
+  const editStructure = (id: string) => navigate(`/garment-lab/${id}`)
 
   const commitRename = (id: string) => {
     if (userId) renameGarment(userId, id, renameText)
@@ -251,7 +251,7 @@ export function GarmentsHome() {
             <li>{t('garments.onboard.itemCuffs')}</li>
             <li>{t('garments.onboard.itemDetail')}</li>
           </ul>
-          <button type="button" className="s-btn s-btn--accent gm-onboard__cta" onClick={createNew}>
+          <button type="button" className="s-btn s-btn--accent gm-onboard__cta" data-tour="garments-create" onClick={createNew}>
             {t('garments.onboard.cta')}
           </button>
           <p className="gm-onboard__hint">{t('garments.onboard.hint')}</p>
@@ -282,7 +282,7 @@ export function GarmentsHome() {
           />
           <button
             type="button"
-            className="s-btn s-btn--ghost"
+            className="s-btn s-btn--ghost" data-tour="garments-import"
             onClick={() => importInputRef.current?.click()}
             disabled={importing}
             title={t('garments.import.title')}
@@ -293,7 +293,7 @@ export function GarmentsHome() {
                 : t('garments.import.analyzing')
               : t('garments.import.button')}
           </button>
-          <button type="button" className="s-btn s-btn--accent" onClick={createNew}>
+          <button type="button" className="s-btn s-btn--accent" data-tour="garments-create" onClick={createNew}>
             {t('garments.create')}
           </button>
         </div>
@@ -301,7 +301,7 @@ export function GarmentsHome() {
     >
       <div className="gm-tools">
         <input className="gm-search" type="search" placeholder={t('garments.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('garments.searchAria')} />
-        <div className="gm-sorts">
+        <div className="gm-sorts" data-tour="garments-sort">
           {SORTS.map((s) => (
             <button key={s.key} type="button" className={`gm-sort${sort === s.key ? ' is-active' : ''}`} onClick={() => setSort(s.key)}>
               {t(`garments.sort.${s.key}`)}
@@ -318,7 +318,7 @@ export function GarmentsHome() {
           : t('garments.section.mine')}
       </span>
 
-      <div className="gm-grid" onClick={() => setMenuId(null)}>
+      <div className="gm-grid" data-tour="garments-grid" onClick={() => setMenuId(null)}>
         {visible.map((g) => (
           <article key={g.id} className="gm-card">
             <div

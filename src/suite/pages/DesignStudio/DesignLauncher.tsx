@@ -47,7 +47,7 @@ export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inlin
         )}
         {/* App-download hero — the device shows the app mid-design, so the promise ("design your
             clothes anywhere") is shown, not just told. */}
-        <div className="dl__hero">
+        <div className="dl__hero" data-tour="studio-hero">
           <div className="dl__hero-glow" aria-hidden="true" />
           <div className="dl__hero-grain" aria-hidden="true" />
           <div className="dl__hero-body">
@@ -72,24 +72,41 @@ export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inlin
               </button>
             </div>
           </div>
+          {/* An iPad running the actual Design Studio — dark grid canvas, tool rail, a garment on the
+              board with a graphic dropped on the chest, and the layers panel. The real app, in a frame. */}
           <div className="dl__hero-phone" aria-hidden="true">
-            <div className="dl__device">
-              <div className="dl__device-island" />
-              <div className="dl__device-screen">
-                <div className="dl__app">
-                  <div className="dl__app-bar">
-                    <span className="dl__app-time">9:41</span>
-                    <span className="dl__app-brand">loom</span>
+            <div className="dl__ipad">
+              <span className="dl__ipad-cam" />
+              <div className="dl__ipad-screen">
+                <div className="dl__ds">
+                  <div className="dl__ds-top">
+                    <span className="dl__ds-brand">
+                      <span className="dl__ds-mark" />
+                      loom studios
+                    </span>
+                    <span className="dl__ds-top-actions">
+                      <span className="dl__ds-btn">Generate</span>
+                      <span className="dl__ds-btn">Export</span>
+                    </span>
                   </div>
-                  <div className="dl__app-stage">
-                    <svg className="dl__app-flat" viewBox="0 0 120 140" fill="none" stroke="#17171b" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round">
-                      <path fill="#fff" d="M44 22 26 32 18 54 32 62 38 54 38 120 82 120 82 54 88 62 102 54 94 32 76 22C72 32 66 36 60 36 54 36 48 32 44 22Z"/>
-                      <path d="M44 22C48 32 54 36 60 36 66 36 72 32 76 22"/>
-                    </svg>
-                    <span className="dl__app-graphic" />
-                  </div>
-                  <div className="dl__app-dock">
-                    <i className="is-on" /><i /><i /><i />
+                  <div className="dl__ds-body">
+                    <div className="dl__ds-rail">
+                      <i className="is-on" /><i /><i /><i /><i />
+                    </div>
+                    <div className="dl__ds-canvas">
+                      <svg className="dl__ds-flat" viewBox="0 0 120 140" fill="none" stroke="#cfcfd6" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round">
+                        <path d="M44 22 26 32 18 54 32 62 38 54 38 120 82 120 82 54 88 62 102 54 94 32 76 22C72 32 66 36 60 36 54 36 48 32 44 22Z"/>
+                        <path d="M44 22C48 32 54 36 60 36 66 36 72 32 76 22"/>
+                      </svg>
+                      <span className="dl__ds-graphic" />
+                      <span className="dl__ds-zoom">100%</span>
+                    </div>
+                    <div className="dl__ds-panel">
+                      <span className="dl__ds-panel-h">Layers</span>
+                      <span className="dl__ds-row is-sel"><i />Graphic</span>
+                      <span className="dl__ds-row"><i />Hoodie</span>
+                      <span className="dl__ds-row"><i />Canvas</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -98,9 +115,9 @@ export function DesignLauncher({ designs, onOpen, onNew, onGetApp, onBack, inlin
         </div>
 
         {/* Continue / start */}
-        <div className="dl__head">
+        <div className="dl__head" data-tour="studio-designs-head">
           <b>{t('studioLanding.open')}</b>
-          <button type="button" className="dl__new" onClick={onNew}>
+          <button type="button" className="dl__new" data-tour="studio-new-design" onClick={onNew}>
             <IcoPlus width="16" height="16" /> {t('studioLanding.new')}
           </button>
         </div>

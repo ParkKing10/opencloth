@@ -1059,7 +1059,7 @@ export function Settings() {
                   <button className="s-btn s-btn--subtle" type="button" onClick={downloadInvoice}>
                     <IcoUpload width="15" height="15" /> {t('settings.billing.downloadSummary')}
                   </button>
-                  <button className="s-btn s-btn--accent" type="button" onClick={() => navigate('/suite/pricing')}>
+                  <button className="s-btn s-btn--accent" type="button" onClick={() => navigate('/pricing')}>
                     <IcoStar width="16" height="16" /> {t('shell.upgrade')}
                   </button>
                 </div>
@@ -1227,7 +1227,7 @@ export function Settings() {
               <div className="set-card__body">
                 <p className="set-hint">{t('settings.tour.hint')}</p>
                 <div style={{ marginTop: 12 }}>
-                  <button className="s-btn s-btn--accent" type="button" onClick={requestTour}>
+                  <button className="s-btn s-btn--accent" type="button" onClick={() => requestTour('app')}>
                     <IcoSparkle width="16" height="16" /> {t('settings.tour.start')}
                   </button>
                 </div>

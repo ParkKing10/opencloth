@@ -254,7 +254,7 @@ export function AIDesigner() {
     const summary = createGarment(user.id, makeEmptyGarment(), { name: design.name, category: design.type, origin: 'ai' })
     saveDoc(summary.id, { layers: [], hidden: {}, designName: design.name, garmentEdit: design.frontUrl, updatedAt: Date.now() })
     toast(t('aiDesigner.toastSentToStudio', { name: design.name }), 'success')
-    navigate(`/suite/studio?garment=${summary.id}`)
+    navigate(`/studio?garment=${summary.id}`)
   }
 
   return (
@@ -287,7 +287,7 @@ export function AIDesigner() {
               <span>{t('aiDesigner.prompt')}</span>
               <span className="aid-field__hint">{t('aiDesigner.promptHint')}</span>
             </div>
-            <div className="aid-prompt">
+            <div className="aid-prompt" data-tour="aid-prompt">
               <textarea
                 value={prompt}
                 maxLength={PROMPT_MAX}
@@ -312,7 +312,7 @@ export function AIDesigner() {
               <span>{t('aiDesigner.refImages')}</span>
               <span className="aid-field__hint">{t('aiDesigner.optional')}</span>
             </div>
-            <div className="aid-refs">
+            <div className="aid-refs" data-tour="aid-reference-images">
               {Array.from({ length: REF_COUNT }).map((_, i) => (
                 <Fragment key={i}>
                   <button
@@ -342,7 +342,7 @@ export function AIDesigner() {
 
           <div className="aid-field">
             <div className="aid-field__label"><span>{t('aiDesigner.brandStyle')}</span></div>
-            <div className="aid-pills">
+            <div className="aid-pills" data-tour="aid-style-pills">
               {DESIGN_STYLES.map((s) => (
                 <button key={s} type="button" className={`aid-pill${style === s ? ' is-active' : ''}`} onClick={() => setStyle(s)}>
                   {s}
@@ -373,7 +373,7 @@ export function AIDesigner() {
             </div>
           </div>
 
-          <div className="aid-panel__foot">
+          <div className="aid-panel__foot" data-tour="aid-generate-cta">
             <button className="s-btn s-btn--accent aid-generate" type="button" disabled={!canGenerate} onClick={() => void handleGenerate()}>
               <IcoSparkle width="17" height="17" />
               {generating
@@ -399,7 +399,7 @@ export function AIDesigner() {
             </div>
           </div>
 
-          <div className="aid-grid">
+          <div className="aid-grid" data-tour="aid-design-grid">
             {generating &&
               Array.from({ length: count }, (_, i) => (
                 <article className="aid-card aid-card--gen" key={`gen-${i}`} aria-hidden="true">

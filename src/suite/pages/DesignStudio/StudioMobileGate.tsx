@@ -11,7 +11,7 @@ import { DesignStudio } from './DesignStudio'
 export function StudioMobileGate() {
   const isPhone = useIsPhone()
 
-  if (isPhone) return <Navigate to="/suite/design" replace />
+  if (isPhone) return <Navigate to="/design" replace />
 
   return <DesignStudio />
 }

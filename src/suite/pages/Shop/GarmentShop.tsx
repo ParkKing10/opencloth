@@ -57,7 +57,7 @@ export function GarmentShop() {
     if (!user || buyingId) return
     const ownedId = owned[item.id]
     if (ownedId) {
-      navigate(`/suite/garment-lab/${ownedId}`)
+      navigate(`/garment-lab/${ownedId}`)
       return
     }
     if (item.price > 0 && coins < item.price) {
@@ -81,7 +81,7 @@ export function GarmentShop() {
           : t('shop.toast.added', { name: item.name }),
         'success',
       )
-      navigate(`/suite/garment-lab/${summary.id}`)
+      navigate(`/garment-lab/${summary.id}`)
     } catch (err) {
       // No layers (or the source couldn't be read) → don't charge, don't file an empty garment.
       toast(err instanceof Error ? err.message : t('shop.toast.prepFail'), 'info')
@@ -96,7 +96,7 @@ export function GarmentShop() {
       title={t('shop.title')}
       subtitle={t('shop.subtitle')}
       actions={
-        <span className="shop-balance" title={t('shop.balanceTitle')}>
+        <span data-tour="shop-balance" className="shop-balance" title={t('shop.balanceTitle')}>
           <IcoCoins width="17" height="17" />
           <b>{coins.toLocaleString()}</b> {t('shop.coins')}
         </span>
@@ -106,7 +106,7 @@ export function GarmentShop() {
         <input className="gm-search" type="search" placeholder={t('shop.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('shop.searchAria')} />
       </div>
 
-      <div className="shop-cats">
+      <div className="shop-cats" data-tour="shop-cats">
         {cats.map((c) => (
           <button key={c.id} type="button" className={`shop-cat${cat === c.id ? ' is-active' : ''}`} onClick={() => setCat(c.id)}>
             {c.label}
@@ -114,7 +114,7 @@ export function GarmentShop() {
         ))}
       </div>
 
-      <div className="shop-grid">
+      <div className="shop-grid" data-tour="shop-grid">
         {items.map((item) => {
           const isOwned = !!owned[item.id]
           const affordable = item.price === 0 || coins >= item.price
@@ -132,7 +132,7 @@ export function GarmentShop() {
                 </div>
                 <button
                   type="button"
-                  className={`shop-buy${isOwned ? ' is-owned' : ''}${!isOwned && !affordable ? ' is-locked' : ''}`}
+                  data-tour="shop-buy" className={`shop-buy${isOwned ? ' is-owned' : ''}${!isOwned && !affordable ? ' is-locked' : ''}`}
                   onClick={() => buy(item)}
                   disabled={busy}
                   title={isOwned ? t('shop.buyTitle.open') : affordable ? (item.price > 0 ? t('shop.buyTitle.buy', { price: item.price }) : t('shop.buyTitle.free')) : t('shop.buyTitle.locked', { price: item.price, coins })}

@@ -1,8 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import './styles/global.css'
-import { App } from './App'
 import { initTheme } from './suite/theme'
 import { I18nProvider } from '@/i18n'
 import { StoreProvider } from './suite/data/store'
@@ -44,6 +43,12 @@ import { AdminSettings } from './suite/admin/pages/AdminSettings'
 
 initTheme()
 
+/** Old bookmarks/deep links: /suite/... → the same path at root. */
+function LegacySuiteRedirect() {
+  const { pathname, search } = useLocation()
+  return <Navigate to={`${pathname.replace(/^\/suite/, '') || '/'}${search}`} replace />
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nProvider>
@@ -53,15 +58,15 @@ createRoot(document.getElementById('root')!).render(
           <ToastProvider>
             <PresentationProvider>
             <Routes>
-              {/* Public */}
-              <Route path="/" element={<App />} />
+              {/* Public — the suite IS the site now; the old marketing landing is gone. */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/suite/*" element={<LegacySuiteRedirect />} />
 
               {/* Full-screen editor (auth required). The Design Studio LANDING lives inside the suite
                   shell (see /suite/design below); the editor itself is full-screen at /suite/studio. */}
               <Route
-                path="/suite/studio"
+                path="/studio"
                 element={
                   <RequireAuth>
                     <StudioMobileGate />
@@ -69,7 +74,7 @@ createRoot(document.getElementById('root')!).render(
                 }
               />
               <Route
-                path="/suite/garment-lab/:garmentId"
+                path="/garment-lab/:garmentId"
                 element={
                   <RequireAuth>
                     <GarmentLabMobileGate />
@@ -77,15 +82,9 @@ createRoot(document.getElementById('root')!).render(
                 }
               />
 
-              {/* Suite (auth required) */}
-              <Route
-                path="/suite"
-                element={
-                  <RequireAuth>
-                    <SuiteApp />
-                  </RequireAuth>
-                }
-              >
+              {/* The suite shell at the root. Guests may browse — any real interaction
+                  opens the login/register gate inside SuiteApp. */}
+              <Route path="/" element={<SuiteApp />}>
                 <Route index element={<Dashboard />} />
                 <Route path="design" element={<DesignStudioLanding />} />
                 <Route path="garments" element={<GarmentsHome />} />
@@ -103,7 +102,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="pricing" element={<Pricing />} />
                 <Route path="explainer" element={<RequireAdmin><Explainer /></RequireAdmin>} />
                 <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/suite" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Route>
 
               {/* Admin (admin role required) */}

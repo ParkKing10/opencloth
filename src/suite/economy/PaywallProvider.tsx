@@ -97,10 +97,10 @@ function Paywall({ kind, mode, onClose }: { kind: GenKind; mode: 'subscribe' | '
         </ul>
         <p className="pw__cost">{t('paywall.cost', { n: COSTS[kind] })}</p>
         <div className="pw__actions">
-          <button className="pw__cta" type="button" onClick={() => go('/suite/pricing')}>
+          <button className="pw__cta" type="button" onClick={() => go('/pricing')}>
             {t('paywall.cta.plans')} →
           </button>
-          <button className="pw__alt" type="button" onClick={() => go('/suite/rewards')}>
+          <button className="pw__alt" type="button" onClick={() => go('/rewards')}>
             {t('paywall.cta.topup')}
           </button>
         </div>

@@ -24,8 +24,11 @@ export function Signup() {
     setError('')
     const res = await signup(name, email, password)
     setBusy(false)
-    if (res.ok) navigate('/suite', { replace: true })
-    else setError(res.error ?? t('auth.err.couldNotCreate'))
+    if (res.ok) {
+      // Fresh account: the shell shows the trial/plan modal first, then starts the app tour.
+      localStorage.setItem('threados-post-signup', '1')
+      navigate('/', { replace: true })
+    } else setError(res.error ?? t('auth.err.couldNotCreate'))
   }
 
   return (

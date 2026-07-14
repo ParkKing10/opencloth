@@ -147,23 +147,23 @@
 .dl__store small { font-size: 9.5px; opacity: 0.62; letter-spacing: 0.04em; text-transform: uppercase; }
 .dl__store b { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
 
-/* ── Device mockup — the signature: the app caught mid-design ──────────────── */
+/* ── iPad running the Design Studio — the signature ───────────────────────── */
 .dl__hero-phone { position: relative; z-index: 1; display: grid; place-items: center; }
-.dl__device {
+.dl__ipad {
   position: relative;
-  width: clamp(196px, 19vw, 236px);
-  aspect-ratio: 212 / 436;
-  padding: 8px;
-  border-radius: 42px;
-  background: linear-gradient(150deg, #42424a, #17171b 42%, #08080a);
+  width: clamp(340px, 40vw, 500px);
+  aspect-ratio: 1.41;
+  padding: 11px;
+  border-radius: 30px;
+  background: linear-gradient(150deg, #46464e, #1a1a1f 45%, #09090b);
   box-shadow:
-    0 44px 90px -34px rgba(0, 0, 0, 0.85),
+    0 46px 92px -32px rgba(0, 0, 0, 0.85),
     0 0 0 1px rgba(255, 255, 255, 0.05),
     inset 0 1px 1px rgba(255, 255, 255, 0.14);
   animation: dl-float 7s ease-in-out infinite;
 }
-/* Accent rim light down the top-left edge of the frame. */
-.dl__device::after {
+/* Accent rim light along the top-left edge of the frame. */
+.dl__ipad::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -176,80 +176,140 @@
   mask-composite: exclude;
   opacity: 0.6;
 }
-.dl__device-island {
+.dl__ipad-cam {
   position: absolute;
-  top: 15px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
-  width: 32%;
-  height: 17px;
-  border-radius: 999px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
   background: #000;
   z-index: 3;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
 }
-.dl__device-screen {
+.dl__ipad-screen {
   position: relative;
   height: 100%;
-  border-radius: 35px;
+  border-radius: 20px;
   overflow: hidden;
-  background: linear-gradient(170deg, #15161c, #0b0b0e);
+  background: #0b0b0e;
 }
-.dl__app { display: flex; flex-direction: column; height: 100%; padding: 30px 12px 14px; gap: 10px; }
-.dl__app-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
-.dl__app-time { font-size: 10px; font-weight: 700; color: rgba(255, 255, 255, 0.78); }
-.dl__app-brand { font-size: 11.5px; font-weight: 800; color: var(--s-accent, #d1f94f); }
-.dl__app-stage {
+
+/* Mini Design Studio inside the screen — the real app chrome, scaled down. */
+.dl__ds { display: flex; flex-direction: column; height: 100%; color: #e9e9ee; }
+.dl__ds-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 11px;
+  background: #111116;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.dl__ds-brand { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 800; color: #fff; }
+.dl__ds-mark {
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+  background: radial-gradient(circle at 32% 28%, #ecff86, var(--s-accent, #d1f94f) 72%);
+  box-shadow: 0 0 8px color-mix(in oklab, var(--s-accent, #d1f94f) 45%, transparent);
+}
+.dl__ds-top-actions { display: flex; gap: 6px; }
+.dl__ds-btn {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--s-accent, #d1f94f);
+  color: #14141a;
+  font-size: 9px;
+  font-weight: 800;
+}
+.dl__ds-body { flex: 1; display: grid; grid-template-columns: 34px 1fr clamp(70px, 18%, 92px); min-height: 0; }
+.dl__ds-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 0;
+  background: #0f0f13;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+.dl__ds-rail i { width: 18px; height: 18px; border-radius: 6px; background: rgba(255, 255, 255, 0.07); }
+.dl__ds-rail i.is-on {
+  background: color-mix(in oklab, var(--s-accent, #d1f94f) 22%, transparent);
+  box-shadow: inset 0 0 0 1px var(--s-accent, #d1f94f);
+}
+.dl__ds-canvas {
   position: relative;
-  flex: 1;
-  border-radius: 16px;
-  background: linear-gradient(180deg, #fafafa, #ececed);
   display: grid;
   place-items: center;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  background-color: #0a0a0d;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 22px 22px;
 }
-.dl__app-flat { width: 60%; height: auto; }
-/* A lime graphic dropped on the chest, with a dashed selection box — "designing", frozen mid-edit. */
-.dl__app-graphic {
+.dl__ds-flat { width: 42%; height: auto; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4)); }
+/* The graphic dropped on the chest with a dashed selection box — the app caught mid-design. */
+.dl__ds-graphic {
   position: absolute;
-  top: 40%;
+  top: 41%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 34px;
-  height: 34px;
-  border-radius: 9px;
-  background: radial-gradient(circle at 32% 28%, #ecff86, var(--s-accent, #d1f94f) 70%);
-  box-shadow: 0 5px 12px color-mix(in oklab, var(--s-accent, #d1f94f) 40%, transparent);
-  outline: 1.5px dashed rgba(20, 20, 20, 0.45);
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+  background: radial-gradient(circle at 30% 26%, #ecff86, var(--s-accent, #d1f94f) 72%);
+  box-shadow: 0 5px 12px color-mix(in oklab, var(--s-accent, #d1f94f) 45%, transparent);
+  outline: 1.5px dashed rgba(255, 255, 255, 0.65);
   outline-offset: 3px;
 }
-.dl__app-dock { display: flex; justify-content: center; gap: 9px; padding: 8px 0 2px; }
-.dl__app-dock i {
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.dl__ds-zoom {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 8px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.72);
 }
-.dl__app-dock i.is-on {
-  background: var(--s-accent, #d1f94f);
-  border-color: transparent;
-  box-shadow: 0 5px 14px color-mix(in oklab, var(--s-accent, #d1f94f) 40%, transparent);
+.dl__ds-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 8px;
+  background: #0f0f13;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
 }
+.dl__ds-panel-h { font-size: 8px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255, 255, 255, 0.42); }
+.dl__ds-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.72);
+}
+.dl__ds-row i { width: 12px; height: 12px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); }
+.dl__ds-row.is-sel { background: color-mix(in oklab, var(--s-accent, #d1f94f) 15%, transparent); color: #fff; }
+.dl__ds-row.is-sel i { background: var(--s-accent, #d1f94f); }
+
 @keyframes dl-float {
   0%, 100% { transform: translateY(0) rotate(-3deg); }
   50% { transform: translateY(-11px) rotate(-3deg); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dl__device { animation: none; transform: rotate(-3deg); }
+  .dl__ipad { animation: none; transform: rotate(-3deg); }
 }
 
-/* ── Tablet / iPad — keep the full two-column premium hero, sized up ───────── */
+/* ── Tablet / iPad — keep the full two-column premium hero ─────────────────── */
 @media (max-width: 1040px) and (min-width: 641px) {
-  .dl__hero { gap: 28px; }
-  .dl__hero-body h1 { font-size: clamp(32px, 6vw, 48px); }
-  .dl__device { width: clamp(188px, 26vw, 224px); }
+  .dl__hero { gap: 26px; }
+  .dl__hero-body h1 { font-size: clamp(30px, 5.4vw, 46px); }
+  .dl__ipad { width: clamp(300px, 42vw, 440px); }
 }
 
 /* Chooser */
@@ -353,20 +413,21 @@
 }
 .dl__back:hover { background: var(--s-panel, #121216); border-color: var(--s-accent, #d1f94f); }
 
-/* ── Mobile (phones + small tablets) ─────────────────────────────────────── */
-@media (max-width: 768px) {
+/* ── Phones only ──────────────────────────────────────────────────────────
+   iPad and up keep the full two-column premium hero (see the tablet range above);
+   only true phones collapse to a single column and drop the device mock. */
+@media (max-width: 640px) {
   /* Full-screen (non-inline) variant: tighten page padding + rhythm.
      The inline .dl--page variant keeps padding:0 — the suite content owns it. */
   .dl__inner { padding: 24px 16px 48px; gap: 24px; }
 
-  /* Hero collapses to one column; drop decorative phone mock + ambient glow. */
+  /* Hero collapses to one column; drop the device mock (the ambient glow stays for life). */
   .dl__hero {
     grid-template-columns: 1fr;
     padding: 24px 20px;
     border-radius: 20px;
     gap: 18px;
   }
-  .dl__hero-glow { display: none; }
   .dl__hero-phone { display: none; }
   .dl__hero-body { max-width: 100%; }
   .dl__hero-body h1 { font-size: clamp(26px, 8vw, 36px); }

@@ -266,6 +266,6 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
   const { isAuthed, isAdmin, initializing } = useAuth()
   if (initializing) return <AuthSplash />
   if (!isAuthed) return <Navigate to="/login" replace />
-  if (!isAdmin) return <Navigate to="/suite" replace />
+  if (!isAdmin) return <Navigate to="/" replace />
   return <>{children}</>
 }

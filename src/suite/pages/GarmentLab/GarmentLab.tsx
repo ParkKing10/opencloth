@@ -59,7 +59,7 @@ export function GarmentLab() {
 
   // Never open the editor for a garment that isn't in the user's collection — return to Garments.
   useEffect(() => {
-    if (user?.id && garmentId && !getGarment(user.id, garmentId)) navigate('/suite/garments', { replace: true })
+    if (user?.id && garmentId && !getGarment(user.id, garmentId)) navigate('/garments', { replace: true })
   }, [user?.id, garmentId, navigate])
 
   // Fallback only fires if a real history is somehow missing; key it to the route id so it can
@@ -306,7 +306,7 @@ export function GarmentLab() {
   }, [user?.id, garmentId, refreshSummary])
 
   const openDesignStudio = useCallback(() => {
-    navigate(`/suite/studio?garment=${encodeURIComponent(garmentId)}&name=${encodeURIComponent(garment.name)}`)
+    navigate(`/studio?garment=${encodeURIComponent(garmentId)}&name=${encodeURIComponent(garment.name)}`)
   }, [navigate, garmentId, garment.name])
 
   return (
@@ -325,7 +325,7 @@ export function GarmentLab() {
         rev={`${revNumber}/${revTotal}`}
         views={garment.views}
         view={view}
-        onBack={() => navigate('/suite/garments')}
+        onBack={() => navigate('/garments')}
         onRename={handleRename}
         onToggleFavorite={handleFavorite}
         onSave={() => {

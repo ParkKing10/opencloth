@@ -23,10 +23,10 @@ export function CollectionDetail() {
     [data.designs, id],
   )
 
-  if (!collection) return <Navigate to="/suite/collections" replace />
+  if (!collection) return <Navigate to="/collections" replace />
 
   const open = (d: { id: string; name: string }) =>
-    navigate(`/suite/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)
+    navigate(`/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)
 
   const countLabel =
     designs.length === 1
@@ -40,7 +40,7 @@ export function CollectionDetail() {
       title={collection.name}
       subtitle={subtitle}
       actions={
-        <button type="button" className="s-btn s-btn--ghost" onClick={() => navigate('/suite/collections')}>
+        <button type="button" className="s-btn s-btn--ghost" onClick={() => navigate('/collections')}>
           ← {t('collections.detail.allCollections')}
         </button>
       }
@@ -48,7 +48,7 @@ export function CollectionDetail() {
       {designs.length === 0 ? (
         <div className="col-detail__empty">
           <p>{t('collections.detail.emptyBody')}</p>
-          <button type="button" className="s-btn s-btn--accent" onClick={() => navigate('/suite/design')}>
+          <button type="button" className="s-btn s-btn--accent" onClick={() => navigate('/design')}>
             <IcoPlus width="15" height="15" /> {t('collections.detail.startDesign')}
           </button>
         </div>

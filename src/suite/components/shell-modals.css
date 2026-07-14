@@ -224,6 +224,32 @@
   color: var(--s-text-2, #a6a6b2);
 }
 
+/* ---- guest auth gate ---- */
+.shm__card--gate {
+  width: min(440px, 100%);
+  text-align: center;
+}
+.shm__gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+.shm__gate-login {
+  padding: 12px 18px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-panel-3, #191922);
+  color: var(--s-text, #f4f4f6);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s;
+}
+.shm__gate-login:hover {
+  background: var(--s-hover, #1c1c26);
+}
+
 /* ---- MCP modal bits ---- */
 .shm__mcp-head {
   display: flex;

@@ -28,6 +28,8 @@ import { Community } from './suite/pages/Community/Community'
 import { Marketplace } from './suite/pages/Marketplace/Marketplace'
 import { GarmentShop } from './suite/pages/Shop/GarmentShop'
 import { Analytics } from './suite/pages/Analytics/Analytics'
+import { Rewards } from './suite/pages/Rewards/Rewards'
+import { Pricing } from './suite/pages/Pricing/Pricing'
 import { Explainer } from './suite/pages/Explainer/Explainer'
 import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
@@ -97,7 +99,9 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="community" element={<Community />} />
                 <Route path="marketplace" element={<Marketplace />} />
                 <Route path="analytics" element={<Analytics />} />
-                <Route path="explainer" element={<Explainer />} />
+                <Route path="rewards" element={<Rewards />} />
+                <Route path="pricing" element={<Pricing />} />
+                <Route path="explainer" element={<RequireAdmin><Explainer /></RequireAdmin>} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/suite" replace />} />
               </Route>

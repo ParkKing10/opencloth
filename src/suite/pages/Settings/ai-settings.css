@@ -68,6 +68,20 @@
   flex: 1 1 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+.aiset__select {
+  flex: 1 1 auto;
+  padding: 10px 12px;
+  border-radius: var(--s-r-sm);
+  border: 1px solid var(--s-line);
+  background: var(--s-inset, var(--s-panel-2));
+  color: var(--s-text);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.aiset__select:focus {
+  border-color: var(--s-accent-line, var(--s-accent));
+}
 .aiset__reveal {
   flex: 0 0 auto;
   padding: 0 14px;

@@ -20,7 +20,7 @@ import { adOutputDuration, composeAdFrame, DEFAULT_AD_CONFIG, mapOutputToSource,
 import { applyVibe, DEFAULT_STYLE, parseVibe, type LocalEdit, type LocalEditKind, type StyleParams } from './engine/adRefine'
 import { pickMime } from './recorder'
 import { fileExtFor } from './exporter'
-import './ad-director.css'
+import './director.css'
 
 const VIBE_CHIPS: { label: string; mult: Partial<StyleParams> }[] = [
   { label: 'More Apple', mult: { zoom: 0.8, accentUse: 0.7, pace: 0.9, vignette: 1.12 } },
@@ -396,9 +396,9 @@ export function AdDirector() {
   const recTileName = recordings.length === 1 ? recordings[0].name : recordings.length > 1 ? `${recordings.length} clips` : undefined
 
   return (
-    <div className="ad">
+    <div className="dir">
       {/* uploads */}
-      <div className="ad-uploads">
+      <div className="dir-uploads">
         <UploadTile
           label="Screen recordings"
           hint=".webm / .mp4 — add several"
@@ -424,29 +424,29 @@ export function AdDirector() {
 
       {/* the clips, in the order they'll be cut together */}
       {recordings.length > 0 && (
-        <div className="ad-cliplist">
+        <div className="dir-cliplist">
           {recordings.map((r, i) => (
-            <span key={r.url} className="ad-clip">
-              <span className="ad-clip__n">{i + 1}</span>
-              <span className="ad-clip__name" title={r.name}>{r.name}</span>
+            <span key={r.url} className="dir-clip">
+              <span className="dir-clip__n">{i + 1}</span>
+              <span className="dir-clip__name" title={r.name}>{r.name}</span>
               <button type="button" onClick={() => removeRecording(i)} aria-label="Remove clip">×</button>
             </span>
           ))}
-          <button type="button" className="ad-clip-add" onClick={() => recRef.current?.click()}>+ Add clip</button>
+          <button type="button" className="dir-clip-add" onClick={() => recRef.current?.click()}>+ Add clip</button>
         </div>
       )}
 
       {/* one prompt */}
-      <div className="ad-prompt">
-        <label className="ad-prompt__label">What should the video show?</label>
+      <div className="dir-prompt">
+        <label className="dir-prompt__label">What should the video show?</label>
         <textarea
-          className="ad-prompt__area"
+          className="dir-prompt__area"
           rows={3}
           placeholder={EXAMPLE}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
-        <button className="ad-generate" type="button" onClick={generate} disabled={!recordings.length || analysing}>
+        <button className="dir-generate" type="button" onClick={generate} disabled={!recordings.length || analysing}>
           {analysing ? (
             <>Watching your {recordings.length > 1 ? 'recordings' : 'recording'}… {Math.round(progress * 100)}%</>
           ) : (
@@ -455,18 +455,18 @@ export function AdDirector() {
             </>
           )}
         </button>
-        {!recordings.length && <p className="ad-hint">Drop your screen recordings above to start — the director does the rest.</p>}
+        {!recordings.length && <p className="dir-hint">Drop your screen recordings above to start — the director does the rest.</p>}
       </div>
 
       {analysing && (
-        <div className="ad-progress">
-          <div className="ad-progress__bar" style={{ width: `${Math.round(progress * 100)}%` }} />
+        <div className="dir-progress">
+          <div className="dir-progress__bar" style={{ width: `${Math.round(progress * 100)}%` }} />
         </div>
       )}
 
       {/* result: the finished ad (real footage + motion graphics), plus what the director found */}
       {ready && (
-        <div className="ad-result">
+        <div className="dir-result">
           {recordings.map((r, i) => (
             <video
               key={r.url}
@@ -479,24 +479,24 @@ export function AdDirector() {
               onLoadedData={() => paint(outRef.current)}
             />
           ))}
-          <div className="ad-stage">
-            <canvas ref={canvasRef} className="ad-video" />
+          <div className="dir-stage">
+            <canvas ref={canvasRef} className="dir-video" />
             {exporting && (
-              <div className="ad-export-veil">
-                <div className="ad-export-ring">{Math.round(expPct * 100)}%</div>
+              <div className="dir-export-veil">
+                <div className="dir-export-ring">{Math.round(expPct * 100)}%</div>
                 <p>Rendering your ad…</p>
               </div>
             )}
           </div>
 
           {/* transport over the OUTPUT (the cut ad) */}
-          <div className="ad-transport">
-            <button className="ad-play" type="button" onClick={togglePlay} disabled={exporting}>
+          <div className="dir-transport">
+            <button className="dir-play" type="button" onClick={togglePlay} disabled={exporting}>
               {playing ? '❚❚' : '▶'}
             </button>
-            <span className="ad-time">{fmtTime(time)}</span>
+            <span className="dir-time">{fmtTime(time)}</span>
             <input
-              className="ad-scrub"
+              className="dir-scrub"
               type="range"
               min={0}
               max={Math.max(outDur, 0.001)}
@@ -505,14 +505,14 @@ export function AdDirector() {
               onChange={(e) => seek(parseFloat(e.target.value))}
               disabled={exporting}
             />
-            <span className="ad-time">{fmtTime(outDur)}</span>
-            <div className="ad-edithere">
-              <button className="ad-export" type="button" onClick={() => setEditMenu((o) => !o)} disabled={exporting}>
+            <span className="dir-time">{fmtTime(outDur)}</span>
+            <div className="dir-edithere">
+              <button className="dir-export" type="button" onClick={() => setEditMenu((o) => !o)} disabled={exporting}>
                 ✎ Edit here
               </button>
               {editMenu && (
-                <div className="ad-editmenu">
-                  <span className="ad-editmenu__t">At {fmtTime(time)}</span>
+                <div className="dir-editmenu">
+                  <span className="dir-editmenu__t">At {fmtTime(time)}</span>
                   {EDIT_KINDS.map((k) => (
                     <button key={k.kind} type="button" onClick={() => addEdit(k.kind)}>
                       {k.label}
@@ -521,33 +521,33 @@ export function AdDirector() {
                 </div>
               )}
             </div>
-            <button className="ad-export" type="button" onClick={exportAd} disabled={exporting}>
+            <button className="dir-export" type="button" onClick={exportAd} disabled={exporting}>
               <IcoUpload width="15" height="15" /> {exporting ? `Exporting ${Math.round(expPct * 100)}%` : 'Export'}
             </button>
           </div>
 
-          <div className="ad-summary">
-            <span className="ad-chip ad-chip--accent">
+          <div className="dir-summary">
+            <span className="dir-chip dir-chip--accent">
               <IcoBolt width="13" height="13" /> {momentsTotal} key moments
             </span>
-            <span className="ad-chip">{recordings.length} clip{recordings.length > 1 ? 's' : ''} joined</span>
-            <span className="ad-chip">{deadsTotal} dead spots trimmed</span>
-            <span className="ad-chip">{Math.round(plan.deadTrimmed * 10) / 10}s of nothing removed</span>
-            <span className="ad-chip">final cut ~{Math.round(outDur)}s</span>
-            {music?.beats && <span className="ad-chip">synced to {music.beats.bpm} BPM</span>}
+            <span className="dir-chip">{recordings.length} clip{recordings.length > 1 ? 's' : ''} joined</span>
+            <span className="dir-chip">{deadsTotal} dead spots trimmed</span>
+            <span className="dir-chip">{Math.round(plan.deadTrimmed * 10) / 10}s of nothing removed</span>
+            <span className="dir-chip">final cut ~{Math.round(outDur)}s</span>
+            {music?.beats && <span className="dir-chip">synced to {music.beats.bpm} BPM</span>}
           </div>
 
           {/* what the director found across ALL clips — click a moment to jump there in the cut */}
-          <div className="ad-timeline">
+          <div className="dir-timeline">
             {analyses.map((a, vi) => {
               const off = srcOffsets[vi]
               return (
                 <Fragment key={vi}>
-                  {vi > 0 && <div className="ad-tl__cut" style={{ left: `${(off / totalSrc) * 100}%` }} title={`Clip ${vi + 1}`} />}
+                  {vi > 0 && <div className="dir-tl__cut" style={{ left: `${(off / totalSrc) * 100}%` }} title={`Clip ${vi + 1}`} />}
                   {a.deadZones.map((z, i) => (
                     <div
                       key={`d${vi}-${i}`}
-                      className="ad-tl__dead"
+                      className="dir-tl__dead"
                       style={{ left: `${((off + z.start) / totalSrc) * 100}%`, width: `${((z.end - z.start) / totalSrc) * 100}%` }}
                       title="Dead / loading — sped up"
                     />
@@ -555,7 +555,7 @@ export function AdDirector() {
                   {a.moments.map((m, i) => (
                     <button
                       key={`m${vi}-${i}`}
-                      className={`ad-tl__moment ad-tl__moment--${m.kind}`}
+                      className={`dir-tl__moment dir-tl__moment--${m.kind}`}
                       style={{ left: `${((off + m.t) / totalSrc) * 100}%`, height: `${40 + m.strength * 55}%` }}
                       title={`${m.kind === 'reveal' ? 'Reveal' : 'Action'} · clip ${vi + 1} @ ${fmtTime(m.t)}`}
                       onClick={() => seek(srcToOut(vi, m.t))}
@@ -564,27 +564,27 @@ export function AdDirector() {
                 </Fragment>
               )
             })}
-            <div className="ad-tl__head" style={{ left: `${curFrac * 100}%` }} />
+            <div className="dir-tl__head" style={{ left: `${curFrac * 100}%` }} />
           </div>
 
           {/* the auto storyboard — plain-language, never scene/element jargon */}
-          <div className="ad-story">
+          <div className="dir-story">
             {plan.story.map((s, i) => (
-              <button key={i} className={`ad-step ad-step--${s.kind}`} type="button" onClick={() => seek(srcToOut(s.video, s.t))}>
-                <span className="ad-step__thumb">
-                  {s.thumb ? <img src={s.thumb} alt="" /> : <span className="ad-step__ico">{s.kind === 'hook' ? '✦' : s.kind === 'outro' ? '⤷' : '›'}</span>}
+              <button key={i} className={`dir-step dir-step--${s.kind}`} type="button" onClick={() => seek(srcToOut(s.video, s.t))}>
+                <span className="dir-step__thumb">
+                  {s.thumb ? <img src={s.thumb} alt="" /> : <span className="dir-step__ico">{s.kind === 'hook' ? '✦' : s.kind === 'outro' ? '⤷' : '›'}</span>}
                 </span>
-                <span className="ad-step__label">{s.label}</span>
-                <span className="ad-step__time">{fmtTime(srcToOut(s.video, s.t))}</span>
+                <span className="dir-step__label">{s.label}</span>
+                <span className="dir-step__time">{fmtTime(srcToOut(s.video, s.t))}</span>
               </button>
             ))}
           </div>
 
           {/* refine: talk to the director in vibes, or edit at a point */}
-          <div className="ad-refine">
-            <div className="ad-refine__row">
+          <div className="dir-refine">
+            <div className="dir-refine__row">
               <input
-                className="ad-input"
+                className="dir-input"
                 placeholder="Tell the director a vibe — “more Apple”, “faster”, “more emotional”…"
                 value={refineText}
                 onChange={(e) => setRefineText(e.target.value)}
@@ -594,17 +594,17 @@ export function AdDirector() {
                 Apply
               </button>
             </div>
-            <div className="ad-chips">
+            <div className="dir-chips">
               {VIBE_CHIPS.map((c) => (
-                <button key={c.label} type="button" className="ad-vibe" onClick={() => nudge(c.mult)}>
+                <button key={c.label} type="button" className="dir-vibe" onClick={() => nudge(c.mult)}>
                   {c.label}
                 </button>
               ))}
             </div>
             {edits.length > 0 && (
-              <div className="ad-edits">
+              <div className="dir-edits">
                 {edits.map((e) => (
-                  <span key={e.id} className="ad-edit">
+                  <span key={e.id} className="dir-edit">
                     {e.kind === 'zoom' ? 'Zoom' : e.kind === 'emphasis' ? 'Emphasis' : 'No graphics'} @ {fmtTime(e.at)}
                     <button type="button" onClick={() => removeEdit(e.id)} aria-label="Remove">
                       ×
@@ -638,11 +638,11 @@ function UploadTile({
   primary?: boolean
 }) {
   return (
-    <button className={`ad-tile${filled ? ' is-filled' : ''}${primary ? ' ad-tile--primary' : ''}`} type="button" onClick={onClick}>
-      <span className="ad-tile__icon">{filled ? '✓' : icon}</span>
-      <span className="ad-tile__label">{label}</span>
-      <span className="ad-tile__hint">{filled && name ? name : hint}</span>
-      {!filled && <span className="ad-tile__up"><IcoUpload width="14" height="14" /></span>}
+    <button className={`dir-tile${filled ? ' is-filled' : ''}${primary ? ' dir-tile--primary' : ''}`} type="button" onClick={onClick}>
+      <span className="dir-tile__icon">{filled ? '✓' : icon}</span>
+      <span className="dir-tile__label">{label}</span>
+      <span className="dir-tile__hint">{filled && name ? name : hint}</span>
+      {!filled && <span className="dir-tile__up"><IcoUpload width="14" height="14" /></span>}
     </button>
   )
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { IcoChevron, IcoPlus, IcoSearch } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { GRAPHIC_MARKS, type CanvasObject } from './objectModel'
@@ -120,6 +121,7 @@ export function LayersPanel({
   renameHandle,
 }: Props) {
   const toast = useToast()
+  const t = useT()
   const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<string | null>(null)
   // Expose "start rename" so the right-click context menu can trigger inline rename.
@@ -222,7 +224,7 @@ export function LayersPanel({
     const next = [...layers.slice(0, at), ...clones, ...layers.slice(at)]
     onCommit(next, hidden)
     onSelect([copy.id])
-    toast(`Duplicated “${layer.name}”.`, 'success')
+    toast(t('dsPanels.toast.duplicated', { name: layer.name }), 'success')
   }
 
   function remove(ids: string[]) {
@@ -234,20 +236,20 @@ export function LayersPanel({
       if (l.type === 'Group') membersOf(l.id).forEach((m) => !m.locked && removable.add(m.id))
     })
     if (removable.size === 0) {
-      toast('Nothing to delete — the selection is locked.', 'info')
+      toast(t('dsPanels.toast.nothingToDelete'), 'info')
       return
     }
     const nextHidden = { ...hidden }
     removable.forEach((id) => delete nextHidden[id])
     onCommit(layers.filter((l) => !removable.has(l.id)), nextHidden)
     onSelect([])
-    toast(`Removed ${removable.size} ${removable.size === 1 ? 'layer' : 'layers'}.`)
+    toast(removable.size === 1 ? t('dsPanels.toast.removedOne', { n: removable.size }) : t('dsPanels.toast.removedMany', { n: removable.size }))
   }
 
   function groupSelection() {
     const members = selectedIds.map((id) => byId.get(id)).filter((l): l is Layer => !!l && l.type !== 'Group')
     if (members.length < 2) {
-      toast('Select at least two layers to group.', 'info')
+      toast(t('dsPanels.toast.selectTwo'), 'info')
       return
     }
     const group: Layer = { id: uid(), name: `Group ${layers.filter((l) => l.type === 'Group').length + 1}`, type: 'Group' }
@@ -265,7 +267,7 @@ export function LayersPanel({
     if (emptyGroups.size > 0) next = next.filter((l) => !emptyGroups.has(l.id))
     onCommit(next, hidden)
     onSelect([group.id])
-    toast(`Grouped ${members.length} layers.`, 'success')
+    toast(t('dsPanels.toast.grouped', { n: members.length }), 'success')
   }
 
   function ungroup(group: Layer) {
@@ -276,7 +278,7 @@ export function LayersPanel({
     delete nextHidden[group.id]
     onCommit(next, nextHidden)
     onSelect(membersOf(group.id).map((m) => m.id))
-    toast(`Ungrouped “${group.name}”.`)
+    toast(t('dsPanels.toast.ungrouped', { name: group.name }))
   }
 
   // ---------- drag & drop reorder ----------
@@ -313,10 +315,10 @@ export function LayersPanel({
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={false}
-          title="Show layers"
+          title={t('dsPanels.showLayers')}
         >
           <IcoChevron width="13" height="13" style={{ transform: 'rotate(-90deg)' }} />
-          <h2>Layers</h2>
+          <h2>{t('dsPanels.layers')}</h2>
           <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
         </button>
       </div>
@@ -327,26 +329,26 @@ export function LayersPanel({
     <div className="lp">
       <div className="ds-panel-head ds-panel-head--tight">
         {onToggleCollapse ? (
-          <button className="lp__collapsed-head lp__collapsed-head--open" type="button" onClick={onToggleCollapse} aria-expanded title="Minimize layers">
+          <button className="lp__collapsed-head lp__collapsed-head--open" type="button" onClick={onToggleCollapse} aria-expanded title={t('dsPanels.minimizeLayers')}>
             <IcoChevron width="13" height="13" />
-            <h2>Layers</h2>
+            <h2>{t('dsPanels.layers')}</h2>
             {/* Count BOTH the garment's region layers and the design layers — a garment with 10
                 editable regions and no artwork yet is "10 layers", not "0". */}
             <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
           </button>
         ) : (
           <div className="lp__title">
-            <h2>Layers</h2>
+            <h2>{t('dsPanels.layers')}</h2>
             <span className="lp__count">{layers.length + (garmentRegions?.length ?? 0)}</span>
           </div>
         )}
         <div className="lp__head-actions">
           {selectedIds.length > 1 && (
-            <button className="lp__group-btn" type="button" title="Group selection (⌘G)" onClick={groupSelection}>
-              Group
+            <button className="lp__group-btn" type="button" title={t('dsPanels.groupSelection')} onClick={groupSelection}>
+              {t('dsPanels.group')}
             </button>
           )}
-          <button className="ds-mini" type="button" aria-label="Add layer" title="Add a new layer" onClick={onAddLayer}>
+          <button className="ds-mini" type="button" aria-label={t('dsPanels.addLayer')} title={t('dsPanels.addLayerTitle')} onClick={onAddLayer}>
             <IcoPlus width="15" height="15" />
           </button>
         </div>
@@ -355,17 +357,17 @@ export function LayersPanel({
       <label className="lp__search">
         <IcoSearch width="13" height="13" />
         <input
-          placeholder="Search layers…"
+          placeholder={t('dsPanels.searchLayers')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search layers"
+          aria-label={t('dsPanels.searchLayersAria')}
         />
       </label>
 
-      <div className="lp__list" role="listbox" aria-multiselectable aria-label="Layers">
+      <div className="lp__list" role="listbox" aria-multiselectable aria-label={t('dsPanels.layers')}>
         {garmentRegions && garmentRegions.length > 0 && (
           <>
-            <div className="lp-section">Garment{garmentTitle ? ` · ${garmentTitle}` : ''}</div>
+            <div className="lp-section">{t('dsPanels.section.garment')}{garmentTitle ? ` · ${garmentTitle}` : ''}</div>
             {garmentRegions
               .filter((r) => !query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase()) || r.type.toLowerCase().includes(query.trim().toLowerCase()))
               .map((r) => (
@@ -380,8 +382,8 @@ export function LayersPanel({
                   <button
                     className={`lp-row__dot${r.color ? '' : ' is-empty'}`}
                     type="button"
-                    aria-label="Region colour"
-                    title="Cycle region colour"
+                    aria-label={t('dsPanels.regionColour')}
+                    title={t('dsPanels.cycleRegionColour')}
                     style={r.color ? { background: r.color } : undefined}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -396,8 +398,8 @@ export function LayersPanel({
                     <button
                       type="button"
                       className={`lp-act${!r.visible ? ' is-on' : ''}`}
-                      title={r.visible ? 'Hide region' : 'Show region'}
-                      aria-label={r.visible ? `Hide ${r.name}` : `Show ${r.name}`}
+                      title={r.visible ? t('dsPanels.hideRegion') : t('dsPanels.showRegion')}
+                      aria-label={r.visible ? t('dsPanels.hideNamed', { name: r.name }) : t('dsPanels.showNamed', { name: r.name })}
                       onClick={(e) => {
                         e.stopPropagation()
                         onToggleRegion?.(r.id)
@@ -411,14 +413,14 @@ export function LayersPanel({
                   </span>
                 </div>
               ))}
-            <div className="lp-section">Design</div>
+            <div className="lp-section">{t('dsPanels.section.design')}</div>
           </>
         )}
         {rows.length === 0 &&
           (query.trim() ? (
-            <p className="lp__empty">No layers match “{query.trim()}”.</p>
+            <p className="lp__empty">{t('dsPanels.empty.noMatch', { q: query.trim() })}</p>
           ) : (
-            <p className="lp__empty">No design layers yet — add text or graphics to design on the garment.</p>
+            <p className="lp__empty">{t('dsPanels.empty.noLayers')}</p>
           ))}
         {rows.map(({ layer, depth }) => {
           const isGroup = layer.type === 'Group'
@@ -475,7 +477,7 @@ export function LayersPanel({
                 <button
                   className="lp-row__caret"
                   type="button"
-                  aria-label={layer.collapsed ? 'Expand group' : 'Collapse group'}
+                  aria-label={layer.collapsed ? t('dsPanels.expandGroup') : t('dsPanels.collapseGroup')}
                   onClick={(e) => {
                     e.stopPropagation()
                     toggleCollapse(layer)
@@ -487,8 +489,8 @@ export function LayersPanel({
                 <button
                   className={`lp-row__dot${layer.color ? '' : ' is-empty'}`}
                   type="button"
-                  aria-label="Cycle color label"
-                  title="Color label"
+                  aria-label={t('dsPanels.cycleColorLabel')}
+                  title={t('dsPanels.colorLabel')}
                   style={layer.color ? { background: layer.color } : undefined}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -504,7 +506,7 @@ export function LayersPanel({
                   <input
                     className="lp-row__rename"
                     autoFocus
-                    aria-label={`Rename ${layer.name}`}
+                    aria-label={t('dsPanels.renameNamed', { name: layer.name })}
                     defaultValue={layer.name}
                     onFocus={(e) => e.currentTarget.select()}
                     onBlur={(e) => rename(layer, e.currentTarget.value)}
@@ -520,7 +522,7 @@ export function LayersPanel({
                 ) : (
                   <>
                     <b>{layer.name}</b>
-                    <small>{isGroup ? `${membersOf(layer.id).length} layers` : layer.type}</small>
+                    <small>{isGroup ? t('dsPanels.groupLayers', { n: membersOf(layer.id).length }) : layer.type}</small>
                   </>
                 )}
               </span>
@@ -530,8 +532,8 @@ export function LayersPanel({
                   <button
                     type="button"
                     className="lp-act"
-                    title="Ungroup"
-                    aria-label="Ungroup"
+                    title={t('dsPanels.ungroup')}
+                    aria-label={t('dsPanels.ungroup')}
                     onClick={(e) => {
                       e.stopPropagation()
                       ungroup(layer)
@@ -546,8 +548,8 @@ export function LayersPanel({
                 <button
                   type="button"
                   className="lp-act"
-                  title="Duplicate"
-                  aria-label={`Duplicate ${layer.name}`}
+                  title={t('dsPanels.duplicate')}
+                  aria-label={t('dsPanels.duplicateNamed', { name: layer.name })}
                   onClick={(e) => {
                     e.stopPropagation()
                     duplicate(layer)
@@ -561,8 +563,8 @@ export function LayersPanel({
                 <button
                   type="button"
                   className={`lp-act${layer.locked ? ' is-on' : ''}`}
-                  title={layer.locked ? 'Unlock' : 'Lock'}
-                  aria-label={layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}
+                  title={layer.locked ? t('dsPanels.unlock') : t('dsPanels.lock')}
+                  aria-label={layer.locked ? t('dsPanels.unlockNamed', { name: layer.name }) : t('dsPanels.lockNamed', { name: layer.name })}
                   onClick={(e) => {
                     e.stopPropagation()
                     toggleLock(layer)
@@ -585,8 +587,8 @@ export function LayersPanel({
                 <button
                   type="button"
                   className={`lp-act${hidden[layer.id] ? ' is-on' : ''}`}
-                  title={hidden[layer.id] ? 'Show' : 'Hide'}
-                  aria-label={hidden[layer.id] ? `Show ${layer.name}` : `Hide ${layer.name}`}
+                  title={hidden[layer.id] ? t('dsPanels.show') : t('dsPanels.hide')}
+                  aria-label={hidden[layer.id] ? t('dsPanels.showNamed', { name: layer.name }) : t('dsPanels.hideNamed', { name: layer.name })}
                   onClick={(e) => {
                     e.stopPropagation()
                     toggleHidden(layer)
@@ -600,8 +602,8 @@ export function LayersPanel({
                 <button
                   type="button"
                   className="lp-act lp-act--danger"
-                  title="Delete"
-                  aria-label={`Delete ${layer.name}`}
+                  title={t('dsPanels.delete')}
+                  aria-label={t('dsPanels.deleteNamed', { name: layer.name })}
                   onClick={(e) => {
                     e.stopPropagation()
                     remove([layer.id])
@@ -622,7 +624,7 @@ export function LayersPanel({
           type="button"
           className={`lp-base${baseSelected ? ' is-selected' : ''}`}
           onClick={onSelectBase}
-          title="Select the base garment"
+          title={t('dsPanels.selectBase')}
         >
           <span className="lp-base__icon" aria-hidden>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
@@ -631,7 +633,7 @@ export function LayersPanel({
           </span>
           <span className="lp-base__text">
             <b>{baseGarmentName}</b>
-            <small>Base garment</small>
+            <small>{t('dsPanels.baseGarment')}</small>
           </span>
         </button>
       )}
@@ -639,13 +641,13 @@ export function LayersPanel({
       {hasSelection && (
         <div className="lp__footer">
           <span>
-            {selectedIds.length} selected
+            {t('dsPanels.selectedCount', { n: selectedIds.length })}
           </span>
           <button type="button" className="lp__footer-btn" onClick={() => remove(selectedIds)}>
-            Delete
+            {t('dsPanels.delete')}
           </button>
           <button type="button" className="lp__footer-btn" onClick={() => onSelect([])}>
-            Deselect
+            {t('dsPanels.deselect')}
           </button>
         </div>
       )}

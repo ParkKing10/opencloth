@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import './wizard.css'
 
@@ -95,9 +96,27 @@ const COLORS: ColorOption[] = [
   { name: 'Lime Punch', hex: '#D8FF3E' },
 ]
 
-const STEP_TITLES = ['What do you want to create?', 'Choose a fit', 'Pick your fabric', 'Choose a color'] as const
 const STEP_LABELS = ['Garment', 'Fit', 'Fabric', 'Color'] as const
 const ADVANCE_DELAY_MS = 200
+
+// i18n key maps for the wizard's static option data. The English name/value keeps flowing to the
+// design result; only the on-screen label is translated at the render site.
+const FABRIC_I18N: Record<string, string> = {
+  '240 GSM': 'jersey',
+  '320 GSM': 'twill',
+  '450 GSM': 'terry',
+  '520 GSM': 'heavyweight',
+}
+const COLOR_I18N: Record<string, string> = {
+  '#1E1E1E': 'vintageBlack',
+  '#F4F4F6': 'offWhite',
+  '#8A8A96': 'heatherGrey',
+  '#D8C9B0': 'washedBeige',
+  '#22304A': 'navy',
+  '#3E4A3A': 'forest',
+  '#5C2E35': 'burgundy',
+  '#D8FF3E': 'limePunch',
+}
 
 export function NewDesignWizard({
   open,
@@ -108,6 +127,7 @@ export function NewDesignWizard({
   onComplete: (result: WizardResult) => void
   onClose: () => void
 }) {
+  const t = useT()
   const [step, setStep] = useState(0)
   const [dir, setDir] = useState<1 | -1>(1)
   const [garment, setGarment] = useState<GarmentOption | null>(null)
@@ -209,19 +229,20 @@ export function NewDesignWizard({
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M15 18l-6-6 6-6" />
             </svg>
-            Back
+            {t('dsDialogs.wz.back')}
           </button>
         )}
 
         <div className="wz-shell">
           <header className="wz-chrome">
-            <span className="wz-eyebrow">New Design</span>
+            <span className="wz-eyebrow">{t('dsDialogs.wz.eyebrow')}</span>
             <h1 id="wz-step-title" className="wz-title">
-              {STEP_TITLES[step]}
+              {t(`dsDialogs.wz.stepTitle.${step}`)}
             </h1>
-            <div className="wz-progress" aria-label={`Step ${step + 1} of ${STEP_LABELS.length}`}>
+            <div className="wz-progress" aria-label={t('dsDialogs.wz.stepOf', { n: step + 1, total: STEP_LABELS.length })}>
               {STEP_LABELS.map((label, i) => {
                 const state = i < step ? 'done' : i === step ? 'current' : 'todo'
+                const labelT = t(`dsDialogs.wz.stepLabel.${i}`)
                 return (
                   <button
                     key={label}
@@ -229,7 +250,7 @@ export function NewDesignWizard({
                     className={`wz-progress__seg is-${state}`}
                     disabled={i >= step}
                     onClick={() => jumpTo(i)}
-                    aria-label={i < step ? `Back to step ${i + 1}: ${label}` : `Step ${i + 1}: ${label}`}
+                    aria-label={i < step ? t('dsDialogs.wz.backToStep', { n: i + 1, label: labelT }) : t('dsDialogs.wz.stepN', { n: i + 1, label: labelT })}
                     aria-current={i === step ? 'step' : undefined}
                   />
                 )
@@ -254,8 +275,8 @@ export function NewDesignWizard({
                       <span className="wz-card__figure">
                         <Glyph className="wz-card__glyph" width={64} height={64} />
                       </span>
-                      <span className="wz-card__name">{g.name}</span>
-                      <span className="wz-card__vibe">{g.vibe}</span>
+                      <span className="wz-card__name">{t(`dsDialogs.wz.garment.${g.kind}.name`)}</span>
+                      <span className="wz-card__vibe">{t(`dsDialogs.wz.garment.${g.kind}.vibe`)}</span>
                     </button>
                   )
                 })}
@@ -277,8 +298,8 @@ export function NewDesignWizard({
                       <span className="wz-card__figure">
                         <FitSilhouette fit={f.name} />
                       </span>
-                      <span className="wz-card__name">{f.name}</span>
-                      <span className="wz-card__vibe">{f.note}</span>
+                      <span className="wz-card__name">{t(`dsDialogs.wz.fit.${f.name.toLowerCase()}.name`)}</span>
+                      <span className="wz-card__vibe">{t(`dsDialogs.wz.fit.${f.name.toLowerCase()}.note`)}</span>
                     </button>
                   )
                 })}
@@ -297,10 +318,10 @@ export function NewDesignWizard({
                       onClick={() => pickFabric(f)}
                       aria-pressed={selected}
                     >
-                      {f.popular && <span className="wz-card__flag">Popular</span>}
+                      {f.popular && <span className="wz-card__flag">{t('dsDialogs.wz.popular')}</span>}
                       <span className="wz-card__weight">{f.weight}</span>
-                      <span className="wz-card__name">{f.name}</span>
-                      <span className="wz-card__vibe">{f.note}</span>
+                      <span className="wz-card__name">{t(`dsDialogs.wz.fabric.${FABRIC_I18N[f.weight]}.name`)}</span>
+                      <span className="wz-card__vibe">{t(`dsDialogs.wz.fabric.${FABRIC_I18N[f.weight]}.note`)}</span>
                     </button>
                   )
                 })}
@@ -321,7 +342,7 @@ export function NewDesignWizard({
                         aria-pressed={selected}
                       >
                         <span className="wz-swatch__dot" style={{ backgroundColor: c.hex }} aria-hidden="true" />
-                        <span className="wz-swatch__name">{c.name}</span>
+                        <span className="wz-swatch__name">{t(`dsDialogs.wz.color.${COLOR_I18N[c.hex]}`)}</span>
                       </button>
                     )
                   })}
@@ -329,7 +350,7 @@ export function NewDesignWizard({
                 {color && (
                   <div className="wz-cta-row">
                     <button type="button" className="wz-cta" onClick={handleComplete}>
-                      Start designing <span aria-hidden="true">→</span>
+                      {t('dsDialogs.wz.startDesigning')} <span aria-hidden="true">→</span>
                     </button>
                   </div>
                 )}
@@ -339,7 +360,7 @@ export function NewDesignWizard({
 
           <footer className="wz-foot">
             <button type="button" className="wz-skip" onClick={onClose}>
-              Skip — start blank
+              {t('dsDialogs.wz.skip')}
             </button>
           </footer>
         </div>

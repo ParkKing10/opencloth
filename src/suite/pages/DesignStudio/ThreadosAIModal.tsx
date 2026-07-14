@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
@@ -14,40 +15,40 @@ import './threados-ai.css'
 export type AiMode = 'graphic' | 'garment' | 'create'
 
 /** Creative follow-ups the engine can honestly deliver: each re-generates with the added intent. */
-const SUGGESTIONS: { label: string; add: string }[] = [
-  { label: 'Make it chrome', add: 'chrome' },
-  { label: 'Neon glow', add: 'neon glow' },
-  { label: 'Vintage wash', add: 'vintage distressed' },
-  { label: 'Gothic', add: 'gothic' },
-  { label: 'Gold', add: 'gold metallic' },
-  { label: 'Graffiti', add: 'graffiti spray' },
-  { label: 'More aggressive', add: 'aggressive sharp' },
-  { label: 'Cleaner', add: 'clean minimal' },
-  { label: 'More luxurious', add: 'luxury premium' },
+const SUGGESTIONS: { k: string; add: string }[] = [
+  { k: 'dsAi.sug.chrome', add: 'chrome' },
+  { k: 'dsAi.sug.neonGlow', add: 'neon glow' },
+  { k: 'dsAi.sug.vintageWash', add: 'vintage distressed' },
+  { k: 'dsAi.sug.gothic', add: 'gothic' },
+  { k: 'dsAi.sug.gold', add: 'gold metallic' },
+  { k: 'dsAi.sug.graffiti', add: 'graffiti spray' },
+  { k: 'dsAi.sug.moreAggressive', add: 'aggressive sharp' },
+  { k: 'dsAi.sug.cleaner', add: 'clean minimal' },
+  { k: 'dsAi.sug.moreLuxurious', add: 'luxury premium' },
 ]
 
 /** Create-garment directions — each steers a brand-new generated piece toward a look/detail. */
-const CREATE_SUGGESTIONS: { label: string; add: string }[] = [
-  { label: 'Streetwear', add: 'streetwear' },
-  { label: 'Luxury', add: 'luxury premium' },
-  { label: 'Oversized', add: 'oversized boxy fit' },
-  { label: 'Techwear', add: 'techwear utility' },
-  { label: 'Vintage wash', add: 'vintage washed' },
-  { label: 'Minimal', add: 'clean minimal' },
-  { label: 'Add a hood', add: 'with a hood' },
-  { label: 'Cargo pockets', add: 'with cargo pockets' },
+const CREATE_SUGGESTIONS: { k: string; add: string }[] = [
+  { k: 'dsAi.csug.streetwear', add: 'streetwear' },
+  { k: 'dsAi.csug.luxury', add: 'luxury premium' },
+  { k: 'dsAi.csug.oversized', add: 'oversized boxy fit' },
+  { k: 'dsAi.csug.techwear', add: 'techwear utility' },
+  { k: 'dsAi.csug.vintageWash', add: 'vintage washed' },
+  { k: 'dsAi.csug.minimal', add: 'clean minimal' },
+  { k: 'dsAi.csug.addHood', add: 'with a hood' },
+  { k: 'dsAi.csug.cargoPockets', add: 'with cargo pockets' },
 ]
 
 /** Garment-edit follow-ups — each appends a real fabric transformation to the prompt. */
-const GARMENT_SUGGESTIONS: { label: string; add: string }[] = [
-  { label: 'Distressed', add: 'heavily distressed and ripped' },
-  { label: 'Add holes', add: 'with crazy holes all over' },
-  { label: 'Acid wash', add: 'acid-washed' },
-  { label: 'Bleached', add: 'bleach-splattered' },
-  { label: 'Vintage faded', add: 'vintage faded' },
-  { label: 'Oversized', add: 'oversized boxy fit' },
-  { label: 'Cropped', add: 'cropped' },
-  { label: 'Patchwork', add: 'patchwork panels' },
+const GARMENT_SUGGESTIONS: { k: string; add: string }[] = [
+  { k: 'dsAi.gsug.distressed', add: 'heavily distressed and ripped' },
+  { k: 'dsAi.gsug.addHoles', add: 'with crazy holes all over' },
+  { k: 'dsAi.gsug.acidWash', add: 'acid-washed' },
+  { k: 'dsAi.gsug.bleached', add: 'bleach-splattered' },
+  { k: 'dsAi.gsug.vintageFaded', add: 'vintage faded' },
+  { k: 'dsAi.gsug.oversized', add: 'oversized boxy fit' },
+  { k: 'dsAi.gsug.cropped', add: 'cropped' },
+  { k: 'dsAi.gsug.patchwork', add: 'patchwork panels' },
 ]
 
 const HISTORY_KEY = 'threados-ai-history-v1'
@@ -92,6 +93,7 @@ type Props = {
  * synthesis today (isLiveConceptAi() === false), same UI when a diffusion model connects later.
  */
 export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', userId, onClose, onAddToCanvas, onApplyGarment, embedded = false }: Props) {
+  const t = useT()
   const toast = useToast()
   const [mode, setMode] = useState<AiMode>(initialMode)
   const modeRef = useRef<AiMode>(initialMode)
@@ -171,7 +173,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       // real image model — there is no honest on-device way to repaint a garment, and we won't fake it.
       if (modeRef.current === 'garment') {
         if (!hasImageAi()) {
-          toast('Editing the garment needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+          toast(t('dsAi.toast.garmentNeedsModel'), 'info')
           setGenerating(false)
           return
         }
@@ -181,7 +183,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           garmentPng = await blobToDataUrl(blob)
         } catch {
           if (runIdRef.current === myRun) {
-            toast('Could not render the garment to edit — open a garment first.', 'info')
+            toast(t('dsAi.toast.cannotRenderGarment'), 'info')
             setGenerating(false)
           }
           return
@@ -214,7 +216,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         if (runIdRef.current !== myRun) return
         setGenerating(false)
         if (okG) setHistory(pushHistory(clean))
-        else toast(errG instanceof Error ? errG.message : 'Garment edit failed.', 'info')
+        else toast(errG instanceof Error ? errG.message : t('dsAi.toast.garmentEditFailed'), 'info')
         return
       }
 
@@ -222,7 +224,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       // then apply it as the backdrop so the user designs on top. Same photoreal engine as Edit Garment.
       if (modeRef.current === 'create') {
         if (!hasImageAi()) {
-          toast('Creating a garment needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+          toast(t('dsAi.toast.createNeedsModel'), 'info')
           setGenerating(false)
           return
         }
@@ -254,7 +256,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         if (runIdRef.current !== myRun) return
         setGenerating(false)
         if (okC) setHistory(pushHistory(clean))
-        else toast(errC instanceof Error ? errC.message : 'Garment creation failed.', 'info')
+        else toast(errC instanceof Error ? errC.message : t('dsAi.toast.garmentCreationFailed'), 'info')
         return
       }
 
@@ -293,8 +295,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           return
         }
         const msg = firstErr instanceof DOMException && firstErr.name === 'TimeoutError'
-          ? 'Runware took too long to respond. Try again in a moment.'
-          : firstErr instanceof Error ? firstErr.message : 'Image generation failed — showing vector previews instead.'
+          ? t('dsAi.toast.timeout')
+          : firstErr instanceof Error ? firstErr.message : t('dsAi.toast.genFailed')
         toast(msg, 'info')
         // fall through to the on-device engine so the user still gets something usable
       }
@@ -310,7 +312,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       setGenerating(false)
       setHistory(pushHistory(clean))
     },
-    [toast],
+    [toast, t],
   )
 
   // Generate whenever the modal opens with a prompt, or the incoming prompt/mode changes.
@@ -425,7 +427,7 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           }).finally(() => setFinalizingIds((s) => { const n = new Set(s); n.delete(fresh.id); return n }))
         }
       } catch (err) {
-        if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : 'Could not regenerate that one.', 'info')
+        if (runIdRef.current === myRun) toast(err instanceof Error ? err.message : t('dsAi.toast.regenFailed'), 'info')
       } finally {
         // Always release the busy slot (scoped to this card so it never stomps a newer regenerate).
         // A superseding run() aborts our request but never sets busyIdx, so gating this on runId used
@@ -444,11 +446,11 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
     const stem = `${slugify(c.prompt) || 'concept'}-${c.seed.toString(36)}`
     if (c.svg) {
       downloadBlob(new Blob([c.svg], { type: 'image/svg+xml' }), `${stem}.svg`)
-      toast('Concept downloaded as SVG.', 'success')
+      toast(t('dsAi.toast.downloadedSvg'), 'success')
     } else {
       const blob = await fetch(c.dataUrl).then((r) => r.blob())
       downloadBlob(blob, `${stem}.png`)
-      toast('Concept downloaded as PNG.', 'success')
+      toast(t('dsAi.toast.downloadedPng'), 'success')
     }
   }
   const add = (c: Concept) => {
@@ -460,17 +462,17 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const addReferenceFiles = async (files: File[]) => {
     const images = files.filter((f) => f.type.startsWith('image/'))
     if (images.length === 0) {
-      if (files.length > 0) toast('Please use image files as a reference.', 'info')
+      if (files.length > 0) toast(t('dsAi.toast.useImageFiles'), 'info')
       return
     }
     const room = Math.max(0, 3 - refsRef.current.length)
     if (room === 0) {
-      toast('You can attach up to 3 reference images.', 'info')
+      toast(t('dsAi.toast.maxReferences'), 'info')
       return
     }
     const dataUrls = await Promise.all(images.slice(0, room).map((f) => blobToDataUrl(f)))
     setReferences((prev) => [...prev, ...dataUrls].slice(0, 3))
-    if (images.length > room) toast(`Added ${room} — 3 references is the max.`, 'info')
+    if (images.length > room) toast(t('dsAi.toast.addedSome', { n: room }), 'info')
   }
 
   // Drag-and-drop reference images anywhere on the modal. Only active once a real image model is
@@ -506,15 +508,15 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
   const engineNote =
     mode === 'garment'
       ? isLiveConceptAi()
-        ? 'Editing your garment with Runware · Nano Banana 2 — the same piece, transformed. Upload examples to steer the look, then apply one to update the design.'
-        : 'Garment editing needs a real image model. Add your Runware API key in Settings → AI — loom studios won’t fake it.'
+        ? t('dsAi.note.garmentLive')
+        : t('dsAi.note.garmentDead')
       : mode === 'create'
         ? isLiveConceptAi()
-          ? 'Creating a brand-new garment with Runware · Nano Banana 2 — no base needed. Upload style references to steer the look, then apply it to start designing on top.'
-          : 'Creating a garment needs a real image model. Add your Runware API key in Settings → AI — loom studios won’t fake it.'
+          ? t('dsAi.note.createLive')
+          : t('dsAi.note.createDead')
         : isLiveConceptAi()
-          ? 'Generating with Runware · Nano Banana 2. Upload a reference image to guide the look.'
-          : 'On-device vector previews. Add your Runware API key in Settings → AI to generate photoreal images — same workflow.'
+          ? t('dsAi.note.graphicLive')
+          : t('dsAi.note.graphicDead')
 
   const body = (
     <div className={`suite${embedded ? ' tai-embed-root' : ''}`}>
@@ -536,15 +538,15 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                 <path d="M12 15V3m0 0L8 7m4-4 4 4" />
                 <path d="M4 14v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" />
               </svg>
-              <b>Drop to add {mode === 'garment' ? 'an example' : mode === 'create' ? 'a style reference' : 'a reference'}</b>
-              <span>Up to 3 images guide the {mode === 'garment' ? 'garment edit' : mode === 'create' ? 'new garment' : 'look'}</span>
+              <b>{mode === 'garment' ? t('dsAi.drop.example') : mode === 'create' ? t('dsAi.drop.styleRef') : t('dsAi.drop.reference')}</b>
+              <span>{mode === 'garment' ? t('dsAi.dropSub.garment') : mode === 'create' ? t('dsAi.dropSub.create') : t('dsAi.dropSub.graphic')}</span>
             </div>
           </div>
         )}
         {/* Header */}
         <header className="tai__head">
           {!choosing && (
-            <button type="button" className="tai__back" onClick={backToChooser} title="Back — choose Graphic or Edit Garment" aria-label="Back to chooser">
+            <button type="button" className="tai__back" onClick={backToChooser} title={t('dsAi.back.title')} aria-label={t('dsAi.back.aria')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
           )}
@@ -553,14 +555,14 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
             loom studios AI
           </span>
           {!choosing && (
-            <div className="tai__modes" role="tablist" aria-label="AI mode">
-              <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>Graphic</button>
-              <button type="button" role="tab" aria-selected={mode === 'create'} className={`tai__mode${mode === 'create' ? ' is-active' : ''}`} onClick={() => switchMode('create')}>Create</button>
-              <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>Edit</button>
+            <div className="tai__modes" role="tablist" aria-label={t('dsAi.modes.aria')}>
+              <button type="button" role="tab" aria-selected={mode === 'graphic'} className={`tai__mode${mode === 'graphic' ? ' is-active' : ''}`} onClick={() => switchMode('graphic')}>{t('dsAi.mode.graphic')}</button>
+              <button type="button" role="tab" aria-selected={mode === 'create'} className={`tai__mode${mode === 'create' ? ' is-active' : ''}`} onClick={() => switchMode('create')}>{t('dsAi.mode.create')}</button>
+              <button type="button" role="tab" aria-selected={mode === 'garment'} className={`tai__mode${mode === 'garment' ? ' is-active' : ''}`} onClick={() => switchMode('garment')}>{t('dsAi.mode.edit')}</button>
             </div>
           )}
           {!embedded && (
-          <button type="button" className={`tai__x${choosing ? ' tai__x--solo' : ''}`} aria-label="Close" onClick={onClose}>
+          <button type="button" className={`tai__x${choosing ? ' tai__x--solo' : ''}`} aria-label={t('dsAi.close')} onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
           )}
@@ -569,8 +571,8 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
         {choosing ? (
           <div className="tai-chooser">
             <div className="tai-chooser__head">
-              <b>What do you want to create?</b>
-              <span>loom studios AI works two ways — pick one to begin.</span>
+              <b>{t('dsAi.chooser.title')}</b>
+              <span>{t('dsAi.chooser.sub')}</span>
             </div>
             <div className="tai-chooser__cards">
               <button ref={firstChoiceRef} type="button" className="tai-choice tai-choice--graphic" onClick={() => pickMode('graphic')}>
@@ -580,9 +582,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                     <path d="M18.5 15l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" />
                   </svg>
                 </span>
-                <b>Design a Graphic</b>
-                <small>Artwork, logos &amp; prints to place on your garment — generated on a clean transparent background, ready to drop onto the canvas.</small>
-                <span className="tai-choice__go">Start designing →</span>
+                <b>{t('dsAi.choice.graphicTitle')}</b>
+                <small>{t('dsAi.choice.graphicDesc')}</small>
+                <span className="tai-choice__go">{t('dsAi.choice.graphicGo')}</span>
               </button>
               <button type="button" className="tai-choice tai-choice--create" onClick={() => pickMode('create')}>
                 <span className="tai-choice__icon" aria-hidden>
@@ -591,9 +593,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                     <path d="M12 9.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" />
                   </svg>
                 </span>
-                <b>Create a Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
-                <small>No garment yet? Describe one — “oversized cargo pants”, “cropped varsity jacket” — and loom studios generates a photoreal piece to design on.</small>
-                <span className="tai-choice__go">{live ? 'Start creating →' : 'Add a key in Settings → AI'}</span>
+                <b>{t('dsAi.choice.createTitle')}{!live && <span className="tai-choice__badge">{t('dsAi.choice.needsKeyBadge')}</span>}</b>
+                <small>{t('dsAi.choice.createDesc')}</small>
+                <span className="tai-choice__go">{live ? t('dsAi.choice.createGo') : t('dsAi.choice.addKeyGo')}</span>
               </button>
               <button type="button" className="tai-choice tai-choice--garment" onClick={() => pickMode('garment')}>
                 <span className="tai-choice__icon" aria-hidden>
@@ -601,9 +603,9 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
                     <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />
                   </svg>
                 </span>
-                <b>Edit the Garment{!live && <span className="tai-choice__badge">Needs Runware key</span>}</b>
-                <small>Transform the actual piece — rips, holes, acid &amp; bleach washes, distressing, colour. loom studios edits your real garment, not a graphic.</small>
-                <span className="tai-choice__go">{live ? 'Start editing →' : 'Add a key in Settings → AI'}</span>
+                <b>{t('dsAi.choice.garmentTitle')}{!live && <span className="tai-choice__badge">{t('dsAi.choice.needsKeyBadge')}</span>}</b>
+                <small>{t('dsAi.choice.garmentDesc')}</small>
+                <span className="tai-choice__go">{live ? t('dsAi.choice.garmentGo') : t('dsAi.choice.addKeyGo')}</span>
               </button>
             </div>
           </div>
@@ -617,24 +619,24 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               ref={inputRef}
               className="tai__input"
               value={prompt}
-              placeholder={mode === 'garment' ? 'Change the garment — “add crazy holes”, “acid wash”, “oversized fit”…' : mode === 'create' ? 'Describe a garment to create — “oversized cargo pants”, “cropped varsity jacket”…' : 'Describe your graphic — “chrome tribal star”, “vintage skull with roses”…'}
+              placeholder={mode === 'garment' ? t('dsAi.ph.garment') : mode === 'create' ? t('dsAi.ph.create') : t('dsAi.ph.graphic')}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submit()}
-              aria-label="Design prompt"
+              aria-label={t('dsAi.promptAria')}
             />
           </div>
           <div className="tai__prompt-actions">
             {live && (
               <>
-                <button type="button" className="tai__ghost" title={mode === 'garment' ? 'Upload example images to guide the edit' : mode === 'create' ? 'Upload style references to steer the new garment' : 'Upload a reference image to guide the result'} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
-                  + {mode === 'garment' ? 'Example' : mode === 'create' ? 'Style' : 'Reference'}
+                <button type="button" className="tai__ghost" title={mode === 'garment' ? t('dsAi.upload.garmentTitle') : mode === 'create' ? t('dsAi.upload.createTitle') : t('dsAi.upload.graphicTitle')} onClick={() => fileRef.current?.click()} disabled={references.length >= 3}>
+                  + {mode === 'garment' ? t('dsAi.upload.example') : mode === 'create' ? t('dsAi.upload.style') : t('dsAi.upload.reference')}
                 </button>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { void addReferenceFiles(Array.from(e.target.files ?? [])); e.target.value = '' }} />
               </>
             )}
             <div className="tai__hist-wrap">
               <button type="button" className="tai__ghost" onClick={() => setHistoryOpen((v) => !v)} aria-expanded={historyOpen} disabled={history.length === 0}>
-                History
+                {t('dsAi.history')}
               </button>
               {historyOpen && history.length > 0 && (
                 <div className="tai__hist" role="menu">
@@ -647,18 +649,18 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
               )}
             </div>
             <button type="button" className="tai__go" onClick={submit} disabled={!prompt.trim() || generating}>
-              {generating ? (live ? 'Generating…' : 'Composing…') : 'Generate'}
+              {generating ? (live ? t('dsAi.generating') : t('dsAi.composing')) : t('dsAi.generate')}
             </button>
           </div>
         </div>
 
         {references.length > 0 && (
           <div className="tai__refs">
-            <span className="tai__refs-label">{mode === 'garment' ? 'Examples' : mode === 'create' ? 'Style references' : 'References'}</span>
+            <span className="tai__refs-label">{mode === 'garment' ? t('dsAi.refs.examples') : mode === 'create' ? t('dsAi.refs.styleRefs') : t('dsAi.refs.references')}</span>
             {references.map((r, i) => (
               <span key={i} className="tai-ref tai-checker">
-                <img src={r} alt={`Reference ${i + 1}`} />
-                <button type="button" className="tai-ref__x" aria-label="Remove reference" onClick={() => setReferences((prev) => prev.filter((_, j) => j !== i))}>×</button>
+                <img src={r} alt={t('dsAi.refAlt', { n: i + 1 })} />
+                <button type="button" className="tai-ref__x" aria-label={t('dsAi.removeRef')} onClick={() => setReferences((prev) => prev.filter((_, j) => j !== i))}>×</button>
               </span>
             ))}
           </div>
@@ -679,13 +681,13 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
           {!generating && concepts.length === 0 ? (
             <div className="tai-empty">
               <IcoSparkle width="26" height="26" />
-              <b>{mode === 'garment' ? 'Edit your garment' : mode === 'create' ? 'Create a garment' : 'Design a graphic'}</b>
+              <b>{mode === 'garment' ? t('dsAi.empty.garmentTitle') : mode === 'create' ? t('dsAi.empty.createTitle') : t('dsAi.empty.graphicTitle')}</b>
               <span>
                 {mode === 'garment'
-                  ? 'Describe the change above — “add crazy holes”, “acid wash”, “oversized fit” — and hit Generate.'
+                  ? t('dsAi.empty.garmentDesc')
                   : mode === 'create'
-                    ? 'Describe the piece above — “oversized bomber jacket”, “pleated midi skirt” — and hit Generate.'
-                    : 'Describe your graphic above — “chrome tribal star”, “vintage skull with roses” — and hit Generate.'}
+                    ? t('dsAi.empty.createDesc')
+                    : t('dsAi.empty.graphicDesc')}
               </span>
             </div>
           ) : (
@@ -693,38 +695,38 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
             const c = concepts[i]
             if (!c)
               return (
-                <div key={i} className="tai-card tai-card--loading" aria-label="Generating">
+                <div key={i} className="tai-card tai-card--loading" aria-label={t('dsAi.card.generatingAria')}>
                   <span className="tai-card__spin" />
-                  <span className="tai-card__loading-label">{generating ? (live ? 'Generating…' : 'Composing…') : 'Ready'}</span>
+                  <span className="tai-card__loading-label">{generating ? (live ? t('dsAi.generating') : t('dsAi.composing')) : t('dsAi.ready')}</span>
                 </div>
               )
             return (
               <article key={c.id} className="tai-card">
                 <div className="tai-card__stage tai-checker">
-                  <img src={c.dataUrl} alt={`${c.prompt} concept ${i + 1}`} />
+                  <img src={c.dataUrl} alt={t('dsAi.card.conceptAlt', { prompt: c.prompt, n: i + 1 })} />
                   {busyIdx === i && <span className="tai-card__busy"><span className="tai-card__spin" /></span>}
                   <span className="tai-card__num">{i + 1}</span>
-                  <button type="button" className={`tai-card__fav${isFav(c) ? ' is-on' : ''}`} aria-label={isFav(c) ? 'Unfavorite' : 'Favorite'} aria-pressed={isFav(c)} onClick={() => toggleFav(c)}>
+                  <button type="button" className={`tai-card__fav${isFav(c) ? ' is-on' : ''}`} aria-label={isFav(c) ? t('dsAi.unfavorite') : t('dsAi.favorite')} aria-pressed={isFav(c)} onClick={() => toggleFav(c)}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav(c) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8"><path d="M12 20s-7-4.4-9.2-8.3C1 8.5 2.6 5 6 5c2 0 3.2 1.2 4 2.3C10.8 6.2 12 5 14 5c3.4 0 5 3.5 3.2 6.7C19 15.6 12 20 12 20Z" /></svg>
                   </button>
                   <div className="tai-card__hover">
-                    <button type="button" title="Zoom" aria-label="Zoom" onClick={() => setZoom(c)}>
+                    <button type="button" title={t('dsAi.zoom')} aria-label={t('dsAi.zoom')} onClick={() => setZoom(c)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M11 8v6M8 11h6" /></svg>
                     </button>
-                    <button type="button" title="Download SVG" aria-label="Download" onClick={() => download(c)}>
+                    <button type="button" title={t('dsAi.downloadSvg')} aria-label={t('dsAi.download')} onClick={() => download(c)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v10m0 0l-4-4m4 4l4-4M5 19h14" /></svg>
                     </button>
-                    <button type="button" title="Regenerate this one" aria-label="Regenerate" onClick={() => regenOne(i)}>
+                    <button type="button" title={t('dsAi.regenTitle')} aria-label={t('dsAi.regen')} onClick={() => regenOne(i)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 0 1 14-5m2-3v5h-5M20 12a8 8 0 0 1-14 5m-2 3v-5h5" /></svg>
                     </button>
                   </div>
                 </div>
                 <div className="tai-card__foot">
-                  <span className="tai-card__style">{mode === 'garment' ? 'Edited garment' : mode === 'create' ? 'New garment' : c.styleLabel}</span>
+                  <span className="tai-card__style">{mode === 'garment' ? t('dsAi.card.editedGarment') : mode === 'create' ? t('dsAi.card.newGarment') : c.styleLabel}</span>
                   {(mode === 'garment' || mode === 'create') && onApplyGarment ? (
-                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>{finalizingIds.has(c.id) ? 'Preparing…' : mode === 'create' ? 'Use this Garment' : 'Apply to Garment'}</button>
+                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => { onApplyGarment(c.dataUrl); onClose() }}>{finalizingIds.has(c.id) ? t('dsAi.preparing') : mode === 'create' ? t('dsAi.useGarment') : t('dsAi.applyGarment')}</button>
                   ) : (
-                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => add(c)}>{finalizingIds.has(c.id) ? 'Preparing…' : 'Add to Canvas'}</button>
+                    <button type="button" className="tai-card__add" disabled={finalizingIds.has(c.id)} onClick={() => add(c)}>{finalizingIds.has(c.id) ? t('dsAi.preparing') : t('dsAi.addToCanvas')}</button>
                   )}
                 </div>
               </article>
@@ -735,25 +737,25 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
 
         {/* Keep creating */}
         <div className="tai__suggest">
-          <span className="tai__suggest-label">Keep creating</span>
+          <span className="tai__suggest-label">{t('dsAi.keepCreating')}</span>
           <div className="tai__chips">
             {suggestions.map((s) => (
-              <button key={s.label} type="button" className="tai__chip" disabled={generating} onClick={() => applySuggestion(s.add)}>
-                {s.label}
+              <button key={s.k} type="button" className="tai__chip" disabled={generating} onClick={() => applySuggestion(s.add)}>
+                {t(s.k)}
               </button>
             ))}
             <button type="button" className="tai__chip tai__chip--more" disabled={generating || !prompt.trim()} onClick={() => run(prompt, false)}>
-              ↻ Generate 1 more
+              {t('dsAi.generateMore')}
             </button>
           </div>
         </div>
 
         {favs.length > 0 && (
           <div className="tai__favs">
-            <span className="tai__suggest-label">Favorites</span>
+            <span className="tai__suggest-label">{t('dsAi.favorites')}</span>
             <div className="tai__favs-strip">
               {favs.map((f) => (
-                <button key={f.id} type="button" className="tai-fav tai-checker" title={`${f.prompt} — Add to Canvas`} onClick={() => add(f)}>
+                <button key={f.id} type="button" className="tai-fav tai-checker" title={t('dsAi.fav.title', { prompt: f.prompt })} onClick={() => add(f)}>
                   <img src={f.dataUrl} alt={f.prompt} />
                 </button>
               ))}
@@ -767,14 +769,14 @@ export function ThreadosAIModal({ open, initialPrompt, initialMode = 'graphic', 
       </div>
 
       {zoom && (
-        <div className="tai-zoom" onClick={() => setZoom(null)} role="dialog" aria-label="Concept preview">
+        <div className="tai-zoom" onClick={() => setZoom(null)} role="dialog" aria-label={t('dsAi.zoomAria')}>
           <div className="tai-zoom__inner tai-checker" onClick={(e) => e.stopPropagation()}>
             <img src={zoom.dataUrl} alt={zoom.prompt} />
             <div className="tai-zoom__bar">
               <span>{zoom.prompt} · {zoom.styleLabel}</span>
               <div>
-                <button type="button" className="tai__ghost" onClick={() => download(zoom)}>Download</button>
-                <button type="button" className="tai-card__add" disabled={finalizingIds.has(zoom.id)} onClick={() => add(zoom)}>{finalizingIds.has(zoom.id) ? 'Preparing…' : 'Add to Canvas'}</button>
+                <button type="button" className="tai__ghost" onClick={() => download(zoom)}>{t('dsAi.download')}</button>
+                <button type="button" className="tai-card__add" disabled={finalizingIds.has(zoom.id)} onClick={() => add(zoom)}>{finalizingIds.has(zoom.id) ? t('dsAi.preparing') : t('dsAi.addToCanvas')}</button>
               </div>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { SuitePage } from '../_shared/SuitePage'
 import { uid } from '../../data/utils'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
+import { useT } from '@/i18n'
 import {
   listGarments,
   createGarment,
@@ -25,12 +26,7 @@ import { filesFromDataTransfer, keepGarmentFiles } from '../../garment-model/ana
 import './garments.css'
 
 type SortKey = 'newest' | 'oldest' | 'alpha' | 'favorites'
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: 'newest', label: 'Newest' },
-  { key: 'oldest', label: 'Oldest' },
-  { key: 'alpha', label: 'Alphabetical' },
-  { key: 'favorites', label: 'Favorites' },
-]
+const SORTS: { key: SortKey }[] = [{ key: 'newest' }, { key: 'oldest' }, { key: 'alpha' }, { key: 'favorites' }]
 
 const IcoMore = (p: SVGProps<SVGSVGElement>) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" {...p}>
@@ -45,15 +41,15 @@ const IcoStar = (p: SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
-function timeAgo(ms: number): string {
+function timeAgo(ms: number, t: ReturnType<typeof useT>): string {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000))
-  if (s < 60) return 'just now'
+  if (s < 60) return t('garments.time.now')
   const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return t('garments.time.minutes', { n: m })
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return t('garments.time.hours', { n: h })
   const d = Math.floor(h / 24)
-  if (d < 30) return `${d}d ago`
+  if (d < 30) return t('garments.time.days', { n: d })
   return new Date(ms).toLocaleDateString()
 }
 function fmtDate(ms: number): string {
@@ -63,6 +59,7 @@ function fmtDate(ms: number): string {
 export function GarmentsHome() {
   const navigate = useNavigate()
   const toast = useToast()
+  const t = useT()
   const { user } = useAuth()
   const userId = user?.id
 
@@ -136,22 +133,24 @@ export function GarmentsHome() {
         if (files.length === 1 && single) {
           const { garment, report } = single
           if (report.regionCount > 0) {
-            const parts = Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(', ')
-            const learned = report.matchedPrior ? ' · recognised from a similar garment' : ''
-            toast(`Analyzed “${garment.name}” — ${report.regionCount} regions (${parts})${learned}.`, 'success')
+            const parts = Object.entries(report.types).map(([ty, n]) => `${n} ${ty}`).join(', ')
+            const learned = report.matchedPrior ? t('garments.toast.learned') : ''
+            toast(t('garments.toast.analyzed', { name: garment.name, count: report.regionCount, parts, learned }), 'success')
           } else {
-            toast(`Imported “${garment.name}” — no clear regions detected, edit it in the Studio.`, 'info')
+            toast(t('garments.toast.importedNoRegions', { name: garment.name }), 'info')
           }
           navigate(`/suite/garment-lab/${single.id}`)
         } else {
-          toast(`Imported ${created} garment${created === 1 ? '' : 's'}${skipped ? ` · ${skipped} skipped` : ''}.`, created ? 'success' : 'info')
+          const base = created === 1 ? t('garments.toast.importedOne', { n: created }) : t('garments.toast.importedMany', { n: created })
+          const suffix = skipped ? t('garments.toast.skippedSuffix', { n: skipped }) : ''
+          toast(`${base}${suffix}.`, created ? 'success' : 'info')
         }
       } finally {
         setImporting(false)
         setImportProgress(null)
       }
     },
-    [userId, navigate, refresh, toast],
+    [userId, navigate, refresh, toast, t],
   )
 
   // ---- Drag & drop: drop files OR a whole folder of garment flats anywhere on the page. ----
@@ -163,12 +162,12 @@ export function GarmentsHome() {
       const all = await filesFromDataTransfer(e.dataTransfer)
       const garments = keepGarmentFiles(all)
       if (garments.length === 0) {
-        toast('No SVG / AI / PDF garment flats found in that drop.', 'info')
+        toast(t('garments.toast.noFlats'), 'info')
         return
       }
       void importGarments(garments)
     },
-    [importGarments, toast],
+    [importGarments, toast, t],
   )
   const onDragOver = useCallback((e: DragEvent) => {
     if (e.dataTransfer?.types?.includes('Files')) e.preventDefault()
@@ -190,8 +189,8 @@ export function GarmentsHome() {
         <div className="gm-drop-overlay" aria-hidden="true">
           <div className="gm-drop-overlay__card">
             <div className="gm-drop-overlay__glyph">🧥</div>
-            <b>Drop garment flats or a folder</b>
-            <small>SVG · AI · PDF — each is analyzed into an editable garment</small>
+            <b>{t('garments.drop.title')}</b>
+            <small>{t('garments.drop.subtitle')}</small>
           </div>
         </div>
       )}
@@ -231,7 +230,7 @@ export function GarmentsHome() {
 
   if (!userId) {
     return (
-      <SuitePage eyebrow="Workspace" title="Garments" subtitle="Sign in to build your garment collection.">
+      <SuitePage eyebrow={t('garments.eyebrow')} title={t('garments.title')} subtitle={t('garments.signInSubtitle')}>
         <div />
       </SuitePage>
     )
@@ -240,22 +239,22 @@ export function GarmentsHome() {
   // ---- Empty state: premium onboarding ----
   if (garments.length === 0) {
     return withDrop(
-      <SuitePage eyebrow="Workspace" title="Garments">
+      <SuitePage eyebrow={t('garments.eyebrow')} title={t('garments.title')}>
         <div className="gm-onboard">
           <div className="gm-onboard__glyph" aria-hidden="true">🧥</div>
-          <h2>Welcome to loom studios Garments</h2>
-          <p className="gm-onboard__lead">Every garment you create becomes fully editable.</p>
+          <h2>{t('garments.onboard.welcome')}</h2>
+          <p className="gm-onboard__lead">{t('garments.onboard.lead')}</p>
           <ul className="gm-onboard__list">
-            <li>Change sleeves</li>
-            <li>Move pockets</li>
-            <li>Replace collars</li>
-            <li>Resize cuffs</li>
-            <li>Edit every detail — powered by AI</li>
+            <li>{t('garments.onboard.itemSleeves')}</li>
+            <li>{t('garments.onboard.itemPockets')}</li>
+            <li>{t('garments.onboard.itemCollars')}</li>
+            <li>{t('garments.onboard.itemCuffs')}</li>
+            <li>{t('garments.onboard.itemDetail')}</li>
           </ul>
           <button type="button" className="s-btn s-btn--accent gm-onboard__cta" onClick={createNew}>
-            Create your first Garment
+            {t('garments.onboard.cta')}
           </button>
-          <p className="gm-onboard__hint">…or drag a folder of SVG / AI / PDF flats anywhere here to import them all.</p>
+          <p className="gm-onboard__hint">{t('garments.onboard.hint')}</p>
         </div>
       </SuitePage>,
     )
@@ -264,9 +263,9 @@ export function GarmentsHome() {
   // ---- My Garments ----
   return withDrop(
     <SuitePage
-      eyebrow="Workspace"
-      title="Garments"
-      subtitle="Your garment collection. Open one to edit its structure, or create a new garment."
+      eyebrow={t('garments.eyebrow')}
+      title={t('garments.title')}
+      subtitle={t('garments.subtitle')}
       actions={
         <div style={{ display: 'flex', gap: 8 }}>
           <input
@@ -286,32 +285,38 @@ export function GarmentsHome() {
             className="s-btn s-btn--ghost"
             onClick={() => importInputRef.current?.click()}
             disabled={importing}
-            title="Analyze one or many Illustrator SVG / AI / PDF flats into editable garments"
+            title={t('garments.import.title')}
           >
             {importing
               ? importProgress
-                ? `Analyzing ${importProgress.current}/${importProgress.total}…`
-                : 'Analyzing…'
-              : 'Import garments'}
+                ? t('garments.import.analyzingProgress', { current: importProgress.current, total: importProgress.total })
+                : t('garments.import.analyzing')
+              : t('garments.import.button')}
           </button>
           <button type="button" className="s-btn s-btn--accent" onClick={createNew}>
-            Create garment
+            {t('garments.create')}
           </button>
         </div>
       }
     >
       <div className="gm-tools">
-        <input className="gm-search" type="search" placeholder="Search garments…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search garments" />
+        <input className="gm-search" type="search" placeholder={t('garments.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('garments.searchAria')} />
         <div className="gm-sorts">
           {SORTS.map((s) => (
             <button key={s.key} type="button" className={`gm-sort${sort === s.key ? ' is-active' : ''}`} onClick={() => setSort(s.key)}>
-              {s.label}
+              {t(`garments.sort.${s.key}`)}
             </button>
           ))}
         </div>
       </div>
 
-      <span className="gm-section">{query ? `${visible.length} result${visible.length === 1 ? '' : 's'}` : 'My Garments'}</span>
+      <span className="gm-section">
+        {query
+          ? visible.length === 1
+            ? t('garments.resultOne', { n: visible.length })
+            : t('garments.resultMany', { n: visible.length })
+          : t('garments.section.mine')}
+      </span>
 
       <div className="gm-grid" onClick={() => setMenuId(null)}>
         {visible.map((g) => (
@@ -322,18 +327,18 @@ export function GarmentsHome() {
               tabIndex={0}
               onClick={() => open(g.id)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(g.id) } }}
-              title="Design this garment"
-              aria-label={`Design ${g.name}`}
+              title={t('garments.card.designTitle')}
+              aria-label={t('garments.card.designAria', { name: g.name })}
             >
               <img src={g.thumb} alt={g.name} />
-              {g.origin === 'ai' && <span className="gm-badge">AI</span>}
-              {g.origin === 'photo' && <span className="gm-badge gm-badge--photo">PHOTO</span>}
-              {g.origin === 'shop' && <span className="gm-badge gm-badge--shop">SHOP</span>}
-              {g.origin === 'upload' && <span className="gm-badge gm-badge--shop">IMPORTED</span>}
+              {g.origin === 'ai' && <span className="gm-badge">{t('garments.badge.ai')}</span>}
+              {g.origin === 'photo' && <span className="gm-badge gm-badge--photo">{t('garments.badge.photo')}</span>}
+              {g.origin === 'shop' && <span className="gm-badge gm-badge--shop">{t('garments.badge.shop')}</span>}
+              {g.origin === 'upload' && <span className="gm-badge gm-badge--shop">{t('garments.badge.imported')}</span>}
               <button
                 type="button"
                 className={`gm-fav${g.favorite ? ' is-on' : ''}`}
-                title={g.favorite ? 'Unfavorite' : 'Favorite'}
+                title={g.favorite ? t('garments.card.unfavorite') : t('garments.card.favorite')}
                 aria-pressed={g.favorite}
                 onClick={(e) => { e.stopPropagation(); toggleFavorite(userId, g.id); refresh() }}
               >
@@ -356,30 +361,30 @@ export function GarmentsHome() {
                   <h3 className="gm-card__name" title={g.name}>{g.name}</h3>
                 )}
                 <div className="gm-menu-wrap">
-                  <button type="button" className="gm-kebab" aria-label="Garment actions" onClick={(e) => { e.stopPropagation(); setMenuId(menuId === g.id ? null : g.id) }}>
+                  <button type="button" className="gm-kebab" aria-label={t('garments.card.actionsAria')} onClick={(e) => { e.stopPropagation(); setMenuId(menuId === g.id ? null : g.id) }}>
                     <IcoMore />
                   </button>
                   {menuId === g.id && (
                     <div className="gm-menu" role="menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); open(g.id) }}>Design</button>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); editStructure(g.id) }}>Edit structure</button>
-                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); setRenamingId(g.id); setRenameText(g.name) }}>Rename</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); open(g.id) }}>{t('garments.menu.design')}</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); editStructure(g.id) }}>{t('garments.menu.editStructure')}</button>
+                      <button type="button" role="menuitem" onClick={() => { setMenuId(null); setRenamingId(g.id); setRenameText(g.name) }}>{t('garments.menu.rename')}</button>
                       <button type="button" role="menuitem" onClick={() => {
                         setMenuId(null)
                         const dup = duplicateGarment(userId, g.id)
                         refresh()
                         // Honest feedback: only claim success when the duplicate actually exists.
-                        if (dup) toast(`Duplicated as “${dup.name}”.`, 'success')
-                        else toast('Could not duplicate this garment.', 'info')
-                      }}>Duplicate</button>
+                        if (dup) toast(t('garments.toast.duplicated', { name: dup.name }), 'success')
+                        else toast(t('garments.toast.duplicateFail'), 'info')
+                      }}>{t('garments.menu.duplicate')}</button>
                       <button type="button" role="menuitem" className="gm-menu__danger" onClick={() => {
                         setMenuId(null)
                         // Deleting destroys the garment AND its whole revision history — confirm first.
-                        if (!window.confirm(`Delete “${g.name}”? This removes the garment and its entire edit history. This cannot be undone.`)) return
+                        if (!window.confirm(t('garments.confirm.delete', { name: g.name }))) return
                         deleteGarment(userId, g.id)
                         refresh()
-                        toast(`Deleted “${g.name}”.`)
-                      }}>Delete</button>
+                        toast(t('garments.toast.deleted', { name: g.name }))
+                      }}>{t('garments.menu.delete')}</button>
                     </div>
                   )}
                 </div>
@@ -387,11 +392,11 @@ export function GarmentsHome() {
               <div className="gm-card__meta">
                 <span>{g.category}</span>
                 <span>·</span>
-                <span>{g.regionCount} regions</span>
+                <span>{t('garments.card.regions', { n: g.regionCount })}</span>
               </div>
               <div className="gm-card__stamps">
-                <span>Edited {timeAgo(g.updatedAt)}</span>
-                <span>Created {fmtDate(g.createdAt)}</span>
+                <span>{t('garments.card.edited', { when: timeAgo(g.updatedAt, t) })}</span>
+                <span>{t('garments.card.created', { when: fmtDate(g.createdAt) })}</span>
               </div>
             </div>
           </article>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { GuidedOverlay, type GuidedStep } from '../../components/ui/GuidedOverlay'
 import { useOnceFlag } from '../../lib/useOnceFlag'
@@ -21,19 +22,13 @@ type Props = {
 
 type PngMode = 'current' | 'front' | 'back' | 'all' | 'design'
 
-/** The primer's three cards mirror the real menu below — for the factory, the spec, the mockup. */
-const EXPORT_STEPS: GuidedStep[] = [
-  { tag: '.ZIP', title: 'Manufacturing Package', desc: 'For the factory — a guided 3-step bundle with every production file.' },
-  { tag: 'PDF', title: 'Tech Pack', desc: 'For your spec — the full production document in one PDF.' },
-  { tag: 'PNG', title: 'Design Export', desc: 'For mockups and social — the garment or the artwork alone, up to 4×.' },
-]
-
 /**
  * The Export control. Three real exports: ⭐ Manufacturing Package (opens a 3-step wizard),
  * Tech Pack (PDF), Design Export (PNG with a single-choice mode picker). Every file is built
  * from the current project.
  */
 export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, onPatchSpec }: Props) {
+  const t = useT()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [view, setView] = useState<'menu' | 'png'>('menu')
@@ -85,7 +80,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
       await fn()
     } catch (err) {
       console.error(err)
-      toast('Could not export — open a garment and try again.', 'info')
+      toast(t('exportUi.toast.error'), 'info')
     } finally {
       setBusy(null)
     }
@@ -96,7 +91,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
       const png = await captureDesignPng({ scope: 'garment', background: 'white', scale: 2 })
       const blob = await buildTechPackPdf(project, png)
       downloadBlob(blob, `${base}-techpack.pdf`)
-      toast('Tech Pack exported.', 'accent')
+      toast(t('exportUi.toast.techPack'), 'accent')
       setOpen(false)
     })
 
@@ -106,7 +101,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
       const background = pngMode === 'design' ? 'transparent' : pngBg
       const blob = await captureDesignPng({ scope, background, scale: pngScale })
       downloadBlob(blob, `${base}-${pngMode}-${pngScale}x.png`)
-      toast('Design exported.', 'accent')
+      toast(t('exportUi.toast.design'), 'accent')
       setOpen(false)
       setView('menu')
     })
@@ -115,7 +110,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
     guard('package', async () => {
       const blob = await buildManufacturingZip(project)
       downloadBlob(blob, `${base}-manufacturing.zip`)
-      toast('Manufacturing package exported.', 'accent')
+      toast(t('exportUi.toast.package'), 'accent')
       setWizardOpen(false)
     })
 
@@ -125,16 +120,22 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
   const v = project.garment.views
   const switchHint = (label: string) =>
     v.front && v.back
-      ? `Switch the canvas to ${label} (Garment Views) and use Current View`
+      ? t('exportUi.png.switchHint', { label })
       : v.combinedFrontBack
-        ? 'One combined flat — use Current View'
-        : `No ${label.toLowerCase()} view`
+        ? t('exportUi.png.combinedHint')
+        : t('exportUi.png.noView', { label })
   const pngModes: { id: PngMode; label: string; desc: string; available: boolean; reason?: string }[] = [
-    { id: 'current', label: 'Current View', desc: 'Exactly what you see now', available: true },
-    { id: 'front', label: 'Front', desc: 'Front view only', available: false, reason: switchHint('Front') },
-    { id: 'back', label: 'Back', desc: 'Back view only', available: false, reason: switchHint('Back') },
-    { id: 'all', label: 'All Views', desc: 'Every available garment view', available: false, reason: 'Export each view via Current View for now' },
-    { id: 'design', label: 'Printable Design Only', desc: 'Transparent PNG, no garment', available: true },
+    { id: 'current', label: t('exportUi.png.current.label'), desc: t('exportUi.png.current.desc'), available: true },
+    { id: 'front', label: t('exportUi.png.front.label'), desc: t('exportUi.png.front.desc'), available: false, reason: switchHint(t('exportUi.png.front.label')) },
+    { id: 'back', label: t('exportUi.png.back.label'), desc: t('exportUi.png.back.desc'), available: false, reason: switchHint(t('exportUi.png.back.label')) },
+    { id: 'all', label: t('exportUi.png.all.label'), desc: t('exportUi.png.all.desc'), available: false, reason: t('exportUi.png.all.reason') },
+    { id: 'design', label: t('exportUi.png.design.label'), desc: t('exportUi.png.design.desc'), available: true },
+  ]
+
+  const exportSteps: GuidedStep[] = [
+    { tag: '.ZIP', title: t('exportUi.primer.step.pkg.title'), desc: t('exportUi.primer.step.pkg.desc') },
+    { tag: 'PDF', title: t('exportUi.primer.step.techpack.title'), desc: t('exportUi.primer.step.techpack.desc') },
+    { tag: 'PNG', title: t('exportUi.primer.step.png.title'), desc: t('exportUi.primer.step.png.desc') },
   ]
 
   const arrow = (
@@ -155,7 +156,7 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
         </svg>
-        Export
+        {t('exportUi.button')}
         <svg className="xm-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>
           <path d="M6 9l6 6 6-6" />
         </svg>
@@ -176,8 +177,8 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
               >
                 <span className="xm-item__badge">.ZIP</span>
                 <span className="xm-item__text">
-                  <b>Manufacturing Package</b>
-                  <small>Guided 3-step export</small>
+                  <b>{t('exportUi.menu.pkg.title')}</b>
+                  <small>{t('exportUi.menu.pkg.sub')}</small>
                 </span>
                 <span className="xm-item__star">★</span>
               </button>
@@ -185,16 +186,16 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
               <button type="button" role="menuitem" className="xm-item" onClick={runTechPack} disabled={busy !== null}>
                 <span className="xm-item__badge">PDF</span>
                 <span className="xm-item__text">
-                  <b>Tech Pack</b>
-                  <small>Full production specification</small>
+                  <b>{t('exportUi.menu.techpack.title')}</b>
+                  <small>{t('exportUi.menu.techpack.sub')}</small>
                 </span>
                 {busy === 'techPack' ? <span className="xm-spin" aria-hidden /> : arrow}
               </button>
               <button type="button" role="menuitem" className="xm-item" onClick={() => setView('png')} disabled={busy !== null}>
                 <span className="xm-item__badge">PNG</span>
                 <span className="xm-item__text">
-                  <b>Design Export</b>
-                  <small>Choose a view to export</small>
+                  <b>{t('exportUi.menu.png.title')}</b>
+                  <small>{t('exportUi.menu.png.sub')}</small>
                 </span>
                 {arrow}
               </button>
@@ -202,9 +203,9 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
           ) : (
             <div className="xm-opts">
               <button type="button" className="xm-opts__back" onClick={() => setView('menu')}>
-                ← Design Export
+                ← {t('exportUi.png.back')}
               </button>
-              <div className="xm-modes" role="radiogroup" aria-label="Export mode">
+              <div className="xm-modes" role="radiogroup" aria-label={t('exportUi.png.modeLabel')}>
                 {pngModes.map((m) => (
                   <button
                     key={m.id}
@@ -220,14 +221,14 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
                       <b>{m.label}</b>
                       <small>{m.available ? m.desc : m.reason}</small>
                     </span>
-                    {!m.available && <span className="xm-mode__na">Unavailable</span>}
+                    {!m.available && <span className="xm-mode__na">{t('exportUi.png.unavailable')}</span>}
                   </button>
                 ))}
               </div>
-              <OptRow label="Background" value={pngMode === 'design' ? 'transparent' : pngBg} onChange={setPngBg} disabled={pngMode === 'design'} opts={[['transparent', 'Transparent'], ['white', 'White']]} />
-              <OptRow label="Resolution" value={pngScale} onChange={setPngScale} opts={[[2, '2×'], [4, '4×']]} />
+              <OptRow label={t('exportUi.opt.background')} value={pngMode === 'design' ? 'transparent' : pngBg} onChange={setPngBg} disabled={pngMode === 'design'} opts={[['transparent', t('exportUi.opt.transparent')], ['white', t('exportUi.opt.white')]]} />
+              <OptRow label={t('exportUi.opt.resolution')} value={pngScale} onChange={setPngScale} opts={[[2, '2×'], [4, '4×']]} />
               <button type="button" className="s-btn s-btn--accent xm-opts__go" onClick={runPng} disabled={busy !== null}>
-                {busy === 'png' ? 'Exporting…' : 'Export PNG'}
+                {busy === 'png' ? t('exportUi.png.exporting') : t('exportUi.png.export')}
               </button>
             </div>
           )}
@@ -248,11 +249,11 @@ export function ExportMenu({ project, projectInfo, specs, onPatchProjectInfo, on
 
       <GuidedOverlay
         open={primerOpen}
-        eyebrow="Before you export"
-        title="Where is this design going?"
-        lede="Three real exports, each built from your current design. Pick by who receives it."
-        steps={EXPORT_STEPS}
-        continueLabel="Choose an export"
+        eyebrow={t('exportUi.primer.eyebrow')}
+        title={t('exportUi.primer.title')}
+        lede={t('exportUi.primer.lede')}
+        steps={exportSteps}
+        continueLabel={t('exportUi.primer.continue')}
         onContinue={(dontShowAgain) => {
           if (dontShowAgain) primer.markSeen()
           setPrimerOpen(false)

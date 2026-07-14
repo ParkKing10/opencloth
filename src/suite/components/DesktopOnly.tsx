@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useT } from '@/i18n'
 import loomLogo from '../../assets/loom-logo.png'
 import './desktop-only.css'
 
@@ -14,7 +15,7 @@ export function DesktopOnly({
   previewSrc,
   previewLabel,
   backTo = '/suite',
-  backLabel = 'Back to dashboard',
+  backLabel,
   children,
 }: {
   title: string
@@ -26,6 +27,7 @@ export function DesktopOnly({
   children?: ReactNode
 }) {
   const navigate = useNavigate()
+  const t = useT()
   return (
     <div className="do-gate">
       <div className="do-gate__card">
@@ -33,7 +35,7 @@ export function DesktopOnly({
 
         {previewSrc && (
           <div className="do-gate__preview">
-            <img src={previewSrc} alt={previewLabel ?? 'Preview'} />
+            <img src={previewSrc} alt={previewLabel ?? t('sharedUi.preview')} />
             {previewLabel && <span className="do-gate__preview-label">{previewLabel}</span>}
           </div>
         )}
@@ -51,7 +53,7 @@ export function DesktopOnly({
         {children}
 
         <button className="s-btn s-btn--ghost do-gate__back" type="button" onClick={() => navigate(backTo)}>
-          {backLabel}
+          {backLabel ?? t('sharedUi.backToDashboard')}
         </button>
       </div>
     </div>

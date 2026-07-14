@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { DragEvent } from 'react'
+import { useT } from '@/i18n'
 import { ACCESSORY_CATEGORIES, listAccessories, type Accessory } from '../../accessories/accessoryClient'
 import './library-panels.css'
 
@@ -15,6 +16,7 @@ function handleDragStart(event: DragEvent<HTMLButtonElement>, acc: Accessory): v
 }
 
 export function AccessoriesPanel({ onPlace }: { onPlace: (acc: Accessory) => void }) {
+  const t = useT()
   const [items, setItems] = useState<Accessory[]>([])
   const [loading, setLoading] = useState(true)
   const [cat, setCat] = useState('all')
@@ -41,16 +43,16 @@ export function AccessoriesPanel({ onPlace }: { onPlace: (acc: Accessory) => voi
   const shown = useMemo(() => (cat === 'all' ? items : items.filter((a) => a.category === cat)), [items, cat])
 
   return (
-    <section className="lib-panel" aria-label="Accessories">
+    <section className="lib-panel" aria-label={t('dsPanels.acc.aria')}>
       <header className="lib-head">
-        <h2>Accessories</h2>
-        <p className="lib-head__hint">Free for everyone — click to place on your piece</p>
+        <h2>{t('dsPanels.acc.title')}</h2>
+        <p className="lib-head__hint">{t('dsPanels.acc.hint')}</p>
       </header>
 
       {cats.length > 0 && (
         <div className="lib-chips">
           <button className={`lib-chip${cat === 'all' ? ' is-active' : ''}`} type="button" onClick={() => setCat('all')}>
-            All
+            {t('dsPanels.acc.all')}
           </button>
           {cats.map((c) => (
             <button
@@ -67,9 +69,9 @@ export function AccessoriesPanel({ onPlace }: { onPlace: (acc: Accessory) => voi
 
       <div className="lib-scroll">
         {loading ? (
-          <p className="lib-empty">Loading accessories…</p>
+          <p className="lib-empty">{t('dsPanels.acc.loading')}</p>
         ) : items.length === 0 ? (
-          <p className="lib-empty">No accessories yet. Your admin adds them in the Accessory Library.</p>
+          <p className="lib-empty">{t('dsPanels.acc.empty')}</p>
         ) : (
           <div className="lib-grid">
             {shown.map((a) => (
@@ -78,7 +80,7 @@ export function AccessoriesPanel({ onPlace }: { onPlace: (acc: Accessory) => voi
                 key={a.id}
                 className="lib-gcard"
                 draggable={true}
-                aria-label={`Place ${a.name}`}
+                aria-label={t('dsPanels.acc.placeNamed', { name: a.name })}
                 title={a.name}
                 onClick={() => onPlace(a)}
                 onDragStart={(event) => handleDragStart(event, a)}
@@ -93,7 +95,7 @@ export function AccessoriesPanel({ onPlace }: { onPlace: (acc: Accessory) => voi
         )}
       </div>
 
-      <footer className="lib-foot">Drag onto the garment or click to add.</footer>
+      <footer className="lib-foot">{t('dsPanels.acc.foot')}</footer>
     </section>
   )
 }

@@ -9,6 +9,7 @@ import { useToast } from '../../components/ui/Toast'
 import { uid, relativeTime } from '../../data/utils'
 import { downloadJson, slugify } from '../../lib/download'
 import type { Collection, Design, GarmentKind } from '../../data/types'
+import { useT } from '@/i18n'
 import './col.css'
 
 type ViewMode = 'grid' | 'list'
@@ -31,10 +32,12 @@ const STATUS_TINT: Record<Collection['status'], string> = {
   active: 'rgba(209, 249, 79, 0.20)',
   published: 'rgba(62, 207, 142, 0.16)',
 }
-const STATUS_LABEL: Record<Collection['status'], string> = {
-  draft: 'Draft',
-  active: 'Active',
-  published: 'Published',
+/* Sort values double as logic keys; these map each to its i18n label key. */
+const SORT_KEYS: Record<Sort, string> = {
+  'Last updated': 'collections.sort.lastUpdated',
+  'Name (A–Z)': 'collections.sort.nameAZ',
+  'Most designs': 'collections.sort.mostDesigns',
+  Season: 'collections.sort.season',
 }
 
 /** A view model derived entirely from real store data. */
@@ -118,15 +121,16 @@ function TeamStack({ team }: { team: string[] }) {
 
 /* --- Per-card actions menu (Export / Delete) ------------------------------- */
 function CardMenu({ onExport, onDelete }: { onExport: () => void; onDelete: () => void }) {
+  const t = useT()
   return (
     <div className="col-menu" role="menu" onClick={(e) => e.stopPropagation()}>
       <button className="col-menu__item" type="button" role="menuitem" onClick={onExport}>
         <IcoUpload width="14" height="14" />
-        Export collection
+        {t('collections.card.export')}
       </button>
       <button className="col-menu__item col-menu__item--danger" type="button" role="menuitem" onClick={onDelete}>
         <IcoTrash width="14" height="14" />
-        Delete collection
+        {t('collections.card.delete')}
       </button>
     </div>
   )
@@ -147,6 +151,7 @@ function CollectionCardView({
   onExport: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const { collection, designs, sampleCount, mosaic, tint } = card
   const statusMod = collection.status
   return (
@@ -164,7 +169,7 @@ function CollectionCardView({
     >
       <div className="col-cover">
         <Mosaic tiles={mosaic} tint={tint} />
-        <span className={`s-chip col-status col-status--${statusMod}`}>{STATUS_LABEL[collection.status]}</span>
+        <span className={`s-chip col-status col-status--${statusMod}`}>{t(`collections.status.${collection.status}`)}</span>
         <span className="col-season">{collection.season}</span>
       </div>
 
@@ -175,7 +180,7 @@ function CollectionCardView({
             <button
               className="col-more"
               type="button"
-              aria-label={`More options for ${collection.name}`}
+              aria-label={t('collections.card.moreOptions', { name: collection.name })}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               onClick={(e) => {
@@ -190,15 +195,15 @@ function CollectionCardView({
         </div>
 
         <div className="col-metrics">
-          <span>{designs.length} designs</span>
+          <span>{t('collections.card.designs', { n: designs.length })}</span>
           <span className="col-metrics__sep" />
-          <span>{sampleCount} samples</span>
-          <span className={`s-chip col-status--${statusMod} col-row-status`}>{STATUS_LABEL[collection.status]}</span>
+          <span>{t('collections.card.samples', { n: sampleCount })}</span>
+          <span className={`s-chip col-status--${statusMod} col-row-status`}>{t(`collections.status.${collection.status}`)}</span>
         </div>
 
         <div className="col-foot">
           <TeamStack team={teamFor(collection)} />
-          <span className="col-updated">Updated {relativeTime(collection.updatedAt)}</span>
+          <span className="col-updated">{t('collections.card.updated', { time: relativeTime(collection.updatedAt) })}</span>
         </div>
       </div>
     </article>
@@ -210,6 +215,7 @@ export function Collections() {
   const { data, mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const [view, setView] = useState<ViewMode>('grid')
   const [sort, setSort] = useState<Sort>('Last updated')
@@ -273,7 +279,7 @@ export function Collections() {
   /* --- Real: create a collection → persist to the store -------------------- */
   const createCollection = () => {
     if (!user) {
-      toast('Sign in to create a collection.', 'info')
+      toast(t('collections.toast.signIn'), 'info')
       return
     }
     const seed = data.collections.length
@@ -287,7 +293,7 @@ export function Collections() {
     }
     mutate((d) => ({ ...d, collections: [newCollection, ...d.collections] }))
     setSort('Last updated')
-    toast(`“${newCollection.name}” created.`, 'success')
+    toast(t('collections.toast.created', { name: newCollection.name }), 'success')
   }
 
   /* --- Real: export a collection + its designs as a JSON file -------------- */
@@ -304,9 +310,9 @@ export function Collections() {
         },
       }
       downloadJson(payload, `collection-${slugify(card.collection.name)}.json`)
-      toast(`“${card.collection.name}” exported to JSON.`, 'success')
+      toast(t('collections.toast.exported', { name: card.collection.name }), 'success')
     } catch {
-      toast('Could not export the collection. Please try again.', 'info')
+      toast(t('collections.toast.exportError'), 'info')
     }
   }
 
@@ -320,27 +326,27 @@ export function Collections() {
       // Unlink any designs that pointed at the removed collection.
       designs: d.designs.map((des) => (des.collectionId === id ? { ...des, collectionId: undefined } : des)),
     }))
-    toast(`“${name}” deleted.`, 'default')
+    toast(t('collections.toast.deleted', { name }), 'default')
   }
 
   return (
     <SuitePage
-      eyebrow="Workspace"
-      title="Collections"
-      subtitle="Organise your drops and seasons — every design grouped like a moodboard."
+      eyebrow={t('collections.page.eyebrow')}
+      title={t('collections.page.title')}
+      subtitle={t('collections.page.subtitle')}
       actions={
         <button className="s-btn s-btn--accent" type="button" onClick={createCollection}>
-          <IcoPlus width="16" height="16" /> New Collection
+          <IcoPlus width="16" height="16" /> {t('collections.page.newCollection')}
         </button>
       }
     >
       <div className="col-toolbar">
         <div className="col-toolbar__left">
-          <div className="col-seg" role="group" aria-label="View mode">
+          <div className="col-seg" role="group" aria-label={t('collections.toolbar.viewMode')}>
             <button
               className={`col-seg__btn${view === 'grid' ? ' is-active' : ''}`}
               type="button"
-              aria-label="Grid view"
+              aria-label={t('collections.toolbar.gridView')}
               aria-pressed={view === 'grid'}
               onClick={() => setView('grid')}
             >
@@ -349,7 +355,7 @@ export function Collections() {
             <button
               className={`col-seg__btn${view === 'list' ? ' is-active' : ''}`}
               type="button"
-              aria-label="List view"
+              aria-label={t('collections.toolbar.listView')}
               aria-pressed={view === 'list'}
               onClick={() => setView('list')}
             >
@@ -357,12 +363,12 @@ export function Collections() {
             </button>
           </div>
           <button className="col-sort" type="button" onClick={cycleSort}>
-            Sort: <b>{sort}</b>
+            {t('collections.toolbar.sort')} <b>{t(SORT_KEYS[sort])}</b>
             <IcoChevron width="13" height="13" />
           </button>
         </div>
         <span className="col-count">
-          <b>{cards.length}</b> collections · {totalDesigns} designs
+          <b>{cards.length}</b> {t('collections.count.collections')} · {t('collections.count.designs', { n: totalDesigns })}
         </span>
       </div>
 
@@ -372,8 +378,8 @@ export function Collections() {
             <IcoPlus width="22" height="22" />
           </span>
           <span className="col-new__text">
-            <b>Create new collection</b>
-            <small>Group designs into a drop</small>
+            <b>{t('collections.new.title')}</b>
+            <small>{t('collections.new.subtitle')}</small>
           </span>
         </button>
 

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import './wizard.css'
 
 /**
@@ -22,6 +23,7 @@ export function GarmentSwitchDialog({
   onMoveHere: () => void
   onCancel: () => void
 }) {
+  const t = useT()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -37,24 +39,24 @@ export function GarmentSwitchDialog({
     <div className="suite">
       <div className="wz-overlay ss-overlay" role="dialog" aria-modal="true" aria-labelledby="gsw-title" onClick={onCancel}>
         <div className="ss-shell" onClick={(e) => e.stopPropagation()}>
-          <span className="wz-eyebrow">Switch garment</span>
-          <h1 id="gsw-title" className="ss-title">Open {targetName}?</h1>
-          <p className="ss-sub">Your work on “{currentName}” is saved. Start a fresh design on {targetName}, or bring your current design onto it.</p>
+          <span className="wz-eyebrow">{t('dsDialogs.gsw.eyebrow')}</span>
+          <h1 id="gsw-title" className="ss-title">{t('dsDialogs.gsw.openTarget', { name: targetName })}</h1>
+          <p className="ss-sub">{t('dsDialogs.gsw.body', { current: currentName, target: targetName })}</p>
 
           <div className="ss-choices">
             <button type="button" className="ss-choice ss-choice--primary" onClick={onOpenNew} autoFocus>
-              <span className="ss-choice__eyebrow">New design</span>
-              <span className="ss-choice__title">Open {targetName}</span>
-              <span className="ss-choice__hint">“{currentName}” stays saved separately</span>
+              <span className="ss-choice__eyebrow">{t('dsDialogs.gsw.newDesign')}</span>
+              <span className="ss-choice__title">{t('dsDialogs.gsw.openTitle', { name: targetName })}</span>
+              <span className="ss-choice__hint">{t('dsDialogs.gsw.staysSaved', { current: currentName })}</span>
             </button>
             <button type="button" className="ss-choice" onClick={onMoveHere}>
-              <span className="ss-choice__eyebrow">Move design</span>
-              <span className="ss-choice__title">Bring this design onto {targetName}</span>
-              <span className="ss-choice__hint">Carry your prints &amp; graphics over</span>
+              <span className="ss-choice__eyebrow">{t('dsDialogs.gsw.moveDesign')}</span>
+              <span className="ss-choice__title">{t('dsDialogs.gsw.bringOnto', { name: targetName })}</span>
+              <span className="ss-choice__hint">{t('dsDialogs.gsw.carryOver')}</span>
             </button>
           </div>
 
-          <button type="button" className="ss-cancel" onClick={onCancel}>Cancel — stay on “{currentName}”</button>
+          <button type="button" className="ss-cancel" onClick={onCancel}>{t('dsDialogs.gsw.cancelStay', { current: currentName })}</button>
         </div>
       </div>
     </div>,

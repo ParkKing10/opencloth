@@ -16,7 +16,11 @@ import { uid } from '../../data/utils'
 import { downloadJson, slugify } from '../../lib/download'
 import type { Manufacturer, Order } from '../../data/types'
 import { SuitePage } from '../_shared/SuitePage'
+import { useT } from '@/i18n'
 import './mf.css'
+
+/** Minimal shape of the translate function used by module-level label helpers. */
+type Translate = (key: string, vars?: Record<string, string | number>) => string
 
 /** Units requested for a first sample run. */
 const SAMPLE_QTY = 50
@@ -58,15 +62,50 @@ function glyphFor(caps: string[]): GarmentKind {
   return 'tee'
 }
 
-/** Short human-friendly specialty line derived from capabilities. */
-function specialtyFor(caps: string[]): string {
-  if (caps.length === 0) return 'Full-package apparel production'
-  if (caps.length === 1) return `${caps[0]} specialist`
-  return `${caps[0]} · ${caps[1]}${caps.length > 2 ? ' +more' : ''}`
-}
-
 function flagFor(country: string): string {
   return COUNTRY_FLAGS[country] ?? FALLBACK_FLAG
+}
+
+/* ---------- Label helpers (map controlled vocab → translated copy) ----------
+   The underlying capability / MOQ / country sentinel values stay in English so
+   the filter + sort logic is unaffected; only the display label is translated. */
+
+const CAP_KEY: Record<string, string> = {
+  Knitwear: 'manufacturers.cap.knitwear',
+  'Cut & Sew': 'manufacturers.cap.cutSew',
+  Denim: 'manufacturers.cap.denim',
+  Outerwear: 'manufacturers.cap.outerwear',
+  Accessories: 'manufacturers.cap.accessories',
+}
+
+function capLabel(cap: string, t: Translate): string {
+  const key = CAP_KEY[cap]
+  return key ? t(key) : cap
+}
+
+/** Short human-friendly specialty line derived from capabilities. */
+function specialtyFor(caps: string[], t: Translate): string {
+  if (caps.length === 0) return t('manufacturers.specialty.full')
+  if (caps.length === 1) return t('manufacturers.specialty.one', { cap: capLabel(caps[0], t) })
+  return t('manufacturers.specialty.multi', {
+    a: capLabel(caps[0], t),
+    b: capLabel(caps[1], t),
+    more: caps.length > 2 ? t('manufacturers.specialty.more') : '',
+  })
+}
+
+const MOQ_KEY: Record<string, string> = {
+  'Any MOQ': 'manufacturers.moq.any',
+  'Under 50': 'manufacturers.moq.u50',
+  'Under 100': 'manufacturers.moq.u100',
+  'Under 200': 'manufacturers.moq.u200',
+}
+
+const SORT_KEY: Record<string, string> = {
+  rating: 'manufacturers.sort.rating',
+  moq: 'manufacturers.sort.moq',
+  price: 'manufacturers.sort.price',
+  lead: 'manufacturers.sort.lead',
 }
 
 /* ---------- Filter option definitions ---------- */
@@ -127,6 +166,7 @@ interface FactoryCardProps {
 }
 
 function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProps) {
+  const t = useT()
   const Glyph = GARMENT_GLYPHS[glyphFor(factory.capabilities)]
   const visibleTags = factory.capabilities.slice(0, MAX_TAGS)
   const hiddenCount = factory.capabilities.length - visibleTags.length
@@ -142,27 +182,27 @@ function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProp
         <div className="mf-banner__top">
           {factory.verified ? (
             <span className="mf-verified">
-              <IcoCheck width="12" height="12" /> Verified
+              <IcoCheck width="12" height="12" /> {t('manufacturers.card.verified')}
             </span>
           ) : (
-            <span className="mf-verified">New partner</span>
+            <span className="mf-verified">{t('manufacturers.card.newPartner')}</span>
           )}
           <button
             type="button"
             className={`mf-save${saved ? ' is-saved' : ''}`}
             onClick={() => onToggleSave(factory)}
             aria-pressed={saved}
-            title={saved ? 'Remove from saved' : 'Save factory'}
-            aria-label={saved ? 'Remove from saved' : 'Save factory'}
+            title={saved ? t('manufacturers.card.removeSaved') : t('manufacturers.card.saveFactory')}
+            aria-label={saved ? t('manufacturers.card.removeSaved') : t('manufacturers.card.saveFactory')}
           >
             <Heart filled={saved} />
           </button>
         </div>
 
         <span className="mf-price">
-          <small>from</small>
+          <small>{t('manufacturers.card.from')}</small>
           <b>${factory.priceFrom}</b>
-          <span>/unit</span>
+          <span>{t('manufacturers.card.perUnit')}</span>
         </span>
       </div>
 
@@ -184,19 +224,19 @@ function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProp
 
         <div className="mf-facts">
           <div className="mf-fact">
-            <span className="mf-fact__k">MOQ</span>
+            <span className="mf-fact__k">{t('manufacturers.card.moq')}</span>
             <span className="mf-fact__v">
-              {factory.moq} <span>units</span>
+              {factory.moq} <span>{t('manufacturers.card.units')}</span>
             </span>
           </div>
           <div className="mf-fact">
-            <span className="mf-fact__k">Lead time</span>
+            <span className="mf-fact__k">{t('manufacturers.card.leadTime')}</span>
             <span className="mf-fact__v">
-              {factory.leadDays} <span>days</span>
+              {factory.leadDays} <span>{t('manufacturers.card.days')}</span>
             </span>
           </div>
           <div className="mf-fact">
-            <span className="mf-fact__k">Reviews</span>
+            <span className="mf-fact__k">{t('manufacturers.card.reviews')}</span>
             <span className="mf-fact__v">{factory.reviews}</span>
           </div>
         </div>
@@ -204,7 +244,7 @@ function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProp
         <div className="mf-tags">
           {visibleTags.map((cap) => (
             <span className="mf-tag" key={cap}>
-              {cap}
+              {capLabel(cap, t)}
             </span>
           ))}
           {hiddenCount > 0 && <span className="mf-tag mf-tag--more">+{hiddenCount}</span>}
@@ -212,16 +252,16 @@ function FactoryCard({ factory, onToggleSave, onRequestSample }: FactoryCardProp
 
         <div className="mf-foot">
           <span className="mf-foot__spec">
-            <b>Specialty</b>
-            <small>{specialtyFor(factory.capabilities)}</small>
+            <b>{t('manufacturers.card.specialty')}</b>
+            <small>{specialtyFor(factory.capabilities, t)}</small>
           </span>
           <button
             type="button"
             className="s-btn s-btn--accent mf-sample"
             onClick={() => onRequestSample(factory)}
-            title={`Request a sample from ${factory.name}`}
+            title={t('manufacturers.card.requestTitle', { name: factory.name })}
           >
-            Request Sample <IcoArrowRight width="14" height="14" />
+            {t('manufacturers.card.requestSample')} <IcoArrowRight width="14" height="14" />
           </button>
         </div>
       </div>
@@ -235,6 +275,7 @@ export function Manufacturers() {
   const { data, mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const [activeCap, setActiveCap] = useState<CapFilter>(ALL_CAPS)
   const [country, setCountry] = useState<string>('Any country')
@@ -266,12 +307,17 @@ export function Manufacturers() {
       ...d,
       manufacturers: d.manufacturers.map((x) => (x.id === m.id ? { ...x, saved: nowSaved } : x)),
     }))
-    toast(nowSaved ? `Saved ${m.name}` : `Removed ${m.name} from saved`, nowSaved ? 'success' : 'default')
+    toast(
+      nowSaved
+        ? t('manufacturers.toast.saved', { name: m.name })
+        : t('manufacturers.toast.removed', { name: m.name }),
+      nowSaved ? 'success' : 'default',
+    )
   }
 
   const requestSample = (m: Manufacturer) => {
     if (!user) {
-      toast('Sign in to request a sample.', 'info')
+      toast(t('manufacturers.toast.signInSample'), 'info')
       return
     }
     const glyph = glyphFor(m.capabilities)
@@ -288,7 +334,7 @@ export function Manufacturers() {
       eta: `~${m.leadDays} days`,
     }
     mutate((d) => ({ ...d, orders: [newOrder, ...d.orders] }))
-    toast(`Sample requested from ${m.name} · ${SAMPLE_QTY} units`, 'accent')
+    toast(t('manufacturers.toast.sampleRequested', { name: m.name, n: SAMPLE_QTY }), 'accent')
   }
 
   const chooseSort = (id: SortId) => {
@@ -338,12 +384,12 @@ export function Manufacturers() {
   }, [data.manufacturers, activeCap, country, moq, query, sort])
 
   const savedCount = useMemo(() => data.manufacturers.filter((m) => m.saved).length, [data.manufacturers])
-  const activeSortLabel = SORTS.find((s) => s.id === sort)?.label ?? 'Top rated'
+  const activeSortLabel = t(SORT_KEY[sort])
 
   /* "Post a Request" — export a real sourcing brief the user can send to factories. */
   const postRequest = () => {
     if (!user) {
-      toast('Sign in to post a sourcing request.', 'info')
+      toast(t('manufacturers.toast.signInRequest'), 'info')
       return
     }
     const brief = {
@@ -372,20 +418,26 @@ export function Manufacturers() {
     try {
       const stamp = new Date().toISOString().slice(0, 10)
       downloadJson(brief, `${slugify(`sourcing request ${stamp}`)}.json`)
-      toast(`Request brief exported · ${results.length} matched ${results.length === 1 ? 'factory' : 'factories'}`, 'accent')
+      toast(
+        t('manufacturers.toast.briefExported', {
+          n: results.length,
+          factories: results.length === 1 ? t('manufacturers.factory') : t('manufacturers.factories'),
+        }),
+        'accent',
+      )
     } catch {
-      toast('Could not export the request brief. Please try again.', 'info')
+      toast(t('manufacturers.toast.exportError'), 'info')
     }
   }
 
   return (
     <SuitePage
-      eyebrow="Manufacturer Hub"
-      title="Manufacturers"
-      subtitle="Discover vetted factories across the globe — filter by capability, country, MOQ and lead time, then request a sample in one tap."
+      eyebrow={t('manufacturers.page.eyebrow')}
+      title={t('manufacturers.page.title')}
+      subtitle={t('manufacturers.page.subtitle')}
       actions={
         <button type="button" className="s-btn s-btn--accent" onClick={postRequest}>
-          <IcoPlus width="16" height="16" /> Post a Request
+          <IcoPlus width="16" height="16" /> {t('manufacturers.actions.postRequest')}
         </button>
       }
     >
@@ -398,7 +450,7 @@ export function Manufacturers() {
               className={`mf-cap${activeCap === ALL_CAPS ? ' is-active' : ''}`}
               onClick={() => setActiveCap(ALL_CAPS)}
             >
-              <IcoFactory width="14" height="14" /> All
+              <IcoFactory width="14" height="14" /> {t('manufacturers.cap.all')}
             </button>
             {CAPABILITIES.map((cap) => (
               <button
@@ -407,7 +459,7 @@ export function Manufacturers() {
                 className={`mf-cap${activeCap === cap ? ' is-active' : ''}`}
                 onClick={() => setActiveCap(cap)}
               >
-                {cap}
+                {capLabel(cap, t)}
               </button>
             ))}
           </div>
@@ -417,23 +469,28 @@ export function Manufacturers() {
               type="button"
               className="mf-select"
               onClick={cycleCountry}
-              title="Cycle country filter"
+              title={t('manufacturers.filter.countryTitle')}
             >
-              <b>{country}</b>
+              <b>{country === 'Any country' ? t('manufacturers.filter.anyCountry') : country}</b>
               <IcoChevron className="mf-select__chev" width="14" height="14" />
             </button>
-            <button type="button" className="mf-select" onClick={cycleMoq} title="Cycle MOQ ceiling">
-              <b>{moq}</b>
+            <button
+              type="button"
+              className="mf-select"
+              onClick={cycleMoq}
+              title={t('manufacturers.filter.moqTitle')}
+            >
+              <b>{t(MOQ_KEY[moq])}</b>
               <IcoChevron className="mf-select__chev" width="14" height="14" />
             </button>
             <label className="mf-search">
               <IcoSearch width="15" height="15" />
               <input
                 type="text"
-                placeholder="Search factories, cities…"
+                placeholder={t('manufacturers.search.placeholder')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search factories"
+                aria-label={t('manufacturers.search.aria')}
               />
             </label>
           </div>
@@ -442,22 +499,25 @@ export function Manufacturers() {
         {/* Result meta */}
         <div className="mf-meta">
           <p className="mf-meta__count">
-            <b>{results.length}</b> {results.length === 1 ? 'factory' : 'factories'} available
+            <b>{results.length}</b>{' '}
+            {results.length === 1
+              ? t('manufacturers.meta.factoryAvailable')
+              : t('manufacturers.meta.factoriesAvailable')}
             {activeCap !== ALL_CAPS && (
               <>
                 {' · '}
-                {activeCap}
+                {capLabel(activeCap, t)}
               </>
             )}
             {savedCount > 0 && (
               <>
                 {' · '}
-                {savedCount} saved
+                {t('manufacturers.meta.saved', { n: savedCount })}
               </>
             )}
             {hasActiveFilter && (
               <button type="button" className="mf-clear" onClick={clearFilters}>
-                Clear filters
+                {t('manufacturers.meta.clearFilters')}
               </button>
             )}
           </p>
@@ -470,7 +530,7 @@ export function Manufacturers() {
               aria-haspopup="listbox"
               aria-expanded={sortOpen}
             >
-              Sort by <b>{activeSortLabel}</b>
+              {t('manufacturers.sort.by')} <b>{activeSortLabel}</b>
               <IcoChevron width="13" height="13" />
             </button>
             {sortOpen && (
@@ -478,7 +538,7 @@ export function Manufacturers() {
                 <button
                   type="button"
                   className="mf-menu__scrim"
-                  aria-label="Close sort menu"
+                  aria-label={t('manufacturers.sort.closeAria')}
                   onClick={() => setSortOpen(false)}
                 />
                 <ul className="mf-menu" role="listbox">
@@ -491,7 +551,7 @@ export function Manufacturers() {
                         className={`mf-menu__item${sort === s.id ? ' is-active' : ''}`}
                         onClick={() => chooseSort(s.id)}
                       >
-                        {s.label}
+                        {t(SORT_KEY[s.id])}
                         {sort === s.id && <IcoCheck width="14" height="14" />}
                       </button>
                     </li>
@@ -520,11 +580,11 @@ export function Manufacturers() {
               <div className="page-empty__ico">
                 <IcoFactory width="26" height="26" />
               </div>
-              <h3>No factories match those filters</h3>
-              <p>Try widening the country or MOQ range, or clear your search.</p>
+              <h3>{t('manufacturers.empty.title')}</h3>
+              <p>{t('manufacturers.empty.desc')}</p>
               {hasActiveFilter && (
                 <button type="button" className="s-btn s-btn--subtle mf-empty-cta" onClick={clearFilters}>
-                  Clear all filters
+                  {t('manufacturers.empty.clearAll')}
                 </button>
               )}
             </div>

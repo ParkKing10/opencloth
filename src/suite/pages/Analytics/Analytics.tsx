@@ -15,6 +15,7 @@ import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { downloadCsv, slugify } from '../../lib/download'
+import { useT } from '@/i18n'
 import './an.css'
 
 /* ============================================================
@@ -175,6 +176,7 @@ function buildArea(data: number[]) {
 }
 
 function RevenueChart({ data, labels }: { data: number[]; labels: string[] }) {
+  const t = useT()
   const { line, area, pts } = buildArea(data)
   const last = pts[pts.length - 1]
   const gridLines = [0.25, 0.5, 0.75]
@@ -187,7 +189,7 @@ function RevenueChart({ data, labels }: { data: number[]; labels: string[] }) {
         viewBox={`0 0 ${AW} ${AH}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={`Revenue over the ${labels.length} periods in view`}
+        aria-label={t('analytics.revenueChart.aria', { n: labels.length })}
       >
         <defs>
           <linearGradient id="anRevFill" x1="0" y1="0" x2="0" y2="1">
@@ -231,6 +233,7 @@ function RevenueChart({ data, labels }: { data: number[]; labels: string[] }) {
    ============================================================ */
 
 function ProductionBars({ data, labels }: { data: number[]; labels: string[] }) {
+  const t = useT()
   const max = Math.max(...data) || 1
   const peak = data.indexOf(max)
   return (
@@ -241,7 +244,7 @@ function ProductionBars({ data, labels }: { data: number[]; labels: string[] }) 
         return (
           <div className="an-bar" key={`${labels[i]}-${i}`}>
             <div className="an-bar__track">
-              <span className="an-bar__cap">{v * 100} units</span>
+              <span className="an-bar__cap">{t('analytics.bar.units', { n: v * 100 })}</span>
               <span
                 className={`an-bar__fill${isPeak ? '' : ' an-bar__fill--muted'}`}
                 style={{ height: `${h}%` }}
@@ -271,6 +274,7 @@ const REGION_COLORS = [
 ]
 
 function RegionDonut({ regions }: { regions: Region[] }) {
+  const t = useT()
   const total = regions.reduce((sum, r) => sum + r.count, 0)
   const size = 148
   const stroke = 16
@@ -290,7 +294,7 @@ function RegionDonut({ regions }: { regions: Region[] }) {
   return (
     <div className="an-donut">
       <div className="an-donut__ring">
-        <svg className="an-donut__svg" viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Manufacturers by region">
+        <svg className="an-donut__svg" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={t('analytics.region.title')}>
           <circle cx={center} cy={center} r={radius} fill="none" stroke="var(--s-inset)" strokeWidth={stroke} />
           {segments.map((seg, i) => (
             <circle
@@ -310,7 +314,7 @@ function RegionDonut({ regions }: { regions: Region[] }) {
         </svg>
         <div className="an-donut__center">
           <span className="an-donut__total">{total}</span>
-          <span className="an-donut__cap">Partners</span>
+          <span className="an-donut__cap">{t('analytics.donut.partners')}</span>
         </div>
       </div>
       <ul className="an-donut__legend">
@@ -332,6 +336,7 @@ function RegionDonut({ regions }: { regions: Region[] }) {
    ============================================================ */
 
 function RangePicker({ value, onChange }: { value: RangeKey; onChange: (r: RangeKey) => void }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
 
@@ -359,14 +364,14 @@ function RangePicker({ value, onChange }: { value: RangeKey; onChange: (r: Range
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Change the reporting window"
+        title={t('analytics.range.pickerTitle')}
       >
         <span className="an-range__dot" aria-hidden="true" />
-        {RANGES[value].label}
+        {t(`analytics.range.${value}.label`)}
         <IcoChevron className="an-range__chev" width="14" height="14" />
       </button>
       {open && (
-        <ul className="an-rangemenu" role="listbox" aria-label="Reporting window">
+        <ul className="an-rangemenu" role="listbox" aria-label={t('analytics.range.menuAria')}>
           {RANGE_ORDER.map((key) => (
             <li key={key} role="option" aria-selected={key === value}>
               <button
@@ -377,7 +382,7 @@ function RangePicker({ value, onChange }: { value: RangeKey; onChange: (r: Range
                   setOpen(false)
                 }}
               >
-                <span>{RANGES[key].label}</span>
+                <span>{t(`analytics.range.${key}.label`)}</span>
                 {key === value && <IcoCheck width="14" height="14" />}
               </button>
             </li>
@@ -396,9 +401,30 @@ export function Analytics() {
   const { data } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
   const [range, setRange] = useState<RangeKey>('30d')
 
   const def = RANGES[range]
+  const rangeLabel = t(`analytics.range.${range}.label`)
+  const rangeCaption = t(`analytics.range.${range}.caption`)
+  // Month axis labels translated at the render site (week labels W1–W4 are locale-neutral).
+  const monthLabels = def.months.map((m) => {
+    const key: Record<string, string> = {
+      Jan: 'analytics.mon.jan',
+      Feb: 'analytics.mon.feb',
+      Mar: 'analytics.mon.mar',
+      Apr: 'analytics.mon.apr',
+      May: 'analytics.mon.may',
+      Jun: 'analytics.mon.jun',
+      Jul: 'analytics.mon.jul',
+      Aug: 'analytics.mon.aug',
+      Sep: 'analytics.mon.sep',
+      Oct: 'analytics.mon.oct',
+      Nov: 'analytics.mon.nov',
+      Dec: 'analytics.mon.dec',
+    }
+    return key[m] ? t(key[m]) : m
+  })
 
   // ---- Real store data, scoped to the signed-in creator ----
   const myOrders = useMemo(
@@ -474,45 +500,49 @@ export function Analytics() {
     const revSpark = revenue.length >= 2 ? revenue : [revenue[0] ?? 0, revenue[0] ?? 0]
     return [
       {
-        label: 'Revenue',
+        label: t('analytics.kpi.revenue'),
         value: fmtMoney(revenueTotal),
         delta: `${revenueDelta >= 0 ? '+' : ''}${revenueDelta}%`,
-        caption: `vs. prior ${def.short}`,
+        caption: t('analytics.kpi.vsPrior', { short: def.short }),
         icon: IcoCoins,
         spark: revSpark,
         down: revenueDelta < 0,
       },
       {
-        label: 'Collections',
+        label: t('analytics.kpi.collections'),
         value: String(myCollections.length),
         delta: `${myDesigns.length}`,
-        caption: `${myDesigns.length} designs in flight`,
+        caption: t('analytics.kpi.designsInFlight', { n: myDesigns.length }),
         icon: IcoCollections,
         spark: revSpark.map((_, i) => i + 1),
       },
       {
-        label: 'Production Orders',
+        label: t('analytics.kpi.productionOrders'),
         value: String(ordersInWindow),
-        delta: `${ordersActive} active`,
-        caption: `${productionUnits.toLocaleString()} units · ${def.caption}`,
+        delta: t('analytics.kpi.ordersActive', { n: ordersActive }),
+        caption: t('analytics.kpi.productionCaption', {
+          n: productionUnits.toLocaleString(),
+          caption: rangeCaption,
+        }),
         icon: IcoProduction,
         spark: production.length >= 2 ? production : [production[0] ?? 0, production[0] ?? 0],
       },
       {
-        label: 'Manufacturers',
+        label: t('analytics.kpi.manufacturers'),
         value: String(data.manufacturers.length),
-        delta: `${regions.length} regions`,
-        caption: `${myTechPacks.length} tech packs linked`,
+        delta: t('analytics.kpi.regions', { n: regions.length }),
+        caption: t('analytics.kpi.techPacksLinked', { n: myTechPacks.length }),
         icon: IcoFactory,
         spark: regions.map((r) => r.count).length >= 2 ? regions.map((r) => r.count) : [1, 1],
       },
     ]
   }, [
+    t,
     revenue,
     revenueTotal,
     revenueDelta,
     def.short,
-    def.caption,
+    rangeCaption,
     myCollections.length,
     myDesigns.length,
     ordersInWindow,
@@ -536,43 +566,43 @@ export function Analytics() {
     }
 
     const kpiRows: Row[] = kpis.map((k) => ({
-      section: 'KPI',
+      section: t('analytics.export.sectionKpi'),
       metric: k.label,
-      period: def.label,
+      period: rangeLabel,
       value: k.value,
       detail: `${k.delta} · ${k.caption}`,
     }))
 
     const revenueRows: Row[] = revenue.map((v, i) => ({
-      section: 'Revenue',
-      metric: 'Revenue',
-      period: def.months[i] ?? `P${i + 1}`,
+      section: t('analytics.export.sectionRevenue'),
+      metric: t('analytics.export.metricRevenue'),
+      period: monthLabels[i] ?? `P${i + 1}`,
       value: fmtMoney(v),
-      detail: `${def.caption}`,
+      detail: rangeCaption,
     }))
 
     const productionRows: Row[] = production.map((v, i) => ({
-      section: 'Production',
-      metric: 'Units produced',
+      section: t('analytics.export.sectionProduction'),
+      metric: t('analytics.export.metricUnits'),
       period: def.bars[i] ?? `P${i + 1}`,
       value: String(v * 100),
-      detail: `${def.caption}`,
+      detail: rangeCaption,
     }))
 
     const regionRows: Row[] = regions.map((r) => ({
-      section: 'Manufacturers by region',
+      section: t('analytics.export.sectionRegion'),
       metric: r.name,
-      period: def.label,
+      period: rangeLabel,
       value: String(r.count),
-      detail: 'active partners',
+      detail: t('analytics.export.detailActivePartners'),
     }))
 
     const collectionRows: Row[] = topCollections.map((c) => ({
-      section: 'Top collections',
+      section: t('analytics.export.sectionTopCollections'),
       metric: c.name,
-      period: def.label,
+      period: rangeLabel,
       value: c.revenue,
-      detail: `${c.pct}% of top`,
+      detail: t('analytics.export.detailPctOfTop', { pct: c.pct }),
     }))
 
     const rows: Row[] = [...kpiRows, ...revenueRows, ...productionRows, ...regionRows, ...collectionRows]
@@ -580,22 +610,22 @@ export function Analytics() {
     const filename = `threados-analytics-${slugify(def.short)}.csv`
     try {
       downloadCsv(rows, filename)
-      toast(`Exported ${def.label} report — ${rows.length} rows (${filename}).`, 'success')
+      toast(t('analytics.toast.exported', { label: rangeLabel, n: rows.length, filename }), 'success')
     } catch {
-      toast('Could not export the analytics report. Please try again.', 'info')
+      toast(t('analytics.toast.exportError'), 'info')
     }
   }
 
   return (
     <SuitePage
-      eyebrow="Analytics"
-      title="Analytics"
-      subtitle="Revenue, collections, production and manufacturers — your whole operation at a glance."
+      eyebrow={t('analytics.eyebrow')}
+      title={t('analytics.title')}
+      subtitle={t('analytics.subtitle')}
       actions={
         <>
           <RangePicker value={range} onChange={setRange} />
-          <button className="s-btn s-btn--ghost" type="button" onClick={handleExport} title="Download this view as a report">
-            <IcoUpload width="15" height="15" /> Export
+          <button className="s-btn s-btn--ghost" type="button" onClick={handleExport} title={t('analytics.exportTitle')}>
+            <IcoUpload width="15" height="15" /> {t('analytics.export')}
           </button>
         </>
       }
@@ -631,7 +661,7 @@ export function Analytics() {
           <article className="an-card">
             <div className="an-card__head">
               <div>
-                <h2 className="an-card__title">Revenue</h2>
+                <h2 className="an-card__title">{t('analytics.revenue.title')}</h2>
                 <div className="an-card__figure">
                   <span className="an-card__big">{fmtMoney(revenueTotal)}</span>
                   <span className={`an-delta${revenueDelta < 0 ? ' an-delta--down' : ''}`}>
@@ -639,28 +669,28 @@ export function Analytics() {
                     {revenueDelta}%
                   </span>
                 </div>
-                <p className="an-card__sub">Gross merchandise value · {def.caption}</p>
+                <p className="an-card__sub">{t('analytics.revenue.gmv', { caption: rangeCaption })}</p>
               </div>
               <div className="an-legend">
                 <span className="an-legend__item">
                   <span className="an-legend__swatch" style={{ background: 'var(--s-accent)' }} />
-                  Revenue
+                  {t('analytics.revenue.legend')}
                 </span>
               </div>
             </div>
-            <RevenueChart data={revenue} labels={def.months} />
+            <RevenueChart data={revenue} labels={monthLabels} />
           </article>
 
           <article className="an-card an-side">
             <div className="an-card__head" style={{ marginBottom: 8 }}>
               <div>
-                <h2 className="an-card__title">Top collections</h2>
-                <p className="an-card__sub">By revenue · {def.caption}</p>
+                <h2 className="an-card__title">{t('analytics.topCollections.title')}</h2>
+                <p className="an-card__sub">{t('analytics.topCollections.sub', { caption: rangeCaption })}</p>
               </div>
             </div>
             {topCollections.length === 0 ? (
               <p className="an-card__sub" style={{ paddingTop: 8 }}>
-                No collections yet — create one to see it ranked here.
+                {t('analytics.topCollections.empty')}
               </p>
             ) : (
               <div>
@@ -691,15 +721,17 @@ export function Analytics() {
           <article className="an-card">
             <div className="an-card__head">
               <div>
-                <h2 className="an-card__title">Production by {range === '30d' ? 'week' : 'month'}</h2>
+                <h2 className="an-card__title">
+                  {range === '30d' ? t('analytics.production.byWeek') : t('analytics.production.byMonth')}
+                </h2>
                 <p className="an-card__sub">
-                  {productionUnits.toLocaleString()} units manufactured · {def.caption}
+                  {t('analytics.production.sub', { n: productionUnits.toLocaleString(), caption: rangeCaption })}
                 </p>
               </div>
               <div className="an-legend">
                 <span className="an-legend__item">
                   <span className="an-legend__swatch" style={{ background: 'var(--s-accent)' }} />
-                  Peak {range === '30d' ? 'week' : 'month'}
+                  {range === '30d' ? t('analytics.production.peakWeek') : t('analytics.production.peakMonth')}
                 </span>
               </div>
             </div>
@@ -709,13 +741,13 @@ export function Analytics() {
           <article className="an-card">
             <div className="an-card__head">
               <div>
-                <h2 className="an-card__title">Manufacturers by region</h2>
-                <p className="an-card__sub">{data.manufacturers.length} active partners</p>
+                <h2 className="an-card__title">{t('analytics.region.title')}</h2>
+                <p className="an-card__sub">{t('analytics.region.activePartners', { n: data.manufacturers.length })}</p>
               </div>
             </div>
             {regions.length === 0 ? (
               <p className="an-card__sub" style={{ paddingTop: 8 }}>
-                No manufacturers on file yet.
+                {t('analytics.region.empty')}
               </p>
             ) : (
               <RegionDonut regions={regions} />

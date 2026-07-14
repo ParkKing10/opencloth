@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { uid } from '../../data/utils'
 import { downloadJson } from '../../lib/download'
+import { useT } from '@/i18n'
 import type { Design, TechPack } from '../../data/types'
 import {
   IcoSearch,
@@ -51,6 +52,29 @@ type AssetCategory = Exclude<Category, 'All'>
 
 const SORTS = ['Popular', 'Newest', 'Price: Low'] as const
 type Sort = (typeof SORTS)[number]
+
+/* Translation-key maps for values held in const data — resolved via t() at the render site. */
+const CATEGORY_LABELS: Record<Category, string> = {
+  All: 'marketplace.cat.all',
+  Templates: 'marketplace.cat.templates',
+  Garments: 'marketplace.cat.garments',
+  Collections: 'marketplace.cat.collections',
+  Graphics: 'marketplace.cat.graphics',
+  'Tech Packs': 'marketplace.cat.techPacks',
+}
+
+const SORT_LABELS: Record<Sort, string> = {
+  Popular: 'marketplace.sort.popular',
+  Newest: 'marketplace.sort.newest',
+  'Price: Low': 'marketplace.sort.priceLow',
+}
+
+const CHIP_LABELS: Record<string, string> = {
+  Trending: 'marketplace.chip.trending',
+  New: 'marketplace.chip.new',
+  Pro: 'marketplace.chip.pro',
+  'Editor’s pick': 'marketplace.chip.editors',
+}
 
 type Author = { initials: string; name: string; verified: boolean }
 
@@ -265,6 +289,7 @@ type CardProps = {
 }
 
 function AssetCard({ asset, liked, owned, onToggleLike, onUse, onBuy }: CardProps) {
+  const t = useT()
   const Glyph = GARMENT_GLYPHS[asset.glyph]
   const isFree = asset.price === 0
   const likeCount = formatCount(asset.likes + (liked ? 1 : 0))
@@ -277,7 +302,7 @@ function AssetCard({ asset, liked, owned, onToggleLike, onUse, onBuy }: CardProp
           {asset.chip && (
             <span className={`s-chip s-chip--${asset.chip.kind}`}>
               {asset.chip.kind === 'accent' && <IcoSparkle width="11" height="11" />}
-              {asset.chip.label}
+              {CHIP_LABELS[asset.chip.label] ? t(CHIP_LABELS[asset.chip.label]) : asset.chip.label}
             </span>
           )}
         </div>
@@ -285,12 +310,14 @@ function AssetCard({ asset, liked, owned, onToggleLike, onUse, onBuy }: CardProp
           type="button"
           className={`mk-like${liked ? ' is-liked' : ''}`}
           aria-pressed={liked}
-          title={liked ? 'Remove from saved' : 'Save to your likes'}
+          title={liked ? t('marketplace.card.like.remove') : t('marketplace.card.like.save')}
           onClick={() => onToggleLike(asset)}
         >
           <IcoHeart filled={liked} width="15" height="15" />
         </button>
-        <span className={`mk-price${isFree ? ' mk-price--free' : ''}`}>{priceLabel(asset.price)}</span>
+        <span className={`mk-price${isFree ? ' mk-price--free' : ''}`}>
+          {isFree ? t('marketplace.free') : priceLabel(asset.price)}
+        </span>
         <span className="mk-card__glyph" aria-hidden="true">
           <Glyph width="72" height="72" />
         </span>
@@ -303,7 +330,7 @@ function AssetCard({ asset, liked, owned, onToggleLike, onUse, onBuy }: CardProp
           <span className="mk-author__av">{asset.author.initials}</span>
           <span className="mk-author__name">{asset.author.name}</span>
           {asset.author.verified && (
-            <span className="mk-author__verify" title="Verified creator" aria-label="Verified creator">
+            <span className="mk-author__verify" title={t('marketplace.card.verified')} aria-label={t('marketplace.card.verified')}>
               <IcoCheck width="9" height="9" />
             </span>
           )}
@@ -315,26 +342,26 @@ function AssetCard({ asset, liked, owned, onToggleLike, onUse, onBuy }: CardProp
 
         <div className="mk-card__foot">
           <div className="mk-stats">
-            <span className="mk-stat" title={`${asset.downloads} downloads`}>
+            <span className="mk-stat" title={t('marketplace.card.downloadsTitle', { n: asset.downloads })}>
               <IcoUpload width="13" height="13" style={{ transform: 'rotate(180deg)' }} />
               {asset.downloads}
             </span>
-            <span className="mk-stat" title={`${likeCount} likes`}>
+            <span className="mk-stat" title={t('marketplace.card.likesTitle', { n: likeCount })}>
               <IcoEye width="13" height="13" />
               {likeCount}
             </span>
           </div>
           {isFree ? (
             <button type="button" className="mk-use mk-use--free" onClick={() => onUse(asset)}>
-              Use Template <IcoArrowRight width="13" height="13" />
+              {t('marketplace.card.useTemplate')} <IcoArrowRight width="13" height="13" />
             </button>
           ) : owned ? (
-            <button type="button" className="mk-use mk-use--owned" disabled title="You already own this">
-              <IcoCheck width="13" height="13" /> Owned
+            <button type="button" className="mk-use mk-use--owned" disabled title={t('marketplace.card.ownedTitle')}>
+              <IcoCheck width="13" height="13" /> {t('marketplace.card.owned')}
             </button>
           ) : (
             <button type="button" className="mk-use mk-use--buy" onClick={() => onBuy(asset)}>
-              Buy {priceLabel(asset.price)}
+              {t('marketplace.card.buy', { price: priceLabel(asset.price) })}
             </button>
           )}
         </div>
@@ -352,6 +379,7 @@ export function Marketplace() {
   const { user } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
+  const t = useT()
 
   const [category, setCategory] = useState<Category>('All')
   const [query, setQuery] = useState('')
@@ -398,12 +426,12 @@ export function Marketplace() {
       return next
     })
     const nowLiked = !liked.has(asset.id)
-    toast(nowLiked ? `Saved “${asset.title}” to your likes` : `Removed “${asset.title}” from likes`, nowLiked ? 'accent' : 'default')
+    toast(nowLiked ? t('marketplace.toast.saved', { title: asset.title }) : t('marketplace.toast.removed', { title: asset.title }), nowLiked ? 'accent' : 'default')
   }
 
   function useTemplate(asset: Asset) {
     if (!user) {
-      toast('Sign in to use templates.', 'info')
+      toast(t('marketplace.toast.signInUse'), 'info')
       return
     }
     const design: Design = {
@@ -417,14 +445,14 @@ export function Marketplace() {
     }
     // Real persistence: add the design, then open it in the studio.
     mutate((d) => ({ ...d, designs: [design, ...d.designs] }))
-    toast(`“${asset.title}” added to your designs — opening the studio`, 'success')
+    toast(t('marketplace.toast.addedDesign', { title: asset.title }), 'success')
     navigate('/suite/design')
   }
 
   function buyAsset(asset: Asset) {
     if (owned.has(asset.id)) return
     if (!user) {
-      toast('Sign in to buy from the marketplace.', 'info')
+      toast(t('marketplace.toast.signInBuy'), 'info')
       return
     }
     // Real persistence: purchased assets land in the owner's library as a tech pack.
@@ -444,7 +472,7 @@ export function Marketplace() {
       next.add(asset.id)
       return next
     })
-    toast(`Added “${asset.title}” to your library`, 'success')
+    toast(t('marketplace.toast.addedLibrary', { title: asset.title }), 'success')
   }
 
   /** Open the purchased asset in the Design studio. */
@@ -456,9 +484,9 @@ export function Marketplace() {
   async function copySellerLink() {
     try {
       await navigator.clipboard.writeText(SELLER_APPLY_URL)
-      toast('Seller application link copied to your clipboard', 'accent')
+      toast(t('marketplace.toast.linkCopied'), 'accent')
     } catch {
-      toast('Could not copy the link — please copy it manually.', 'info')
+      toast(t('marketplace.toast.linkCopyFail'), 'info')
     }
   }
 
@@ -483,17 +511,17 @@ export function Marketplace() {
         'threados-seller-starter-kit.json',
       )
       // Success toast only fires after the download actually started.
-      toast('Seller starter kit downloaded', 'success')
+      toast(t('marketplace.toast.kitDownloaded'), 'success')
     } catch {
-      toast('Could not download the starter kit — please try again.', 'info')
+      toast(t('marketplace.toast.kitFail'), 'info')
     }
   }
 
   return (
     <SuitePage
-      eyebrow="Marketplace"
-      title="Marketplace"
-      subtitle="Dribbble meets Figma Community — templates, garments and full collections from top creators. Buy or use instantly."
+      eyebrow={t('marketplace.eyebrow')}
+      title={t('marketplace.title')}
+      subtitle={t('marketplace.subtitle')}
       actions={
         <button
           type="button"
@@ -502,7 +530,7 @@ export function Marketplace() {
           aria-controls="mk-seller-panel"
           onClick={() => setSellerOpen((open) => !open)}
         >
-          <IcoPlus width="16" height="16" /> Sell a template
+          <IcoPlus width="16" height="16" /> {t('marketplace.sellTemplate')}
         </button>
       }
     >
@@ -512,13 +540,13 @@ export function Marketplace() {
           <section id="mk-seller-panel" className="mk-panel">
             <div className="mk-panel__head">
               <div>
-                <b>Start selling on loom studios</b>
-                <small>Publish to 40k+ creators and earn 80% on every sale. Payouts weekly.</small>
+                <b>{t('marketplace.panel.title')}</b>
+                <small>{t('marketplace.panel.sub')}</small>
               </div>
               <button
                 type="button"
                 className="mk-panel__close"
-                aria-label="Close seller panel"
+                aria-label={t('marketplace.panel.close')}
                 onClick={() => setSellerOpen(false)}
               >
                 ×
@@ -526,11 +554,11 @@ export function Marketplace() {
             </div>
             <div className="mk-panel__row">
               <button type="button" className="s-btn s-btn--accent" onClick={copySellerLink}>
-                Copy application link
+                {t('marketplace.panel.copyLink')}
               </button>
               <button type="button" className="s-btn s-btn--subtle" onClick={downloadSellerKit}>
                 <IcoUpload width="15" height="15" style={{ transform: 'rotate(180deg)' }} />
-                Download starter kit
+                {t('marketplace.panel.downloadKit')}
               </button>
             </div>
           </section>
@@ -546,7 +574,7 @@ export function Marketplace() {
                 className={`s-filter${category === c ? ' is-active' : ''}`}
                 onClick={() => setCategory(c)}
               >
-                {c}
+                {t(CATEGORY_LABELS[c])}
               </button>
             ))}
           </div>
@@ -555,7 +583,7 @@ export function Marketplace() {
             <input
               className="mk-search__input"
               type="search"
-              placeholder="Search assets, creators…"
+              placeholder={t('marketplace.search.placeholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -567,15 +595,12 @@ export function Marketplace() {
           <span className="mk-featured__glow" aria-hidden="true" />
           <div className="mk-featured__body">
             <span className="s-chip s-chip--accent">
-              <IcoSparkle width="12" height="12" /> Featured drop
+              <IcoSparkle width="12" height="12" /> {t('marketplace.featured.badge')}
             </span>
             <h2 className="mk-featured__title">
-              Nocturne Capsule by <em>Vantablack Co.</em> — six garments, one mood.
+              {t('marketplace.featured.titleBefore')}<em>Vantablack Co.</em>{t('marketplace.featured.titleAfter')}
             </h2>
-            <p className="mk-featured__sub">
-              A production-ready streetwear capsule with tech packs, colorways and factory-matched specs.
-              Editable in the Design studio the moment you own it.
-            </p>
+            <p className="mk-featured__sub">{t('marketplace.featured.sub')}</p>
             <div className="mk-featured__row">
               <button
                 type="button"
@@ -589,21 +614,21 @@ export function Marketplace() {
                   if (drop) buyAsset(drop)
                 }}
               >
-                {owned.has('a9') ? 'Owned — open in Design' : 'Get the drop — $129'}
+                {owned.has('a9') ? t('marketplace.featured.getOwned') : t('marketplace.featured.getDrop')}
               </button>
               <button
                 type="button"
                 className="s-btn s-btn--subtle"
                 onClick={() => {
                   setCategory('Collections')
-                  toast('Showing collections — the Nocturne Capsule is in this view.', 'info')
+                  toast(t('marketplace.toast.showingCollections'), 'info')
                 }}
               >
-                Preview collection <IcoArrowRight width="14" height="14" />
+                {t('marketplace.featured.preview')} <IcoArrowRight width="14" height="14" />
               </button>
               <span className="mk-featured__meta">
                 <IcoStar width="13" height="13" style={{ color: 'var(--s-warn)' }} />
-                <b>5.0</b> · 1.4k downloads
+                <b>5.0</b> · 1.4k {t('marketplace.downloads')}
               </span>
             </div>
           </div>
@@ -623,14 +648,14 @@ export function Marketplace() {
         {/* List head */}
         <div className="mk-listhead">
           <span className="s-section-title">
-            {category === 'All' ? 'All assets' : category}
+            {category === 'All' ? t('marketplace.listhead.all') : t(CATEGORY_LABELS[category])}
             <span className="mk-listhead__count">
               {' · '}
-              <b>{visible.length}</b> {visible.length === 1 ? 'item' : 'items'}
+              <b>{visible.length}</b> {visible.length === 1 ? t('marketplace.item') : t('marketplace.items')}
             </span>
           </span>
-          <button type="button" className="mk-sort" onClick={cycleSort} title="Change sort order">
-            Sort: {sort} <IcoChevron width="13" height="13" />
+          <button type="button" className="mk-sort" onClick={cycleSort} title={t('marketplace.sortTitle')}>
+            {t('marketplace.sortLabel')}: {t(SORT_LABELS[sort])} <IcoChevron width="13" height="13" />
           </button>
         </div>
 
@@ -655,8 +680,8 @@ export function Marketplace() {
               <div className="page-empty__ico">
                 <IcoSearch width="24" height="24" />
               </div>
-              <h3>No matching assets</h3>
-              <p>Try a different category or clear your search to browse the full marketplace.</p>
+              <h3>{t('marketplace.empty.title')}</h3>
+              <p>{t('marketplace.empty.body')}</p>
               {(query !== '' || category !== 'All') && (
                 <button
                   type="button"
@@ -667,7 +692,7 @@ export function Marketplace() {
                     setCategory('All')
                   }}
                 >
-                  Clear filters
+                  {t('marketplace.empty.clear')}
                 </button>
               )}
             </div>
@@ -677,15 +702,15 @@ export function Marketplace() {
         {/* Seller CTA */}
         <section className="mk-seller">
           <div className="mk-seller__text">
-            <b>Have a template worth selling?</b>
-            <small>Publish to 40k+ fashion creators and earn 80% on every sale. Payouts weekly.</small>
+            <b>{t('marketplace.seller.title')}</b>
+            <small>{t('marketplace.seller.sub')}</small>
           </div>
           <button
             type="button"
             className="s-btn s-btn--ghost"
             onClick={copySellerLink}
           >
-            <IcoPlus width="16" height="16" /> Become a seller
+            <IcoPlus width="16" height="16" /> {t('marketplace.seller.become')}
           </button>
         </section>
       </div>

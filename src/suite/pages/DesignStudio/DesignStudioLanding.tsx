@@ -4,6 +4,7 @@ import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { loadDesignThumb } from '../../data/designThumbs'
+import { useT } from '@/i18n'
 import { DesignLauncher, type LauncherDesign } from './DesignLauncher'
 
 /**
@@ -16,6 +17,7 @@ export function DesignStudioLanding() {
   const { data } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const designs = useMemo<LauncherDesign[]>(() => {
     if (!user) return []
@@ -32,7 +34,7 @@ export function DesignStudioLanding() {
       designs={designs}
       onOpen={(id) => navigate(`/suite/studio?garment=${encodeURIComponent(id)}`)}
       onNew={() => navigate('/suite/studio')}
-      onGetApp={() => toast('The loom studios mobile app is coming soon — design your clothes on the go.', 'info')}
+      onGetApp={() => toast(t('studioLanding.toast.comingSoon'), 'info')}
     />
   )
 }

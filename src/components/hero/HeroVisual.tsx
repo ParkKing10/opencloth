@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 // Imported so Vite fingerprints the file — busts caches on every update.
 import heroProduct from '../../assets/hero-product.png'
 
@@ -7,16 +8,17 @@ import heroProduct from '../../assets/hero-product.png'
  * with no image box.
  */
 export function HeroVisual() {
+  const t = useT()
   return (
     <div
       className="hero-visual"
-      aria-label="loom studios Kollektion: schwarzer Hoodie, T-Shirt, Cargohose und Cap im Spotlight"
+      aria-label={t('landing.heroVisual.ariaLabel')}
     >
       <div className="hero-visual__stage">
         <img
           className="hero-visual__img"
           src={heroProduct}
-          alt="loom studios Kollektion – Hoodie, T-Shirt, Cargohose und Cap in Schwarz, dramatisch beleuchtet"
+          alt={t('landing.heroVisual.alt')}
           width={1536}
           height={1024}
           loading="eager"

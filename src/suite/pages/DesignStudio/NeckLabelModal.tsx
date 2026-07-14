@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { generateImages, neckLabelPrompt, removeImageBackground, hasImageAi, type NeckLabelFields } from '../../ai/imageProvider'
@@ -20,6 +21,21 @@ const CARE_OPTIONS = [
   'Wash inside out',
 ]
 
+// Maps each care option to its i18n key. The English value stays the stored/prompt value; only the
+// chip label is translated at the render site.
+const CARE_I18N: Record<string, string> = {
+  'Machine wash cold': 'dsDialogs.nl.care.machineWashCold',
+  'Hand wash only': 'dsDialogs.nl.care.handWashOnly',
+  'Do not bleach': 'dsDialogs.nl.care.doNotBleach',
+  'Tumble dry low': 'dsDialogs.nl.care.tumbleDryLow',
+  'Do not tumble dry': 'dsDialogs.nl.care.doNotTumbleDry',
+  'Iron low heat': 'dsDialogs.nl.care.ironLowHeat',
+  'Do not iron': 'dsDialogs.nl.care.doNotIron',
+  'Dry clean only': 'dsDialogs.nl.care.dryCleanOnly',
+  'Do not dry clean': 'dsDialogs.nl.care.doNotDryClean',
+  'Wash inside out': 'dsDialogs.nl.care.washInsideOut',
+}
+
 type Props = {
   open: boolean
   onClose: () => void
@@ -32,6 +48,7 @@ type Props = {
  */
 export function NeckLabelModal({ open, onClose, onApply }: Props) {
   const toast = useToast()
+  const t = useT()
   const live = hasImageAi()
   const [brand, setBrand] = useState('')
   const [style, setStyle] = useState<(typeof STYLES)[number]>('minimal')
@@ -67,7 +84,7 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
   const generate = async () => {
     if (busy) return
     if (!live) {
-      toast('Neck-label generation needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+      toast(t('dsDialogs.nl.gateToast'), 'info')
       return
     }
     const fields: NeckLabelFields = {
@@ -90,7 +107,7 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
       if (ctrl.signal.aborted) return
       const raw = urls[0]
       if (!raw) {
-        toast('The label didn’t generate — try again in a moment.', 'info')
+        toast(t('dsDialogs.nl.errNoGen'), 'info')
         return
       }
       // Cut out the background so the label sits transparently on the garment.
@@ -98,7 +115,7 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
       if (ctrl.signal.aborted) return
       setResult(cut || raw)
     } catch (err) {
-      if (!ctrl.signal.aborted) toast(err instanceof Error ? err.message : 'Neck-label generation failed.', 'info')
+      if (!ctrl.signal.aborted) toast(err instanceof Error ? err.message : t('dsDialogs.nl.errFailed'), 'info')
     } finally {
       if (!ctrl.signal.aborted) setBusy(false)
     }
@@ -117,9 +134,9 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
         <header className="nl__head">
           <span className="nl__title" id="nl-title">
             <IcoSparkle width="18" height="18" />
-            Create Neck Label
+            {t('dsDialogs.nl.title')}
           </span>
-          <button type="button" className="nl__x" aria-label="Close" onClick={onClose}>
+          <button type="button" className="nl__x" aria-label={t('dsDialogs.nl.close')} onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
@@ -127,70 +144,70 @@ export function NeckLabelModal({ open, onClose, onApply }: Props) {
         <div className="nl__body">
           <div className="nl__form">
             <label className="nl__field">
-              <span>Brand name</span>
+              <span>{t('dsDialogs.nl.brandName')}</span>
               <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="loom studios" />
             </label>
 
             <label className="nl__field">
-              <span>Logo style</span>
+              <span>{t('dsDialogs.nl.logoStyle')}</span>
               <div className="nl__chips">
                 {STYLES.map((s) => (
-                  <button key={s} type="button" className={`nl__chip${style === s ? ' is-on' : ''}`} onClick={() => setStyle(s)}>{s}</button>
+                  <button key={s} type="button" className={`nl__chip${style === s ? ' is-on' : ''}`} onClick={() => setStyle(s)}>{t(`dsDialogs.nl.style.${s}`)}</button>
                 ))}
               </div>
             </label>
 
             <div className="nl__row">
               <label className="nl__field">
-                <span>Size</span>
+                <span>{t('dsDialogs.nl.size')}</span>
                 <select value={size} onChange={(e) => setSize(e.target.value)}>
-                  {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  {SIZES.map((s) => <option key={s} value={s}>{s === 'One Size' ? t('dsDialogs.nl.oneSize') : s}</option>)}
                 </select>
               </label>
               <label className="nl__field">
-                <span>Made in</span>
+                <span>{t('dsDialogs.nl.madeIn')}</span>
                 <input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="Portugal" />
               </label>
             </div>
 
             <label className="nl__field">
-              <span>Composition</span>
-              <input value={composition} onChange={(e) => setComposition(e.target.value)} placeholder="100% Organic Cotton" />
+              <span>{t('dsDialogs.nl.composition')}</span>
+              <input value={composition} onChange={(e) => setComposition(e.target.value)} placeholder={t('dsDialogs.nl.compositionPlaceholder')} />
             </label>
 
             <label className="nl__field">
-              <span>Care instructions</span>
+              <span>{t('dsDialogs.nl.careInstructions')}</span>
               <div className="nl__chips">
                 {CARE_OPTIONS.map((c) => (
-                  <button key={c} type="button" className={`nl__chip${care.includes(c) ? ' is-on' : ''}`} onClick={() => toggleCare(c)}>{c}</button>
+                  <button key={c} type="button" className={`nl__chip${care.includes(c) ? ' is-on' : ''}`} onClick={() => toggleCare(c)}>{t(CARE_I18N[c])}</button>
                 ))}
               </div>
             </label>
 
             <label className="nl__field">
-              <span>Anything else for the AI (optional)</span>
-              <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={2} placeholder="e.g. black woven satin tag, gold thread, rounded corners" />
+              <span>{t('dsDialogs.nl.extra')}</span>
+              <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={2} placeholder={t('dsDialogs.nl.extraPlaceholder')} />
             </label>
 
-            {!live && <p className="nl__note">Add your Runware API key in Settings → AI to generate labels.</p>}
+            {!live && <p className="nl__note">{t('dsDialogs.nl.note')}</p>}
           </div>
 
           <div className="nl__preview">
             <div className="nl__stage">
               {busy ? (
-                <span className="nl__spin" aria-label="Generating" />
+                <span className="nl__spin" aria-label={t('dsDialogs.nl.generatingAria')} />
               ) : result ? (
-                <img src={result} alt="Generated neck label" />
+                <img src={result} alt={t('dsDialogs.nl.resultAlt')} />
               ) : (
-                <span className="nl__empty">Your label preview appears here</span>
+                <span className="nl__empty">{t('dsDialogs.nl.emptyPreview')}</span>
               )}
             </div>
             <div className="nl__actions">
               <button type="button" className="s-btn s-btn--accent" onClick={generate} disabled={busy}>
-                {busy ? 'Generating…' : result ? 'Regenerate' : 'Generate label'}
+                {busy ? t('dsDialogs.nl.generating') : result ? t('dsDialogs.nl.regenerate') : t('dsDialogs.nl.generateLabel')}
               </button>
               <button type="button" className="s-btn" onClick={apply} disabled={!result || busy}>
-                Use this label
+                {t('dsDialogs.nl.useLabel')}
               </button>
             </div>
           </div>

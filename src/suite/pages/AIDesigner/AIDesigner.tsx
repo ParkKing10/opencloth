@@ -23,6 +23,7 @@ import { createGarment } from '../../garment-model/garmentLibrary'
 import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
 import { saveDoc } from '../DesignStudio/designDoc'
 import { downloadBlob, slugify } from '../../lib/download'
+import { useT } from '@/i18n'
 import './aid.css'
 
 /** The AI Designer does real, production-grade work (front + back render, on-model shots), so it
@@ -65,6 +66,7 @@ function pushHistory(prompt: string): string[] {
 export function AIDesigner() {
   const navigate = useNavigate()
   const toast = useToast()
+  const t = useT()
   const { user } = useAuth()
   const { mutate } = useStore()
 
@@ -120,7 +122,7 @@ export function AIDesigner() {
   async function addReference(i: number, file: File | undefined) {
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      toast('Please choose an image file to use as a reference.', 'info')
+      toast(t('aiDesigner.toastPickImage'), 'info')
       return
     }
     const url = await blobToDataUrl(file)
@@ -129,11 +131,11 @@ export function AIDesigner() {
 
   async function handleGenerate() {
     const clean = prompt.trim()
-    if (!clean) return toast('Describe the garment you want before generating.', 'info')
-    if (!user) return toast('Sign in to generate designs.', 'info')
-    if (!live) return toast('The AI Designer needs a real image model. Add your Runware API key in Settings → AI.', 'info')
+    if (!clean) return toast(t('aiDesigner.toastDescribeFirst'), 'info')
+    if (!user) return toast(t('aiDesigner.toastSignIn'), 'info')
+    if (!live) return toast(t('aiDesigner.toastNeedModel'), 'info')
     if (generating) return
-    if (coins < DESIGN_COST) return toast(`Not enough coins — each design costs ${DESIGN_COST}.`, 'info')
+    if (coins < DESIGN_COST) return toast(t('aiDesigner.toastNotEnoughDesign', { n: DESIGN_COST }), 'info')
 
     const brief = { prompt: clean, style, type }
     // References are plain images — loose STYLE guidance the model takes inspiration from, never copies.
@@ -147,11 +149,11 @@ export function AIDesigner() {
     for (let i = 0; i < count; i++) {
       if (coins - made * DESIGN_COST < DESIGN_COST) break // ran out of coins mid-run
       try {
-        setProgress(`Rendering front ${i + 1}/${count}…`)
+        setProgress(t('aiDesigner.progressFront', { i: i + 1, n: count }))
         const signal = AbortSignal.any([ctrl.signal, AbortSignal.timeout(GEN_TIMEOUT_MS)])
         const front = (await generateImages(frontPrompt(brief, references.length > 0), { n: 1, references, size: DESIGN_SIZE, quality: 'high', signal }))[0]
-        if (!front) throw new Error('No front render returned.')
-        setProgress(`Rendering back ${i + 1}/${count}…`)
+        if (!front) throw new Error(t('aiDesigner.errNoFront'))
+        setProgress(t('aiDesigner.progressBack', { i: i + 1, n: count }))
         // Condition the back on the front so it's the SAME garment, from behind.
         const back = (await generateImages(backPrompt(brief), { n: 1, references: [front], size: DESIGN_SIZE, quality: 'high', signal }))[0] ?? front
         const design: AIDesign = {
@@ -181,9 +183,9 @@ export function AIDesigner() {
     abortRef.current = null
     if (made > 0) {
       setHistory(pushHistory(clean))
-      toast(`Generated ${made} design${made === 1 ? '' : 's'} (front + back) — saved to your AI library.`, 'success')
+      toast(made === 1 ? t('aiDesigner.toastGeneratedOne') : t('aiDesigner.toastGeneratedMany', { n: made }), 'success')
     } else {
-      toast(firstError instanceof Error ? firstError.message : 'Generation failed. Please try again.', 'info')
+      toast(firstError instanceof Error ? firstError.message : t('aiDesigner.errGenerationFailed'), 'info')
     }
   }
 
@@ -191,7 +193,7 @@ export function AIDesigner() {
   async function generateModel(design: AIDesign) {
     if (!user) return
     if (modelBusy.has(design.id)) return
-    if (coins < MODEL_COST) return toast(`Not enough coins — an on-model photo costs ${MODEL_COST}.`, 'info')
+    if (coins < MODEL_COST) return toast(t('aiDesigner.toastNotEnoughModel', { n: MODEL_COST }), 'info')
     setModelBusy((s) => new Set(s).add(design.id))
     try {
       const signal = AbortSignal.timeout(GEN_TIMEOUT_MS)
@@ -202,13 +204,13 @@ export function AIDesigner() {
         quality: 'high',
         signal,
       }))[0]
-      if (!url) throw new Error('No photo returned.')
+      if (!url) throw new Error(t('aiDesigner.errNoPhoto'))
       const next = await patchDesign(design.id, { modelUrls: [...design.modelUrls, url] })
       setDesigns((prev) => prev.map((d) => (d.id === design.id ? next ?? d : d)))
       spend(MODEL_COST)
-      toast(`Real-life photo added to “${design.name}”.`, 'success')
+      toast(t('aiDesigner.toastPhotoAdded', { name: design.name }), 'success')
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not create the on-model photo.', 'info')
+      toast(err instanceof Error ? err.message : t('aiDesigner.errNoModelPhoto'), 'info')
     } finally {
       setModelBusy((s) => {
         const n = new Set(s)
@@ -223,12 +225,12 @@ export function AIDesigner() {
       const blob = await fetch(url).then((r) => r.blob())
       downloadBlob(blob, `threados-${slugify(name)}.png`)
     } catch {
-      toast('Could not download that image.', 'info')
+      toast(t('aiDesigner.toastDownloadFail'), 'info')
     }
   }
 
   async function removeDesign(design: AIDesign) {
-    if (!window.confirm(`Delete “${design.name}” from your AI library?`)) return
+    if (!window.confirm(t('aiDesigner.confirmDelete', { name: design.name }))) return
     await deleteDesign(design.id)
     setDesigns((prev) => prev.filter((d) => d.id !== design.id))
   }
@@ -243,7 +245,7 @@ export function AIDesigner() {
     if (!user) return
     const summary = createGarment(user.id, makeEmptyGarment(), { name: design.name, category: design.type, origin: 'ai' })
     saveDoc(summary.id, { layers: [], hidden: {}, designName: design.name, garmentEdit: design.frontUrl, updatedAt: Date.now() })
-    toast(`“${design.name}” sent to the Design Studio.`, 'success')
+    toast(t('aiDesigner.toastSentToStudio', { name: design.name }), 'success')
     navigate(`/suite/studio?garment=${summary.id}`)
   }
 
@@ -253,19 +255,18 @@ export function AIDesigner() {
       <header className="aid-head">
         <div>
           <p className="aid-head__eyebrow">
-            <IcoSparkle width="13" height="13" /> AI Studio
+            <IcoSparkle width="13" height="13" /> {t('aiDesigner.eyebrow')}
           </p>
-          <h1 className="aid-head__title">AI Designer</h1>
+          <h1 className="aid-head__title">{t('aiDesigner.title')}</h1>
           <p className="aid-head__sub">
-            Describe a garment and the studio renders it for real — front and back — then puts a model in it so you see
-            how it looks on a person. Every design saves to your AI library.
+            {t('aiDesigner.subtitle')}
           </p>
         </div>
         <div className="aid-head__actions">
           <span className="aid-coins">
             <IcoCoins width="16" height="16" />
             <b>{coins}</b>
-            <small>coins</small>
+            <small>{t('aiDesigner.coinsLabel')}</small>
           </span>
         </div>
       </header>
@@ -275,20 +276,20 @@ export function AIDesigner() {
         <aside className="aid-panel">
           <div className="aid-field">
             <div className="aid-field__label">
-              <span>Prompt</span>
-              <span className="aid-field__hint">Be specific — fabric, fit, finish</span>
+              <span>{t('aiDesigner.prompt')}</span>
+              <span className="aid-field__hint">{t('aiDesigner.promptHint')}</span>
             </div>
             <div className="aid-prompt">
               <textarea
                 value={prompt}
                 maxLength={PROMPT_MAX}
                 onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the garment you want to create…"
-                aria-label="Prompt"
+                placeholder={t('aiDesigner.promptPlaceholder')}
+                aria-label={t('aiDesigner.prompt')}
               />
               <div className="aid-prompt__foot">
                 <button className="aid-prompt__enhance" type="button" onClick={() => setPrompt((p) => enhanceBrief(p).slice(0, PROMPT_MAX))}>
-                  <IcoBolt width="12" height="12" /> Enhance
+                  <IcoBolt width="12" height="12" /> {t('aiDesigner.enhance')}
                 </button>
                 <span className="aid-prompt__count">
                   {prompt.length}/{PROMPT_MAX}
@@ -300,8 +301,8 @@ export function AIDesigner() {
           {/* Reference images (optional, real uploads) */}
           <div className="aid-field">
             <div className="aid-field__label">
-              <span>Reference images</span>
-              <span className="aid-field__hint">Optional</span>
+              <span>{t('aiDesigner.refImages')}</span>
+              <span className="aid-field__hint">{t('aiDesigner.optional')}</span>
             </div>
             <div className="aid-refs">
               {Array.from({ length: REF_COUNT }).map((_, i) => (
@@ -310,11 +311,11 @@ export function AIDesigner() {
                     type="button"
                     className={`aid-ref${refUrls[i] ? ' is-filled' : ''}`}
                     onClick={() => refInputs.current[i]?.click()}
-                    aria-label={refUrls[i] ? 'Replace reference image' : 'Add reference image'}
-                    title={refUrls[i] ? 'Replace reference image' : 'Add reference image'}
+                    aria-label={refUrls[i] ? t('aiDesigner.refReplace') : t('aiDesigner.refAdd')}
+                    title={refUrls[i] ? t('aiDesigner.refReplace') : t('aiDesigner.refAdd')}
                   >
                     {refUrls[i] ? (
-                      <img src={refUrls[i] as string} alt={`Reference ${i + 1}`} className="aid-ref__img" />
+                      <img src={refUrls[i] as string} alt={t('aiDesigner.refAlt', { n: i + 1 })} className="aid-ref__img" />
                     ) : (
                       <IcoPlus width="16" height="16" />
                     )}
@@ -332,7 +333,7 @@ export function AIDesigner() {
           </div>
 
           <div className="aid-field">
-            <div className="aid-field__label"><span>Brand style</span></div>
+            <div className="aid-field__label"><span>{t('aiDesigner.brandStyle')}</span></div>
             <div className="aid-pills">
               {DESIGN_STYLES.map((s) => (
                 <button key={s} type="button" className={`aid-pill${style === s ? ' is-active' : ''}`} onClick={() => setStyle(s)}>
@@ -343,7 +344,7 @@ export function AIDesigner() {
           </div>
 
           <div className="aid-field">
-            <div className="aid-field__label"><span>Garment type</span></div>
+            <div className="aid-field__label"><span>{t('aiDesigner.garmentType')}</span></div>
             <div className="aid-pills">
               {DESIGN_TYPES.map((t) => (
                 <button key={t} type="button" className={`aid-pill${type === t ? ' is-active' : ''}`} onClick={() => setType(t)}>
@@ -354,7 +355,7 @@ export function AIDesigner() {
           </div>
 
           <div className="aid-field">
-            <div className="aid-field__label"><span>How many designs</span></div>
+            <div className="aid-field__label"><span>{t('aiDesigner.howMany')}</span></div>
             <div className="aid-seg" style={{ '--aid-cols': 4 } as CSSProperties}>
               {[1, 2, 3, 4].map((n) => (
                 <button key={n} type="button" className={`aid-seg__opt${count === n ? ' is-active' : ''}`} onClick={() => setCount(n)}>
@@ -367,10 +368,16 @@ export function AIDesigner() {
           <div className="aid-panel__foot">
             <button className="s-btn s-btn--accent aid-generate" type="button" disabled={!canGenerate} onClick={() => void handleGenerate()}>
               <IcoSparkle width="17" height="17" />
-              {generating ? progress || 'Generating…' : live ? `Generate ${count} design${count === 1 ? '' : 's'}` : 'Add a Runware key to generate'}
+              {generating
+                ? progress || t('aiDesigner.generating')
+                : live
+                  ? count === 1
+                    ? t('aiDesigner.generateOne')
+                    : t('aiDesigner.generateMany', { n: count })
+                  : t('aiDesigner.needKey')}
             </button>
             <p className="aid-cost-hint">
-              <IcoCoins width="13" height="13" /> Costs <b>{totalCost} coins</b> — front + back each, {DESIGN_COST}/design
+              <IcoCoins width="13" height="13" /> {t('aiDesigner.costsPrefix')} <b>{t('aiDesigner.costsCoins', { n: totalCost })}</b> {t('aiDesigner.costsSuffix', { cost: DESIGN_COST })}
             </p>
           </div>
         </aside>
@@ -379,8 +386,8 @@ export function AIDesigner() {
         <section className="aid-results">
           <div className="aid-results__head">
             <div className="aid-results__title">
-              <h2>Your AI library</h2>
-              <span className="aid-results__count">{designs.length} design{designs.length === 1 ? '' : 's'}</span>
+              <h2>{t('aiDesigner.library')}</h2>
+              <span className="aid-results__count">{designs.length === 1 ? t('aiDesigner.designCountOne') : t('aiDesigner.designCountMany', { n: designs.length })}</span>
             </div>
           </div>
 
@@ -391,9 +398,9 @@ export function AIDesigner() {
                   <div className="aid-gen">
                     <span className="aid-gen__shimmer" />
                     <span className="aid-gen__orb"><IcoSparkle width="22" height="22" /></span>
-                    <span className="aid-gen__label">{progress || `Rendering ${i + 1}…`}</span>
+                    <span className="aid-gen__label">{progress || t('aiDesigner.renderingN', { n: i + 1 })}</span>
                   </div>
-                  <div className="aid-card__meta"><span className="aid-card__name">Generating…</span></div>
+                  <div className="aid-card__meta"><span className="aid-card__name">{t('aiDesigner.generating')}</span></div>
                 </article>
               ))}
 
@@ -410,8 +417,8 @@ export function AIDesigner() {
             {designs.length === 0 && !generating && (
               <div className="aid-empty">
                 <span className="aid-empty__orb"><IcoSparkle width="22" height="22" /></span>
-                <h3>{live ? 'No designs yet' : 'Connect a Runware key'}</h3>
-                <p>{live ? 'Describe a garment on the left and generate your first design.' : 'Add your Runware API key in Settings → AI — the AI Designer renders real garments, it won’t fake it.'}</p>
+                <h3>{live ? t('aiDesigner.emptyTitleLive') : t('aiDesigner.emptyTitleKey')}</h3>
+                <p>{live ? t('aiDesigner.emptyBodyLive') : t('aiDesigner.emptyBodyKey')}</p>
               </div>
             )}
           </div>
@@ -419,7 +426,7 @@ export function AIDesigner() {
           {history.length > 0 && (
             <div className="aid-history">
               <div className="aid-history__head">
-                <span className="aid-history__title"><IcoBolt width="13" height="13" /> Prompt history</span>
+                <span className="aid-history__title"><IcoBolt width="13" height="13" /> {t('aiDesigner.promptHistory')}</span>
               </div>
               <div className="aid-history__row">
                 {history.map((h) => (
@@ -439,17 +446,17 @@ export function AIDesigner() {
         createPortal(
           <div className="aid-lightbox" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
             <div className="aid-lightbox__panel" onClick={(e) => e.stopPropagation()}>
-              <button type="button" className="aid-lightbox__x" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+              <button type="button" className="aid-lightbox__x" aria-label={t('aiDesigner.close')} onClick={() => setLightbox(null)}>×</button>
               <img className="aid-lightbox__img" src={lightbox.url} alt={lightbox.design.name} />
               <div className="aid-lightbox__bar">
                 <span className="aid-lightbox__name" title={lightbox.design.name}>{lightbox.design.name}</span>
                 <div className="aid-lightbox__actions">
-                  <button type="button" className="s-btn" onClick={() => void download(lightbox.url, lightbox.design.name)}>Download</button>
-                  <button type="button" className="s-btn" onClick={() => { sendToStudio(lightbox.design); setLightbox(null) }}>Open in Design Studio</button>
+                  <button type="button" className="s-btn" onClick={() => void download(lightbox.url, lightbox.design.name)}>{t('aiDesigner.download')}</button>
+                  <button type="button" className="s-btn" onClick={() => { sendToStudio(lightbox.design); setLightbox(null) }}>{t('aiDesigner.openInStudio')}</button>
                   <button type="button" className="s-btn s-btn--accent" disabled={modelBusy.has(lightbox.design.id)} onClick={() => void generateModel(lightbox.design)}>
-                    {modelBusy.has(lightbox.design.id) ? 'Shooting…' : 'On a Model'}
+                    {modelBusy.has(lightbox.design.id) ? t('aiDesigner.shooting') : t('aiDesigner.onModel')}
                   </button>
-                  <button type="button" className="s-btn" onClick={() => { const dsg = lightbox.design; setLightbox(null); void removeDesign(dsg) }}>Delete</button>
+                  <button type="button" className="s-btn" onClick={() => { const dsg = lightbox.design; setLightbox(null); void removeDesign(dsg) }}>{t('aiDesigner.delete')}</button>
                 </div>
               </div>
             </div>
@@ -468,26 +475,27 @@ function AIDesignCard(props: {
   onDelete: () => void
 }) {
   const { design: d, onOpen, onFav, onDelete } = props
+  const t = useT()
   const [view, setView] = useState<'front' | 'back'>('front')
   const current = view === 'front' ? d.frontUrl : d.backUrl
 
   return (
     <article className="aid-card">
       <div className="aid-card__canvas">
-        <img className="aid-card__img" src={current} alt={`${d.name} — ${view}`} draggable={false} style={{ cursor: 'zoom-in' }} onClick={() => onOpen(current)} />
-        <button type="button" className={`aid-card__fav${d.favorite ? ' is-fav' : ''}`} onClick={onFav} aria-label={d.favorite ? 'Unfavorite' : 'Favorite'}>
+        <img className="aid-card__img" src={current} alt={t('aiDesigner.cardAlt', { name: d.name, view: view === 'front' ? t('aiDesigner.front') : t('aiDesigner.back') })} draggable={false} style={{ cursor: 'zoom-in' }} onClick={() => onOpen(current)} />
+        <button type="button" className={`aid-card__fav${d.favorite ? ' is-fav' : ''}`} onClick={onFav} aria-label={d.favorite ? t('aiDesigner.unfavorite') : t('aiDesigner.favorite')}>
           <IcoStar width="15" height="15" />
         </button>
         <div className="aid-viewtabs">
-          <button type="button" className={view === 'front' ? 'is-active' : ''} onClick={() => setView('front')}>Front</button>
-          <button type="button" className={view === 'back' ? 'is-active' : ''} onClick={() => setView('back')}>Back</button>
+          <button type="button" className={view === 'front' ? 'is-active' : ''} onClick={() => setView('front')}>{t('aiDesigner.front')}</button>
+          <button type="button" className={view === 'back' ? 'is-active' : ''} onClick={() => setView('back')}>{t('aiDesigner.back')}</button>
         </div>
         {/* Only Delete lives on the card — every other action (download, on-a-model, open in studio)
             is in the lightbox that opens when you click the image. */}
         <div className="aid-toolbar">
-          <button className="aid-tool" type="button" aria-label="Delete" onClick={onDelete}>
+          <button className="aid-tool" type="button" aria-label={t('aiDesigner.delete')} onClick={onDelete}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" /></svg>
-            <span className="aid-tool__tip">Delete</span>
+            <span className="aid-tool__tip">{t('aiDesigner.delete')}</span>
           </button>
         </div>
       </div>
@@ -495,8 +503,8 @@ function AIDesignCard(props: {
       {d.modelUrls.length > 0 && (
         <div className="aid-models">
           {d.modelUrls.map((m, i) => (
-            <button key={i} type="button" className="aid-model" onClick={() => onOpen(m)} title="Enlarge on-model photo">
-              <img src={m} alt={`${d.name} on a model ${i + 1}`} draggable={false} />
+            <button key={i} type="button" className="aid-model" onClick={() => onOpen(m)} title={t('aiDesigner.enlargeModel')}>
+              <img src={m} alt={t('aiDesigner.onModelAlt', { name: d.name, n: i + 1 })} draggable={false} />
             </button>
           ))}
         </div>

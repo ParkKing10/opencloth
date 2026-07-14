@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import {
   ACCESSORY_CATEGORIES,
@@ -14,6 +15,12 @@ import '../../garments/garments.css'
 
 export function AdminAccessories() {
   const toast = useToast()
+  const t = useT()
+  const catLabel = (id: string) => {
+    const key = `accessories.cat.${id}`
+    const s = t(key)
+    return s === key ? accessoryCategoryLabel(id) : s
+  }
   const [items, setItems] = useState<Accessory[]>([])
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
@@ -42,10 +49,10 @@ export function AdminAccessories() {
   const shown = useMemo(() => (cat === 'all' ? items : items.filter((a) => a.category === cat)), [items, cat])
 
   async function onDelete(a: Accessory) {
-    if (!window.confirm(`Delete "${a.name}"? This removes it from the library for everyone.`)) return
+    if (!window.confirm(t('accessories.admin.confirmDelete', { name: a.name }))) return
     const r = await deleteAccessory(a.id)
     if (r.ok) {
-      toast(`Deleted ${a.name}.`, 'default')
+      toast(t('accessories.admin.deleted', { name: a.name }), 'default')
       void refresh()
     } else {
       toast(r.error, 'default')
@@ -55,12 +62,16 @@ export function AdminAccessories() {
   async function deleteAll() {
     const n = items.length
     if (n === 0 || wiping) return
-    if (!window.confirm(`Delete ALL ${n} accessor${n === 1 ? 'y' : 'ies'}? This cannot be undone.`)) return
+    const confirmMsg = n === 1
+      ? t('accessories.admin.confirmDeleteAllOne', { n })
+      : t('accessories.admin.confirmDeleteAllMany', { n })
+    if (!window.confirm(confirmMsg)) return
     setWiping(true)
     const r = await deleteAllAccessories()
     setWiping(false)
     if (r.ok) {
-      toast(`Deleted ${r.value.deleted} accessor${r.value.deleted === 1 ? 'y' : 'ies'}.`, 'success')
+      const d = r.value.deleted
+      toast(d === 1 ? t('accessories.admin.deletedCountOne', { n: d }) : t('accessories.admin.deletedCountMany', { n: d }), 'success')
       void refresh()
     } else {
       toast(r.error, 'default')
@@ -71,11 +82,13 @@ export function AdminAccessories() {
     <div>
       <header className="gl-page-head">
         <div>
-          <h1>Accessory Library</h1>
+          <h1>{t('accessories.admin.title')}</h1>
           <p>
             {loading
-              ? 'Loading…'
-              : `${items.length} accessor${items.length === 1 ? 'y' : 'ies'} — every user can place these on a garment for free.`}
+              ? t('accessories.admin.loading')
+              : items.length === 1
+                ? t('accessories.admin.subtitleOne', { n: items.length })
+                : t('accessories.admin.subtitleMany', { n: items.length })}
           </p>
         </div>
         <div className="gl-page-head__actions">
@@ -85,18 +98,18 @@ export function AdminAccessories() {
             onClick={deleteAll}
             disabled={wiping || loading || items.length === 0}
           >
-            {wiping ? 'Deleting…' : 'Delete all'}
+            {wiping ? t('accessories.admin.deleting') : t('accessories.admin.deleteAll')}
           </button>
           <button className="s-btn s-btn--accent" type="button" onClick={() => setImporting(true)}>
-            Upload accessory pack
+            {t('accessories.admin.upload')}
           </button>
         </div>
       </header>
 
       {shared === false && (
         <div className="gl-imp__error" style={{ marginBottom: 16 }}>
-          Stored locally on this browser only. Run the <code>accessories</code> table migration in
-          {' '}supabase/schema.sql to share the library across all users.
+          {t('accessories.admin.localWarnPre')} <code>accessories</code>{' '}
+          {t('accessories.admin.localWarnPost')}
         </div>
       )}
 
@@ -104,7 +117,7 @@ export function AdminAccessories() {
         <div className="gl__toolbar">
           <div className="gl__chips">
             <button className={`gl__chip${cat === 'all' ? ' is-active' : ''}`} type="button" onClick={() => setCat('all')}>
-              All <span className="gl__chip-n">{items.length}</span>
+              {t('accessories.admin.all')} <span className="gl__chip-n">{items.length}</span>
             </button>
             {ACCESSORY_CATEGORIES.map((c) => (
               <button
@@ -113,31 +126,31 @@ export function AdminAccessories() {
                 type="button"
                 onClick={() => setCat(c.id)}
               >
-                {c.label} <span className="gl__chip-n">{counts.get(c.id) ?? 0}</span>
+                {t(`accessories.cat.${c.id}`)} <span className="gl__chip-n">{counts.get(c.id) ?? 0}</span>
               </button>
             ))}
           </div>
 
           {shown.length === 0 ? (
             <div className="gl__empty">
-              <strong>{loading ? 'Loading…' : 'No accessories yet'}</strong>
-              <span>Upload a pack of images — hats, jewelry, bags, patches — to build the library.</span>
+              <strong>{loading ? t('accessories.admin.loading') : t('accessories.admin.emptyTitle')}</strong>
+              <span>{t('accessories.admin.emptyHint')}</span>
             </div>
           ) : (
             <div className="gl__grid">
               {shown.map((a) => (
                 <div key={a.id} className="gl-card">
                   <div className="gl-card__thumb" style={{ cursor: 'default' }}>
-                    <span className="gl-card__cat">{accessoryCategoryLabel(a.category)}</span>
+                    <span className="gl-card__cat">{catLabel(a.category)}</span>
                     <img className="gl-card__img" src={a.image} alt={a.name} style={{ objectFit: 'contain', background: 'var(--s-panel-2)' }} />
                   </div>
                   <div className="gl-card__body">
                     <div className="gl-card__text">
                       <div className="gl-card__name">{a.name}</div>
-                      <div className="gl-card__views">{accessoryCategoryLabel(a.category)}</div>
+                      <div className="gl-card__views">{catLabel(a.category)}</div>
                     </div>
-                    <button className="gl-card__del" type="button" onClick={() => onDelete(a)} title="Delete accessory">
-                      Delete
+                    <button className="gl-card__del" type="button" onClick={() => onDelete(a)} title={t('accessories.admin.deleteTitle')}>
+                      {t('accessories.admin.delete')}
                     </button>
                   </div>
                 </div>

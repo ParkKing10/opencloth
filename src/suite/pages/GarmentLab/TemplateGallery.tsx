@@ -5,6 +5,7 @@
  * and a Use Template action that loads the pick straight into the editor via onPick.
  */
 import { useEffect, useMemo, useState } from 'react'
+import { useT } from '@/i18n'
 import { GARMENT_TEMPLATES, getTemplate, type GarmentTemplate } from '../../garment-model/garmentTemplates'
 import { garmentThumbnailDataUrl } from '../../garment-model/garmentThumbnail'
 
@@ -35,6 +36,14 @@ function writeIds(key: string, ids: string[]): void {
 }
 
 export function TemplateGallery({ onPick }: Props) {
+  const t = useT()
+  // Category values come from the template data (English). Translate for display only, with a safe
+  // fallback to the raw value for any category not in the locale map.
+  const catLabel = (c: string) => {
+    const key = `labPanels.cat.${c}`
+    const label = t(key)
+    return label === key ? c : label
+  }
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState<string>('all')
   const [favOnly, setFavOnly] = useState(false)
@@ -167,42 +176,42 @@ export function TemplateGallery({ onPick }: Props) {
     return () => window.removeEventListener('keydown', onKey)
   }, [detailId])
 
-  const card = (t: GarmentTemplate, compact = false) => (
+  const card = (tpl: GarmentTemplate, compact = false) => (
     <div
-      key={t.id}
+      key={tpl.id}
       role="button"
       tabIndex={0}
-      className={`tgal__card${detailId === t.id ? ' is-open' : ''}${compact ? ' tgal__card--sm' : ''}`}
-      onClick={() => setDetailId(t.id)}
+      className={`tgal__card${detailId === tpl.id ? ' is-open' : ''}${compact ? ' tgal__card--sm' : ''}`}
+      onClick={() => setDetailId(tpl.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          setDetailId(t.id)
+          setDetailId(tpl.id)
         }
       }}
-      aria-label={`${t.name} — view details`}
+      aria-label={t('labPanels.gallery.cardAria', { name: tpl.name })}
     >
       <span className="tgal__thumb">
-        {thumbs[t.id] ? (
-          <img src={thumbs[t.id]} alt={t.name} loading="lazy" width={140} height={196} />
+        {thumbs[tpl.id] ? (
+          <img src={thumbs[tpl.id]} alt={tpl.name} loading="lazy" width={140} height={196} />
         ) : (
           <span className="tgal__skel" aria-hidden />
         )}
       </span>
       <button
         type="button"
-        className={`tgal__star${favs.has(t.id) ? ' is-on' : ''}`}
-        title={favs.has(t.id) ? 'Remove from favourites' : 'Add to favourites'}
-        aria-label={favs.has(t.id) ? `Unfavourite ${t.name}` : `Favourite ${t.name}`}
-        aria-pressed={favs.has(t.id)}
+        className={`tgal__star${favs.has(tpl.id) ? ' is-on' : ''}`}
+        title={favs.has(tpl.id) ? t('labPanels.gallery.removeFav') : t('labPanels.gallery.addFav')}
+        aria-label={favs.has(tpl.id) ? t('labPanels.gallery.unfavAria', { name: tpl.name }) : t('labPanels.gallery.favAria', { name: tpl.name })}
+        aria-pressed={favs.has(tpl.id)}
         onClick={(e) => {
           e.stopPropagation()
-          toggleFav(t.id)
+          toggleFav(tpl.id)
         }}
       >
         ★
       </button>
-      <span className="tgal__name">{t.name}</span>
+      <span className="tgal__name">{tpl.name}</span>
     </div>
   )
 
@@ -213,23 +222,23 @@ export function TemplateGallery({ onPick }: Props) {
           className="tgal__search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={`Search ${GARMENT_TEMPLATES.length} templates — puffer, cargo, wrap dress…`}
-          aria-label="Search templates"
+          placeholder={t('labPanels.gallery.searchPlaceholder', { n: GARMENT_TEMPLATES.length })}
+          aria-label={t('labPanels.gallery.searchAria')}
         />
         <button
           type="button"
           className={`tgal__favtoggle${favOnly ? ' is-on' : ''}`}
           onClick={() => setFavOnly((v) => !v)}
           aria-pressed={favOnly}
-          title="Show favourites only"
+          title={t('labPanels.gallery.favouritesOnly')}
         >
-          ★ Favourites{favs.size > 0 ? ` · ${favs.size}` : ''}
+          ★ {t('labPanels.gallery.favourites')}{favs.size > 0 ? ` · ${favs.size}` : ''}
         </button>
       </div>
 
-      <div className="tgal__tabs" role="tablist" aria-label="Filter by category">
+      <div className="tgal__tabs" role="tablist" aria-label={t('labPanels.gallery.filterByCategory')}>
         <button type="button" role="tab" aria-selected={cat === 'all'} className={`tgal__tab${cat === 'all' ? ' is-active' : ''}`} onClick={() => setCat('all')}>
-          All · {GARMENT_TEMPLATES.length}
+          {t('labPanels.gallery.all')} · {GARMENT_TEMPLATES.length}
         </button>
         {categories.map((c) => (
           <button
@@ -240,27 +249,29 @@ export function TemplateGallery({ onPick }: Props) {
             className={`tgal__tab${cat === c ? ' is-active' : ''}`}
             onClick={() => setCat((cur) => (cur === c ? 'all' : c))}
           >
-            {c} · {countByCat.get(c) ?? 0}
+            {catLabel(c)} · {countByCat.get(c) ?? 0}
           </button>
         ))}
       </div>
 
       <div className="tgal__meta">
         <span className="tgal__count" aria-live="polite">
-          {hasFilters ? `${filtered.length} of ${GARMENT_TEMPLATES.length} templates` : `${GARMENT_TEMPLATES.length} templates`}
-          {!thumbsReady && ' · rendering previews…'}
+          {hasFilters
+            ? t('labPanels.gallery.countFiltered', { n: filtered.length, total: GARMENT_TEMPLATES.length })
+            : t('labPanels.gallery.countAll', { total: GARMENT_TEMPLATES.length })}
+          {!thumbsReady && t('labPanels.gallery.rendering')}
         </span>
         {hasFilters && (
           <button type="button" className="tgal__clear" onClick={clearFilters}>
-            Clear filters ×
+            {t('labPanels.gallery.clearFilters')} ×
           </button>
         )}
       </div>
 
       {!hasFilters && recentTemplates.length > 0 && (
         <section className="tgal__group">
-          <h3 className="tgal__cat">Recently used</h3>
-          <div className="tgal__recent">{recentTemplates.map((t) => card(t, true))}</div>
+          <h3 className="tgal__cat">{t('labPanels.gallery.recentlyUsed')}</h3>
+          <div className="tgal__recent">{recentTemplates.map((tpl) => card(tpl, true))}</div>
         </section>
       )}
 
@@ -268,16 +279,24 @@ export function TemplateGallery({ onPick }: Props) {
         <div className="tgal__empty">
           {favOnly && favs.size === 0 ? (
             <>
-              <p>No favourites yet — hover a template and hit ★ to save it here.</p>
+              <p>{t('labPanels.gallery.noFavs')}</p>
               <button type="button" className="tgal__clear" onClick={() => setFavOnly(false)}>
-                Show all templates
+                {t('labPanels.gallery.showAll')}
               </button>
             </>
           ) : (
             <>
-              <p>No templates match{q ? ` “${query.trim()}”` : ''}{cat !== 'all' ? ` in ${cat}` : ''}.</p>
+              <p>
+                {q && cat !== 'all'
+                  ? t('labPanels.gallery.noMatchQueryCat', { query: query.trim(), cat: catLabel(cat) })
+                  : q
+                    ? t('labPanels.gallery.noMatchQuery', { query: query.trim() })
+                    : cat !== 'all'
+                      ? t('labPanels.gallery.noMatchCat', { cat: catLabel(cat) })
+                      : t('labPanels.gallery.noMatchNone')}
+              </p>
               <button type="button" className="tgal__clear" onClick={clearFilters}>
-                Clear filters
+                {t('labPanels.gallery.clearFilters')}
               </button>
             </>
           )}
@@ -287,43 +306,43 @@ export function TemplateGallery({ onPick }: Props) {
       {groups.map(([category, list]) => (
         <section key={category} className="tgal__group">
           <h3 className="tgal__cat">
-            {category} <span className="tgal__cat-n">{list.length}</span>
+            {catLabel(category)} <span className="tgal__cat-n">{list.length}</span>
           </h3>
-          <div className="tgal__grid">{list.map((t) => card(t))}</div>
+          <div className="tgal__grid">{list.map((tpl) => card(tpl))}</div>
         </section>
       ))}
 
       {detail && (
-        <div className="tgd" role="dialog" aria-modal="true" aria-label={`${detail.name} details`} onClick={() => setDetailId(null)}>
+        <div className="tgd" role="dialog" aria-modal="true" aria-label={t('labPanels.gallery.detailAria', { name: detail.name })} onClick={() => setDetailId(null)}>
           <div className="tgd__panel" onClick={(e) => e.stopPropagation()}>
-            <button type="button" className="tgd__close" aria-label="Close details" onClick={() => setDetailId(null)}>
+            <button type="button" className="tgd__close" aria-label={t('labPanels.gallery.closeDetails')} onClick={() => setDetailId(null)}>
               ×
             </button>
             <div className="tgd__views">
               <figure>
-                <span className="tgd__img"><img src={detail.front} alt={`${detail.name} front`} /></span>
-                <figcaption>Front</figcaption>
+                <span className="tgd__img"><img src={detail.front} alt={t('labPanels.gallery.altFront', { name: detail.name })} /></span>
+                <figcaption>{t('labPanels.gallery.front')}</figcaption>
               </figure>
               <figure>
-                <span className="tgd__img"><img src={detail.back} alt={`${detail.name} back`} /></span>
-                <figcaption>Back</figcaption>
+                <span className="tgd__img"><img src={detail.back} alt={t('labPanels.gallery.altBack', { name: detail.name })} /></span>
+                <figcaption>{t('labPanels.gallery.back')}</figcaption>
               </figure>
             </div>
             <div className="tgd__meta">
-              <span className="tgd__eyebrow">{detail.category}</span>
+              <span className="tgd__eyebrow">{catLabel(detail.category)}</span>
               <h3>{detail.name}</h3>
               <p className="tgd__facts">
-                {detail.regionCount} editable regions · front + back · every part can be recoloured, hidden, moved or AI-edited.
+                {t('labPanels.gallery.facts', { n: detail.regionCount })}
               </p>
               <div className="tgd__regions">
                 {detail.regionNames.slice(0, 10).map((n) => (
                   <span key={n} className="tgd__region">{n}</span>
                 ))}
-                {detail.regionNames.length > 10 && <span className="tgd__region tgd__region--more">+{detail.regionNames.length - 10} more</span>}
+                {detail.regionNames.length > 10 && <span className="tgd__region tgd__region--more">{t('labPanels.gallery.more', { n: detail.regionNames.length - 10 })}</span>}
               </div>
               <div className="tgd__actions">
                 <button type="button" className="tgd__use" onClick={() => useTemplate(detail.id)}>
-                  Use this template →
+                  {t('labPanels.gallery.useTemplate')} →
                 </button>
                 <button
                   type="button"
@@ -331,10 +350,10 @@ export function TemplateGallery({ onPick }: Props) {
                   onClick={() => toggleFav(detail.id)}
                   aria-pressed={favs.has(detail.id)}
                 >
-                  ★ {favs.has(detail.id) ? 'Favourited' : 'Favourite'}
+                  ★ {favs.has(detail.id) ? t('labPanels.gallery.favourited') : t('labPanels.gallery.favourite')}
                 </button>
               </div>
-              <p className="tgd__hint">Esc to close · double-check the back view before you commit.</p>
+              <p className="tgd__hint">{t('labPanels.gallery.detailHint')}</p>
             </div>
           </div>
         </div>

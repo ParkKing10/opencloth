@@ -18,12 +18,29 @@ import {
 } from '../driveClient'
 import { useToast } from '../../components/ui/Toast'
 import { IcoPlus, IcoUpload } from '../../components/ui/Icons'
+import { useT } from '@/i18n'
 import './drive.css'
 
 const SKELETON_CHIP_COUNT = 3
 const SKELETON_CARD_COUNT = 6
 
 type FolderFilter = 'All' | DriveFolder
+
+/** Locale keys for the built-in Drive folder categories (raw folder value stays the data identity). */
+const FOLDER_LABEL_KEYS: Record<DriveFolder, string> = {
+  'My Logos': 'drive.folder.myLogos',
+  Graphics: 'drive.folder.graphics',
+  Fonts: 'drive.folder.fonts',
+  Patterns: 'drive.folder.patterns',
+  Textures: 'drive.folder.textures',
+  Labels: 'drive.folder.labels',
+  Packaging: 'drive.folder.packaging',
+  Mockups: 'drive.folder.mockups',
+  'AI Generations': 'drive.folder.aiGenerations',
+  References: 'drive.folder.references',
+  Collections: 'drive.folder.collections',
+  'Brand Assets': 'drive.folder.brandAssets',
+}
 
 const IcoTrash = (p: SVGProps<SVGSVGElement>) => (
   <svg
@@ -75,6 +92,8 @@ function hasOsFiles(event: DragEvent<HTMLElement>): boolean {
 
 export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsset) => void }) {
   const toast = useToast()
+  const t = useT()
+  const folderLabel = (folder: DriveFolder): string => t(FOLDER_LABEL_KEYS[folder])
   const [assets, setAssets] = useState<DriveAsset[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filter, setFilter] = useState<FolderFilter>('All')
@@ -119,14 +138,17 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
         const result = await uploadAsset(file)
         if (result.ok) {
           setAssets((prev) => [result.value, ...prev])
-          toast(`Uploaded to ${result.value.folder}.`, 'success')
+          toast(
+            t('drive.dv.toast.uploaded', { folder: t(FOLDER_LABEL_KEYS[result.value.folder]) }),
+            'success',
+          )
         } else {
           toast(result.error, 'info')
         }
         setUploadingCount((n) => n - 1)
       }
     },
-    [toast],
+    [toast, t],
   )
 
   const openPicker = useCallback(() => {
@@ -150,9 +172,9 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
         return
       }
       setAssets((prev) => prev.filter((a) => a.id !== asset.id))
-      toast('Removed from Drive.')
+      toast(t('drive.dv.toast.removed'))
     },
-    [toast],
+    [toast, t],
   )
 
   const handleAssetDragStart = useCallback((event: DragEvent<HTMLElement>, asset: DriveAsset) => {
@@ -201,14 +223,16 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
     uploadingCount > 0 ? (
       <div className="dv-uploading" role="status">
         <span className="dv-spin" aria-hidden="true" />
-        Uploading {uploadingCount} {uploadingCount === 1 ? 'file' : 'files'}…
+        {uploadingCount === 1
+          ? t('drive.dv.uploading.one', { n: uploadingCount })
+          : t('drive.dv.uploading.many', { n: uploadingCount })}
       </div>
     ) : null
 
   return (
     <section
       className={`dv-panel${isDragOver ? ' is-drop' : ''}`}
-      aria-label="Drive"
+      aria-label={t('drive.dv.aria')}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -226,12 +250,12 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
 
       <header className="dv-head">
         <div>
-          <h2>Drive</h2>
-          <p className="dv-head__hint">Your permanent brand storage</p>
+          <h2>{t('drive.dv.title')}</h2>
+          <p className="dv-head__hint">{t('drive.dv.subtitle')}</p>
         </div>
         <button type="button" className="dv-upload" onClick={openPicker}>
           <IcoUpload width={13} height={13} />
-          Upload
+          {t('drive.dv.upload')}
         </button>
       </header>
 
@@ -263,10 +287,10 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
             <span className="dv-empty__ico">
               <IcoUpload width={16} height={16} />
             </span>
-            <p>Drop files here — logos, graphics, patterns, fonts. loom studios files them automatically.</p>
+            <p>{t('drive.dv.empty')}</p>
             <button type="button" className="dv-upload" onClick={openPicker}>
               <IcoUpload width={13} height={13} />
-              Upload
+              {t('drive.dv.upload')}
             </button>
           </div>
         </div>
@@ -274,13 +298,13 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
 
       {!isLoading && !isEmpty && (
         <>
-          <nav className="dv-chips" aria-label="Drive folders">
+          <nav className="dv-chips" aria-label={t('drive.dv.folders.aria')}>
             <button
               type="button"
               className={`dv-chip${activeFilter === 'All' ? ' is-active' : ''}`}
               onClick={() => setFilter('All')}
             >
-              All
+              {t('drive.dv.filter.all')}
               <span className="dv-chip__count">{assets.length}</span>
             </button>
             {DRIVE_FOLDERS.filter((folder) => folderCounts.has(folder)).map((folder) => (
@@ -290,7 +314,7 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
                 className={`dv-chip${activeFilter === folder ? ' is-active' : ''}`}
                 onClick={() => setFilter(folder)}
               >
-                {folder}
+                {folderLabel(folder)}
                 <span className="dv-chip__count">{folderCounts.get(folder)}</span>
               </button>
             ))}
@@ -319,8 +343,8 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
                       <button
                         type="button"
                         className="dv-act dv-act--add"
-                        title="Add to design"
-                        aria-label={`Add ${asset.name} to design`}
+                        title={t('drive.dv.add.title')}
+                        aria-label={t('drive.dv.add.aria', { name: asset.name })}
                         onClick={() => onAddToDesign(asset)}
                       >
                         <IcoPlus width={13} height={13} />
@@ -328,8 +352,8 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
                       <button
                         type="button"
                         className="dv-act dv-act--del"
-                        title="Remove from Drive"
-                        aria-label={`Remove ${asset.name} from Drive`}
+                        title={t('drive.dv.remove.title')}
+                        aria-label={t('drive.dv.remove.aria', { name: asset.name })}
                         onClick={() => void handleDelete(asset)}
                       >
                         <IcoTrash width={13} height={13} />
@@ -340,7 +364,7 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
                     <span className="dv-card__name" title={asset.name}>
                       {asset.name}
                     </span>
-                    <span className="dv-card__folder">{asset.folder}</span>
+                    <span className="dv-card__folder">{folderLabel(asset.folder)}</span>
                   </div>
                 </article>
               ))}
@@ -349,15 +373,13 @@ export function DrivePanel({ onAddToDesign }: { onAddToDesign: (asset: DriveAsse
         </>
       )}
 
-      <footer className="dv-foot">
-        SVG → Logos · PNG → Graphics · DXF → Patterns · TTF → Fonts · JPG → References
-      </footer>
+      <footer className="dv-foot">{t('drive.dv.foot')}</footer>
 
       {isDragOver && (
         <div className="dv-drop" aria-hidden="true">
           <span className="dv-drop__pill">
             <IcoUpload width={14} height={14} />
-            Drop to file it
+            {t('drive.dv.drop')}
           </span>
         </div>
       )}

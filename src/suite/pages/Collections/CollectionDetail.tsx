@@ -6,6 +6,7 @@ import { GARMENT_GLYPHS } from '../../components/ui/Garments'
 import { relativeTime } from '../../data/utils'
 import { loadDesignThumb } from '../../data/designThumbs'
 import { IcoPlus } from '../../components/ui/Icons'
+import { useT } from '@/i18n'
 import '../Dashboard/dashboard.css'
 import './col.css'
 
@@ -14,6 +15,7 @@ export function CollectionDetail() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const { data } = useStore()
+  const t = useT()
 
   const collection = data.collections.find((c) => c.id === id)
   const designs = useMemo(
@@ -26,22 +28,28 @@ export function CollectionDetail() {
   const open = (d: { id: string; name: string }) =>
     navigate(`/suite/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)
 
+  const countLabel =
+    designs.length === 1
+      ? t('collections.detail.countOne', { n: designs.length })
+      : t('collections.detail.countMany', { n: designs.length })
+  const subtitle = collection.season ? `${countLabel} · ${collection.season}` : countLabel
+
   return (
     <SuitePage
-      eyebrow="Collection"
+      eyebrow={t('collections.detail.eyebrow')}
       title={collection.name}
-      subtitle={`${designs.length} design${designs.length === 1 ? '' : 's'}${collection.season ? ` · ${collection.season}` : ''}`}
+      subtitle={subtitle}
       actions={
         <button type="button" className="s-btn s-btn--ghost" onClick={() => navigate('/suite/collections')}>
-          ← All collections
+          ← {t('collections.detail.allCollections')}
         </button>
       }
     >
       {designs.length === 0 ? (
         <div className="col-detail__empty">
-          <p>No designs in this collection yet. Save a design into it from the Design Studio.</p>
+          <p>{t('collections.detail.emptyBody')}</p>
           <button type="button" className="s-btn s-btn--accent" onClick={() => navigate('/suite/design')}>
-            <IcoPlus width="15" height="15" /> Start a design
+            <IcoPlus width="15" height="15" /> {t('collections.detail.startDesign')}
           </button>
         </div>
       ) : (
@@ -50,7 +58,7 @@ export function CollectionDetail() {
             const Glyph = GARMENT_GLYPHS[d.kind]
             const thumb = loadDesignThumb(d.id)
             return (
-              <article key={d.id} className="design" title={`Open ${d.name} in the Design Studio`} onClick={() => open(d)}>
+              <article key={d.id} className="design" title={t('collections.detail.openTitle', { name: d.name })} onClick={() => open(d)}>
                 <div className={`design__preview${thumb ? ' design__preview--img' : ''}`}>
                   {thumb ? <img src={thumb} alt={d.name} loading="lazy" /> : <Glyph width="52" height="52" />}
                 </div>

@@ -1,5 +1,17 @@
+import { useT } from '@/i18n'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import './inspiration.css'
+
+// Maps each look's stable English name to its translation slug, so the card title + vibe localise
+// while the preset data passed to onApply stays unchanged.
+const LOOK_SLUG: Record<string, string> = {
+  Blackout: 'blackout',
+  'Vintage Wash': 'vintageWash',
+  'Cream Luxe': 'creamLuxe',
+  'Utility Cargo': 'utilityCargo',
+  'Racing Bomber': 'racingBomber',
+  'Acid Pop': 'acidPop',
+}
 
 export type InspirationPreset = {
   name: string
@@ -25,17 +37,20 @@ const LOOKS: InspirationPreset[] = [
 ]
 
 export function InspirationPanel({ onApply }: { onApply: (p: InspirationPreset) => void }) {
+  const t = useT()
   return (
     <div className="insp">
       <div className="ds-panel-head">
-        <h2>Inspiration</h2>
+        <h2>{t('dsPanels.insp.title')}</h2>
       </div>
-      <p className="insp__hint">Start from a look — it loads the garment, fabric, colour and print.</p>
+      <p className="insp__hint">{t('dsPanels.insp.hint')}</p>
       <div className="insp__grid">
         {LOOKS.map((l) => {
           const Glyph = GARMENT_GLYPHS[l.kind]
+          const slug = LOOK_SLUG[l.name]
+          const name = t(`dsPanels.look.${slug}.name`)
           return (
-            <button key={l.name} type="button" className="insp__card" onClick={() => onApply(l)} title={`Apply “${l.name}”`}>
+            <button key={l.name} type="button" className="insp__card" onClick={() => onApply(l)} title={t('dsPanels.applyNamed', { name })}>
               <span className="insp__thumb" style={{ background: l.colorHex }}>
                 <Glyph width="42" height="42" />
                 {l.text && (
@@ -45,8 +60,8 @@ export function InspirationPanel({ onApply }: { onApply: (p: InspirationPreset) 
                 )}
               </span>
               <span className="insp__meta">
-                <b>{l.name}</b>
-                <small>{l.vibe}</small>
+                <b>{name}</b>
+                <small>{t(`dsPanels.look.${slug}.vibe`)}</small>
               </span>
             </button>
           )

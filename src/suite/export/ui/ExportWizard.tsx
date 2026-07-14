@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '@/i18n'
 import type { ProductSpecs, ProjectInfo } from '../../pages/DesignStudio/designDoc'
 import { viewsSummary } from '../../garments/import/detect'
 import { captureDesignPng } from '../real/capture'
@@ -25,6 +26,7 @@ const FILES = ['TechPack.pdf', 'Design.png', 'Preview.png', 'Project.threados', 
  * reads the real project.
  */
 export function ExportWizard({ open, project, projectInfo, specs, busy, onPatchProjectInfo, onPatchSpec, onClose, onGenerate }: Props) {
+  const t = useT()
   const [step, setStep] = useState(1)
   const [preview, setPreview] = useState<string | null>(null)
 
@@ -55,14 +57,14 @@ export function ExportWizard({ open, project, projectInfo, specs, busy, onPatchP
   const layerCount = artworkRows(project).length
 
   return (
-    <div className="xw" role="dialog" aria-modal="true" aria-label="Manufacturing package" onClick={onClose}>
+    <div className="xw" role="dialog" aria-modal="true" aria-label={t('exportUi.wizard.aria')} onClick={onClose}>
       <div className="xw__panel" onClick={(e) => e.stopPropagation()}>
         <header className="xw__head">
           <div>
-            <span className="xw__eyebrow">Manufacturing Package</span>
-            <h2>{['Project information', 'Garment specifications', 'Export summary'][step - 1]}</h2>
+            <span className="xw__eyebrow">{t('exportUi.wizard.eyebrow')}</span>
+            <h2>{[t('exportUi.wizard.step1.title'), t('exportUi.wizard.step2.title'), t('exportUi.wizard.step3.title')][step - 1]}</h2>
           </div>
-          <button className="xw__x" type="button" aria-label="Close" onClick={onClose}>
+          <button className="xw__x" type="button" aria-label={t('exportUi.wizard.close')} onClick={onClose}>
             ×
           </button>
         </header>
@@ -76,40 +78,40 @@ export function ExportWizard({ open, project, projectInfo, specs, busy, onPatchP
         <div className="xw__body">
           {step === 1 && (
             <div className="xw__grid">
-              <Field label="Brand" value={projectInfo.brand ?? ''} placeholder={project.brand} onChange={(v) => onPatchProjectInfo({ brand: v })} />
-              <Field label="Designer" value={projectInfo.designer ?? ''} placeholder={project.designer} onChange={(v) => onPatchProjectInfo({ designer: v })} />
-              <Field label="Collection" value={projectInfo.collection ?? ''} placeholder="e.g. FW26" onChange={(v) => onPatchProjectInfo({ collection: v })} />
-              <Field label="Style Number" value={projectInfo.styleNumber ?? ''} placeholder="e.g. TS-001" onChange={(v) => onPatchProjectInfo({ styleNumber: v })} />
-              <Field label="SKU" value={projectInfo.sku ?? ''} placeholder="e.g. TS-001-BLK-M" onChange={(v) => onPatchProjectInfo({ sku: v })} />
-              <Field label="Season" value={projectInfo.season ?? ''} placeholder="e.g. Fall / Winter 2026" onChange={(v) => onPatchProjectInfo({ season: v })} />
+              <Field label={t('exportUi.field.brand')} value={projectInfo.brand ?? ''} placeholder={project.brand} onChange={(v) => onPatchProjectInfo({ brand: v })} />
+              <Field label={t('exportUi.field.designer')} value={projectInfo.designer ?? ''} placeholder={project.designer} onChange={(v) => onPatchProjectInfo({ designer: v })} />
+              <Field label={t('exportUi.field.collection')} value={projectInfo.collection ?? ''} placeholder={t('exportUi.ph.collection')} onChange={(v) => onPatchProjectInfo({ collection: v })} />
+              <Field label={t('exportUi.field.styleNumber')} value={projectInfo.styleNumber ?? ''} placeholder={t('exportUi.ph.styleNumber')} onChange={(v) => onPatchProjectInfo({ styleNumber: v })} />
+              <Field label={t('exportUi.field.sku')} value={projectInfo.sku ?? ''} placeholder={t('exportUi.ph.sku')} onChange={(v) => onPatchProjectInfo({ sku: v })} />
+              <Field label={t('exportUi.field.season')} value={projectInfo.season ?? ''} placeholder={t('exportUi.ph.season')} onChange={(v) => onPatchProjectInfo({ season: v })} />
             </div>
           )}
 
           {step === 2 && (
             <div className="xw__grid">
-              <Field label="Material" value={specs.material ?? ''} placeholder="e.g. French Terry" onChange={(v) => onPatchSpec({ material: v })} />
-              <Field label="Composition" value={specs.composition ?? ''} placeholder="e.g. 100% Cotton" onChange={(v) => onPatchSpec({ composition: v })} />
-              <Field label="Weight" value={specs.weight ?? ''} placeholder="e.g. 320 GSM" onChange={(v) => onPatchSpec({ weight: v })} />
-              <Field label="Fit" value={specs.fit ?? ''} placeholder="e.g. Oversized" onChange={(v) => onPatchSpec({ fit: v })} />
+              <Field label={t('exportUi.field.material')} value={specs.material ?? ''} placeholder={t('exportUi.ph.material')} onChange={(v) => onPatchSpec({ material: v })} />
+              <Field label={t('exportUi.field.composition')} value={specs.composition ?? ''} placeholder={t('exportUi.ph.composition')} onChange={(v) => onPatchSpec({ composition: v })} />
+              <Field label={t('exportUi.field.weight')} value={specs.weight ?? ''} placeholder={t('exportUi.ph.weight')} onChange={(v) => onPatchSpec({ weight: v })} />
+              <Field label={t('exportUi.field.fit')} value={specs.fit ?? ''} placeholder={t('exportUi.ph.fit')} onChange={(v) => onPatchSpec({ fit: v })} />
               <label className="xw__field xw__field--wide">
-                <span>Notes</span>
-                <textarea rows={3} value={specs.notes ?? ''} placeholder="Production notes, wash, trims…" onChange={(e) => onPatchSpec({ notes: e.target.value })} />
+                <span>{t('exportUi.field.notes')}</span>
+                <textarea rows={3} value={specs.notes ?? ''} placeholder={t('exportUi.ph.notes')} onChange={(e) => onPatchSpec({ notes: e.target.value })} />
               </label>
             </div>
           )}
 
           {step === 3 && (
             <div className="xw__summary">
-              <div className="xw__preview">{preview ? <img src={preview} alt="Design preview" /> : <span className="xw__preview-ph">Preview…</span>}</div>
+              <div className="xw__preview">{preview ? <img src={preview} alt={t('exportUi.summary.previewAlt')} /> : <span className="xw__preview-ph">{t('exportUi.summary.previewLoading')}</span>}</div>
               <div className="xw__meta">
-                <Row k="Project" v={project.projectName} />
-                <Row k="Brand" v={project.brand} />
-                <Row k="Designer" v={project.designer} />
-                {project.collection && <Row k="Collection" v={project.collection} />}
-                <Row k="Design layers" v={String(layerCount)} />
-                <Row k="Views" v={viewsSummary(project.garment.views)} />
+                <Row k={t('exportUi.summary.project')} v={project.projectName} />
+                <Row k={t('exportUi.field.brand')} v={project.brand} />
+                <Row k={t('exportUi.field.designer')} v={project.designer} />
+                {project.collection && <Row k={t('exportUi.field.collection')} v={project.collection} />}
+                <Row k={t('exportUi.summary.layers')} v={String(layerCount)} />
+                <Row k={t('exportUi.summary.views')} v={viewsSummary(project.garment.views)} />
                 <div className="xw__files">
-                  <span className="xw__files-label">Files generated</span>
+                  <span className="xw__files-label">{t('exportUi.summary.filesGenerated')}</span>
                   {FILES.map((f) => (
                     <span className="xw__file" key={f}>
                       <span className="xw__check">✓</span> {f}
@@ -124,20 +126,20 @@ export function ExportWizard({ open, project, projectInfo, specs, busy, onPatchP
         <footer className="xw__foot">
           {step > 1 ? (
             <button className="s-btn" type="button" onClick={() => setStep((s) => s - 1)} disabled={busy}>
-              Back
+              {t('exportUi.wizard.back')}
             </button>
           ) : (
             <button className="s-btn" type="button" onClick={onClose} disabled={busy}>
-              Cancel
+              {t('exportUi.wizard.cancel')}
             </button>
           )}
           {step < 3 ? (
             <button className="s-btn s-btn--accent" type="button" onClick={() => setStep((s) => s + 1)}>
-              Continue
+              {t('exportUi.wizard.continue')}
             </button>
           ) : (
             <button className="s-btn s-btn--accent xw__generate" type="button" onClick={onGenerate} disabled={busy}>
-              {busy ? 'Generating…' : 'Generate Manufacturing Package'}
+              {busy ? t('exportUi.wizard.generating') : t('exportUi.wizard.generate')}
             </button>
           )}
         </footer>

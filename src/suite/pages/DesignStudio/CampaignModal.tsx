@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { IcoSparkle } from '../../components/ui/Icons'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob, slugify } from '../../lib/download'
@@ -39,6 +40,7 @@ type Shot = { id: string; dataUrl: string }
  */
 export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   const toast = useToast()
+  const t = useT()
   const [garmentPng, setGarmentPng] = useState<string | null>(null)
   const [captureError, setCaptureError] = useState<string | null>(null)
   const [sel, setSel] = useState<CampaignSelection>(DEFAULT_CAMPAIGN)
@@ -68,7 +70,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
         if (!cancelled) setGarmentPng(url)
       })
       .catch((e) => {
-        if (!cancelled) setCaptureError(e instanceof Error ? e.message : 'Could not render the garment.')
+        if (!cancelled) setCaptureError(e instanceof Error ? e.message : t('dsDialogs.cg.errCapture'))
       })
     return () => {
       cancelled = true
@@ -92,7 +94,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   const runOne = useCallback(async () => {
     if (!garmentPng) return
     if (!hasImageAi()) {
-      toast('Connect your Runware API key in Settings → AI to generate campaign photos.', 'info')
+      toast(t('dsDialogs.cg.connectKey'), 'info')
       return
     }
     const ctrl = new AbortController()
@@ -112,21 +114,21 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
 
         // Auto-save every campaign photo to the Asset Library so nothing is lost.
         if (userId) {
-          void saveGeneratedAsset({ userId, dataUrl: urls[0], name: `Campaign — ${garmentName}`, category: 'campaign' }).then((a) => {
+          void saveGeneratedAsset({ userId, dataUrl: urls[0], name: t('dsDialogs.cg.assetName', { name: garmentName }), category: 'campaign' }).then((a) => {
             if (a) setSaved((s) => new Set(s).add(shot.id))
           })
         }
       }
     } catch (err) {
       if (!ctrl.signal.aborted) {
-        const msg = err instanceof DOMException && err.name === 'TimeoutError' ? 'Runware took too long — try again in a moment.' : err instanceof Error ? err.message : 'Campaign generation failed.'
+        const msg = err instanceof DOMException && err.name === 'TimeoutError' ? t('dsDialogs.cg.errTimeout') : err instanceof Error ? err.message : t('dsDialogs.cg.errFailed')
         toast(msg, 'info')
       }
     } finally {
       pendingRef.current.delete(ctrl)
       setPending((n) => Math.max(0, n - 1))
     }
-  }, [garmentPng, sel, toast, userId, garmentName])
+  }, [garmentPng, sel, toast, userId, garmentName, t])
 
   if (!open) return null
 
@@ -136,13 +138,13 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
   const download = async (shot: Shot, i: number) => {
     const blob = await fetch(shot.dataUrl).then((r) => r.blob())
     downloadBlob(blob, `${slugify(garmentName) || 'campaign'}-${i + 1}.png`)
-    toast('Campaign image downloaded.', 'success')
+    toast(t('dsDialogs.cg.downloaded'), 'success')
   }
 
   const saveToLibrary = async (shot: Shot, i: number) => {
     if (saved.has(shot.id)) return // already auto-saved on generation
     if (!userId) {
-      toast('Sign in to save to your Asset Library.', 'info')
+      toast(t('dsDialogs.cg.signInSave'), 'info')
       return
     }
     try {
@@ -150,7 +152,7 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       const asset: Asset = {
         id: crypto.randomUUID(),
         userId,
-        filename: `Campaign — ${garmentName} ${i + 1}.png`,
+        filename: t('dsDialogs.cg.assetFilename', { name: garmentName, n: i + 1 }),
         type: 'image/png',
         kind: 'raster',
         category: 'campaign',
@@ -165,9 +167,9 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       }
       await putAsset(asset)
       setSaved((s) => new Set(s).add(shot.id))
-      toast('Saved to Asset Library → Campaign Images.', 'success')
+      toast(t('dsDialogs.cg.savedToLibrary'), 'success')
     } catch {
-      toast('Could not save that image.', 'info')
+      toast(t('dsDialogs.cg.errSave'), 'info')
     }
   }
 
@@ -180,8 +182,8 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
       <div className="cg-scrim" onClick={onClose} />
       <div className="cg" role="dialog" aria-modal="true" aria-labelledby="cg-title">
         <header className="cg__head">
-          <span className="cg__title" id="cg-title"><IcoSparkle width="18" height="18" /> Campaign Generator</span>
-          <button type="button" className="cg__x" aria-label="Close" onClick={onClose}>
+          <span className="cg__title" id="cg-title"><IcoSparkle width="18" height="18" /> {t('dsDialogs.cg.title')}</span>
+          <button type="button" className="cg__x" aria-label={t('dsDialogs.cg.close')} onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
         </header>
@@ -190,30 +192,30 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
           {/* Left: garment + preferences */}
           <div className="cg__setup">
             <div className="cg__garment">
-              <span className="cg__label">Your garment</span>
+              <span className="cg__label">{t('dsDialogs.cg.yourGarment')}</span>
               <div className="cg__garment-frame">
                 {garmentPng ? <img src={garmentPng} alt={garmentName} /> : captureError ? <span className="cg__cap-err">{captureError}</span> : <span className="cg-spin" />}
               </div>
-              <span className="cg__garment-note">Rendered automatically — colours, prints and placement preserved.</span>
+              <span className="cg__garment-note">{t('dsDialogs.cg.renderedNote')}</span>
             </div>
 
-            <ChoiceGrid label="Model" options={CAMPAIGN_MODELS.map((m) => ({ id: m.id, label: m.label }))} value={sel.modelId} onPick={(id) => set({ modelId: id })} cols={3} />
-            <ChoiceRow label="Pose" options={CAMPAIGN_POSES} value={sel.pose} onPick={(v) => set({ pose: v })} />
-            <ChoiceRow label="Style" options={CAMPAIGN_STYLES} value={sel.style} onPick={(v) => set({ style: v })} />
-            <ChoiceRow label="Background" options={CAMPAIGN_BACKGROUNDS} value={sel.background} onPick={(v) => set({ background: v })} />
-            <ChoiceRow label="Lighting" options={CAMPAIGN_LIGHTING} value={sel.lighting} onPick={(v) => set({ lighting: v })} />
-            <ChoiceRow label="Quality" options={CAMPAIGN_QUALITIES.map((q) => q.label)} value={CAMPAIGN_QUALITIES.find((q) => q.id === sel.quality)?.label ?? 'High'} onPick={(v) => set({ quality: (CAMPAIGN_QUALITIES.find((q) => q.label === v)?.id ?? 'high') })} />
+            <ChoiceGrid label={t('dsDialogs.cg.model')} options={CAMPAIGN_MODELS.map((m) => ({ id: m.id, label: m.label }))} value={sel.modelId} onPick={(id) => set({ modelId: id })} cols={3} />
+            <ChoiceRow label={t('dsDialogs.cg.pose')} options={CAMPAIGN_POSES} value={sel.pose} onPick={(v) => set({ pose: v })} />
+            <ChoiceRow label={t('dsDialogs.cg.style')} options={CAMPAIGN_STYLES} value={sel.style} onPick={(v) => set({ style: v })} />
+            <ChoiceRow label={t('dsDialogs.cg.background')} options={CAMPAIGN_BACKGROUNDS} value={sel.background} onPick={(v) => set({ background: v })} />
+            <ChoiceRow label={t('dsDialogs.cg.lighting')} options={CAMPAIGN_LIGHTING} value={sel.lighting} onPick={(v) => set({ lighting: v })} />
+            <ChoiceRow label={t('dsDialogs.cg.quality')} options={CAMPAIGN_QUALITIES.map((q) => q.label)} value={CAMPAIGN_QUALITIES.find((q) => q.id === sel.quality)?.label ?? 'High'} onPick={(v) => set({ quality: (CAMPAIGN_QUALITIES.find((q) => q.label === v)?.id ?? 'high') })} />
 
             {/* Always clickable — the spinner shows in the results area on the right, never on the button,
                 so you can queue more shots without waiting. */}
             <button type="button" className="cg__go" onClick={() => runOne()} disabled={!garmentPng}>
               {shots.length === 0
-                ? `Generate image${model ? ` · ${model.label}` : ''}`
+                ? `${t('dsDialogs.cg.generateImage')}${model ? ` · ${model.label}` : ''}`
                 : settingsChanged
-                  ? `Generate with new settings${model ? ` · ${model.label}` : ''}`
-                  : 'Generate another'}
+                  ? `${t('dsDialogs.cg.generateNewSettings')}${model ? ` · ${model.label}` : ''}`
+                  : t('dsDialogs.cg.generateAnother')}
             </button>
-            {!live && <p className="cg__gate">Campaign photos need a real image model. Add your Runware API key in Settings → AI — there is no on-device stand-in for a photoreal person, and loom studios won’t fake one.</p>}
+            {!live && <p className="cg__gate">{t('dsDialogs.cg.gate')}</p>}
           </div>
 
           {/* Right: results — one image, then a "+" tile to pull more */}
@@ -221,20 +223,20 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
             {shots.length === 0 && !generating && (
               <div className="cg__empty">
                 <IcoSparkle width="22" height="22" />
-                <p>Pick a model and shoot, then generate a campaign-quality photo of this exact garment on a person. Add more with +.</p>
+                <p>{t('dsDialogs.cg.empty')}</p>
               </div>
             )}
             {(shots.length > 0 || generating) && (
               <div className="cg__grid">
                 {shots.map((shot, i) => (
                   <figure key={shot.id} className="cg-shot">
-                    <img src={shot.dataUrl} alt={`Campaign ${i + 1}`} />
-                    <button type="button" className={`cg-shot__fav${favs.has(shot.id) ? ' is-on' : ''}`} aria-label="Favorite" onClick={() => toggleFav(shot.id)}>
+                    <img src={shot.dataUrl} alt={t('dsDialogs.cg.shotAlt', { n: i + 1 })} />
+                    <button type="button" className={`cg-shot__fav${favs.has(shot.id) ? ' is-on' : ''}`} aria-label={t('dsDialogs.cg.favorite')} onClick={() => toggleFav(shot.id)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill={favs.has(shot.id) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8"><path d="M12 20s-7-4.4-9.2-8.3C1 8.5 2.6 5 6 5c2 0 3.2 1.2 4 2.3C10.8 6.2 12 5 14 5c3.4 0 5 3.5 3.2 6.7C19 15.6 12 20 12 20Z" /></svg>
                     </button>
                     <figcaption className="cg-shot__bar">
-                      <button type="button" onClick={() => download(shot, i)}>Download</button>
-                      <button type="button" className={saved.has(shot.id) ? 'is-saved' : ''} onClick={() => saveToLibrary(shot, i)}>{saved.has(shot.id) ? 'Saved ✓' : 'Save to Library'}</button>
+                      <button type="button" onClick={() => download(shot, i)}>{t('dsDialogs.cg.download')}</button>
+                      <button type="button" className={saved.has(shot.id) ? 'is-saved' : ''} onClick={() => saveToLibrary(shot, i)}>{saved.has(shot.id) ? t('dsDialogs.cg.saved') : t('dsDialogs.cg.saveToLibrary')}</button>
                     </figcaption>
                   </figure>
                 ))}
@@ -244,9 +246,9 @@ export function CampaignModal({ open, garmentName, userId, onClose }: Props) {
                 ))}
                 {/* The "+" tile is always available (even while generating) so you can queue more. */}
                 {shots.length > 0 && (
-                  <button type="button" className="cg-shot cg-add" onClick={() => runOne()} title={settingsChanged ? 'Generate with your new settings' : 'Generate one more'} aria-label={settingsChanged ? 'Generate with new settings' : 'Generate one more'}>
+                  <button type="button" className="cg-shot cg-add" onClick={() => runOne()} title={settingsChanged ? t('dsDialogs.cg.addTitleNew') : t('dsDialogs.cg.addTitleMore')} aria-label={settingsChanged ? t('dsDialogs.cg.generateNewSettings') : t('dsDialogs.cg.addTitleMore')}>
                     <span className="cg-add__plus">+</span>
-                    <span className="cg-add__label">{settingsChanged ? 'New settings' : 'One more'}</span>
+                    <span className="cg-add__label">{settingsChanged ? t('dsDialogs.cg.newSettings') : t('dsDialogs.cg.oneMore')}</span>
                   </button>
                 )}
               </div>

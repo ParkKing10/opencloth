@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 import './logo-bar.css'
 
 /* Placeholder partner wordmarks — swap for real logo assets when available. */
@@ -12,8 +13,9 @@ const BRANDS = [
 ] as const
 
 export function LogoBar() {
+  const t = useT()
   return (
-    <section className="logo-bar" aria-label="Vertraut von Top Marken und Studios">
+    <section className="logo-bar" aria-label={t('landing.logoBar.ariaLabel')}>
       <div className="shell logo-bar__inner">
         <ul className="logo-bar__list">
           {BRANDS.map((brand) => (

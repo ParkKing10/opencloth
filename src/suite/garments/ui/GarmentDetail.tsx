@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '@/i18n'
 import type { Garment } from '../types'
 import { categoryLabel } from '../types'
 import { getGarment } from '../garmentClient'
@@ -9,6 +10,7 @@ const fmtBytes = (n: number): string =>
 type Props = { garment: Garment; onClose: () => void }
 
 export function GarmentDetail({ garment, onClose }: Props) {
+  const t = useT()
   const [full, setFull] = useState<Garment | null>(null)
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export function GarmentDetail({ garment, onClose }: Props) {
   return (
     <div className="gl-modal" role="dialog" aria-modal="true" onClick={onClose}>
       <div className="gl-modal__panel gl-modal__panel--wide" onClick={(e) => e.stopPropagation()}>
-        <button className="gl-modal__close" type="button" onClick={onClose} aria-label="Close">
+        <button className="gl-modal__close" type="button" onClick={onClose} aria-label={t('garmentUi.close')}>
           ×
         </button>
         <div className="gl-detail">
@@ -44,16 +46,16 @@ export function GarmentDetail({ garment, onClose }: Props) {
           <div className="gl-detail__info">
             <span className="gl-detail__cat">{categoryLabel(garment.category)}</span>
             <h2 className="gl-detail__name">{garment.name}</h2>
-            <p className="gl-detail__meta">Added {new Date(garment.createdAt).toLocaleDateString()}</p>
+            <p className="gl-detail__meta">{t('garmentUi.detail.added', { date: new Date(garment.createdAt).toLocaleDateString() })}</p>
 
             <div className="gl-detail__files">
               <h3>
-                Files {full ? `(${files.length})` : '…'}
+                {t('garmentUi.detail.files')} {full ? `(${files.length})` : '…'}
               </h3>
               {!full ? (
-                <p className="gl-detail__loading">Loading files…</p>
+                <p className="gl-detail__loading">{t('garmentUi.detail.loadingFiles')}</p>
               ) : files.length === 0 ? (
-                <p className="gl-detail__loading">No source files stored (offline mode).</p>
+                <p className="gl-detail__loading">{t('garmentUi.detail.noFiles')}</p>
               ) : (
                 <ul className="gl-detail__list">
                   {files.map((r) => (

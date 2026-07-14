@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { downloadBlob } from '../../lib/download'
 import { slugify } from '../../lib/download'
@@ -9,19 +10,20 @@ import { estimatePackage } from '../summary'
 import { DEFAULT_SELECTION, type ManufacturingProject, type PackageProgress, type PackageSelection } from '../types'
 import './export.css'
 
-type Row = { key: keyof PackageSelection; title: string; badge: string; note: string }
+// title + note are resolved at render time via t('exportUi.doc.<key>.*') so they translate.
+type Row = { key: keyof PackageSelection; badge: string }
 
 const ROWS: Row[] = [
-  { key: 'techPack', title: 'Tech Pack', badge: 'PDF', note: 'Full production spec with flats' },
-  { key: 'sizeChart', title: 'Size Chart', badge: 'PDF', note: 'Graded across all sizes' },
-  { key: 'bom', title: 'Bill of Materials', badge: 'XLSX', note: 'Editable workbook' },
-  { key: 'printAssets', title: 'Print Assets', badge: 'PNG', note: 'Front · Back · Sleeves, 300 DPI' },
-  { key: 'patterns', title: 'Pattern Files', badge: 'DXF', note: 'CAD polylines + reference PDF' },
-  { key: 'logos', title: 'Logo Pack', badge: 'SVG/AI', note: 'Vector brand lockup' },
-  { key: 'colorReferences', title: 'Color References', badge: 'PDF', note: 'HEX · RGB · Pantone' },
-  { key: 'productionNotes', title: 'Production Notes', badge: 'PDF', note: 'Wash, finishing, QC' },
-  { key: 'packaging', title: 'Packaging Guide', badge: 'PDF', note: 'Folding, labels, cartons' },
-  { key: 'readme', title: 'README', badge: 'PDF', note: 'Package contents & handover' },
+  { key: 'techPack', badge: 'PDF' },
+  { key: 'sizeChart', badge: 'PDF' },
+  { key: 'bom', badge: 'XLSX' },
+  { key: 'printAssets', badge: 'PNG' },
+  { key: 'patterns', badge: 'DXF' },
+  { key: 'logos', badge: 'SVG/AI' },
+  { key: 'colorReferences', badge: 'PDF' },
+  { key: 'productionNotes', badge: 'PDF' },
+  { key: 'packaging', badge: 'PDF' },
+  { key: 'readme', badge: 'PDF' },
 ]
 
 type Phase = 'config' | 'building' | 'done'
@@ -37,6 +39,7 @@ export function ExportModal({
   readiness?: ReadinessInput
   onClose: () => void
 }) {
+  const t = useT()
   const toast = useToast()
   const [selection, setSelection] = useState<PackageSelection>(DEFAULT_SELECTION)
   const [phase, setPhase] = useState<Phase>('config')
@@ -68,21 +71,21 @@ export function ExportModal({
 
   async function generate() {
     if (count === 0) {
-      toast('Select at least one document to include.', 'info')
+      toast(t('exportUi.modal.toast.selectOne'), 'info')
       return
     }
     setPhase('building')
-    setProgress({ step: 'Preparing project', done: 0, total: 1 })
+    setProgress({ step: t('exportUi.modal.preparing'), done: 0, total: 1 })
     try {
       const blob = await buildManufacturingPackage(project, selection, (e) => setProgress(e))
       setLastBlob(blob)
       downloadBlob(blob, filename)
       setPhase('done')
-      toast('Manufacturing package ready — download started.', 'accent')
+      toast(t('exportUi.modal.toast.ready'), 'accent')
     } catch (err) {
       console.error(err)
       setPhase('config')
-      toast('Package generation failed. Please try again.', 'info')
+      toast(t('exportUi.modal.toast.failed'), 'info')
     }
   }
 
@@ -90,17 +93,17 @@ export function ExportModal({
 
   return createPortal(
     <div className="suite">
-      <div className="xp-overlay" role="dialog" aria-modal="true" aria-label="Export manufacturing package" onMouseDown={close}>
+      <div className="xp-overlay" role="dialog" aria-modal="true" aria-label={t('exportUi.modal.aria')} onMouseDown={close}>
         <div className="xp-modal" onMouseDown={(e) => e.stopPropagation()}>
           <header className="xp-head">
             <div>
-              <span className="xp-eyebrow">Manufacturing Export</span>
+              <span className="xp-eyebrow">{t('exportUi.modal.eyebrow')}</span>
               <h2 className="xp-title">{project.meta.styleName}</h2>
               <p className="xp-sub">
                 {project.meta.styleNumber} · {project.meta.collection}
               </p>
             </div>
-            <button className="xp-close" type="button" aria-label="Close" onClick={close} disabled={phase === 'building'}>
+            <button className="xp-close" type="button" aria-label={t('exportUi.modal.close')} onClick={close} disabled={phase === 'building'}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
@@ -123,7 +126,7 @@ export function ExportModal({
                     )}
                   </span>
                   <div className="xp-factory__text">
-                    <span className="xp-factory__eyebrow">loom studios AI · Factory Check</span>
+                    <span className="xp-factory__eyebrow">{t('exportUi.modal.factoryCheck')}</span>
                     <b>{verdict.headline}</b>
                     <small>{verdict.detail}</small>
                     {verdict.blockers.length > 0 && (
@@ -155,8 +158,8 @@ export function ExportModal({
                         )}
                       </span>
                       <span className="xp-row__text">
-                        <b>{r.title}</b>
-                        <small>{r.note}</small>
+                        <b>{t(`exportUi.doc.${r.key}.title`)}</b>
+                        <small>{t(`exportUi.doc.${r.key}.note`)}</small>
                       </span>
                       <span className="xp-badge">{r.badge}</span>
                     </button>
@@ -165,10 +168,10 @@ export function ExportModal({
               </div>
               <footer className="xp-foot">
                 <div className="xp-estimate">
-                  <span className="xp-estimate__eyebrow">Estimated export</span>
+                  <span className="xp-estimate__eyebrow">{t('exportUi.modal.estimate')}</span>
                   <div className="xp-estimate__stats">
                     <span className="xp-estimate__stat">
-                      <b>{estimate.files}</b> Files
+                      <b>{estimate.files}</b> {t('exportUi.modal.files')}
                     </span>
                     <span className="xp-estimate__dot" />
                     <span className="xp-estimate__stat">
@@ -176,7 +179,7 @@ export function ExportModal({
                     </span>
                     <span className="xp-estimate__dot" />
                     <span className={`xp-estimate__ready${verdict && verdict.status !== 'ready' ? ' is-warn' : ''}`}>
-                      {verdict && verdict.status !== 'ready' ? 'Almost ready' : 'Ready for Manufacturing'}
+                      {verdict && verdict.status !== 'ready' ? t('exportUi.modal.almostReady') : t('exportUi.modal.ready')}
                     </span>
                   </div>
                 </div>
@@ -184,7 +187,7 @@ export function ExportModal({
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
                   </svg>
-                  Generate Package
+                  {t('exportUi.modal.generate')}
                 </button>
               </footer>
             </>
@@ -197,7 +200,7 @@ export function ExportModal({
                 <span className="xp-orbit__ring" />
                 <span className="xp-orbit__ring xp-orbit__ring--2" />
               </div>
-              <p className="xp-step">{progress?.step ?? 'Working…'}</p>
+              <p className="xp-step">{progress?.step ?? t('exportUi.modal.working')}</p>
               <div className="xp-bar">
                 <span className="xp-bar__fill" style={{ width: `${pct}%` }} />
               </div>
@@ -212,7 +215,7 @@ export function ExportModal({
                   <path d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h3 className="xp-done__title">Package ready</h3>
+              <h3 className="xp-done__title">{t('exportUi.modal.doneTitle')}</h3>
               <p className="xp-done__sub">{filename}</p>
               <div className="xp-done__actions">
                 <button
@@ -220,10 +223,10 @@ export function ExportModal({
                   type="button"
                   onClick={() => lastBlob && downloadBlob(lastBlob, filename)}
                 >
-                  Download again
+                  {t('exportUi.modal.downloadAgain')}
                 </button>
                 <button className="xp-generate" type="button" onClick={close}>
-                  Done
+                  {t('exportUi.modal.done')}
                 </button>
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 import { useIsPhone } from '../../lib/useMediaQuery'
 import { DesktopOnly } from '../../components/DesktopOnly'
 import { GarmentLab } from './GarmentLab'
@@ -7,15 +8,16 @@ import { GarmentLab } from './GarmentLab'
  * Design Studio: too dense for a phone, so we gate it to desktop and never mount the heavy editor.
  */
 export function GarmentLabMobileGate() {
+  const t = useT()
   const isPhone = useIsPhone()
 
   if (isPhone) {
     return (
       <DesktopOnly
-        title="The Garment Lab needs a bigger screen"
-        message="Creating and editing garments works best on a laptop or desktop. Open loom studios there to keep going."
+        title={t('labMain.mobileTitle')}
+        message={t('labMain.mobileMessage')}
         backTo="/suite/garments"
-        backLabel="Back to Garments Studio"
+        backLabel={t('labMain.mobileBack')}
       />
     )
   }

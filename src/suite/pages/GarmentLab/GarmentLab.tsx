@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { useAuth } from '../../auth/auth'
 import { defaultCapabilities, type EditableGarment, type GarmentRegion, type GarmentViewId } from '../../garment-model/editableGarment'
@@ -32,19 +33,20 @@ import { RegionInspector } from './RegionInspector'
 import { AiPanel } from './AiPanel'
 import './garment-lab.css'
 
-function savedAgo(ms: number): string {
+function savedAgo(ms: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const s = Math.max(0, Math.floor((Date.now() - ms) / 1000))
-  if (s < 5) return 'Saved just now'
-  if (s < 60) return `Saved ${s}s ago`
+  if (s < 5) return t('labMain.savedJustNow')
+  if (s < 60) return t('labMain.savedSecondsAgo', { s })
   const m = Math.floor(s / 60)
-  if (m < 60) return `Saved ${m}m ago`
-  return `Saved ${new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}`
+  if (m < 60) return t('labMain.savedMinutesAgo', { m })
+  return t('labMain.savedAt', { time: new Date(ms).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) })
 }
 
 type RightTab = 'ai' | 'region'
 
 export function GarmentLab() {
   const navigate = useNavigate()
+  const t = useT()
   const toast = useToast()
   const { user } = useAuth()
   const { garmentId = '' } = useParams()
@@ -98,22 +100,22 @@ export function GarmentLab() {
 
   const handleGenerated = useCallback(
     (g: EditableGarment) => {
-      replaceGarment(g, 'Generated with AI', 'ai')
+      replaceGarment(g, t('labMain.revGeneratedAi'), 'ai')
       setGenPrompt(null)
       setSelectedId(null)
-      toast('Garment generated — every region is editable.', 'success')
+      toast(t('labMain.toastGenerated'), 'success')
     },
-    [replaceGarment, toast],
+    [replaceGarment, toast, t],
   )
 
   const handleTemplate = useCallback(
     (templateId: string) => {
       const { garment, name } = buildFromTemplate(templateId)
-      replaceGarment({ ...garment, name }, `Started from ${name}`, 'blank')
+      replaceGarment({ ...garment, name }, t('labMain.revStartedFrom', { name }), 'blank')
       setSelectedId(null)
-      toast(`Started from the ${name} template — every region is editable.`, 'success')
+      toast(t('labMain.toastTemplateStarted', { name }), 'success')
     },
-    [replaceGarment, toast],
+    [replaceGarment, toast, t],
   )
 
   // Draw Garment: each stroke becomes a new editable region (front/back per the current view).
@@ -123,7 +125,7 @@ export function GarmentLab() {
       const n = drawCount.current
       const region: GarmentRegion = {
         id: `draw-${Date.now().toString(36)}-${n}`,
-        name: `Drawn ${n}`,
+        name: t('labMain.regionDrawn', { n }),
         type: 'panel',
         children: [],
         shapes: [{ view, d, role }],
@@ -131,21 +133,21 @@ export function GarmentLab() {
         locked: false,
         capabilities: defaultCapabilities('panel'),
       }
-      hist.commitManual(addRootRegion(garment, region), `Drew ${region.name}`)
+      hist.commitManual(addRootRegion(garment, region), t('labMain.revDrew', { name: region.name }))
     },
-    [garment, view, hist],
+    [garment, view, hist, t],
   )
 
   // Drag-to-move a region on the canvas: translate all its shapes (both views) and commit once.
   const moveRegionBy = useCallback(
     (id: string, dx: number, dy: number) => {
       const res = mapRegionShapes(garment, id, (s) => ({ ...s, d: translateD(s.d, dx, dy) }))
-      if (res.changed) hist.commitManual(res.garment, `Moved ${getRegion(garment, id)?.name ?? 'region'}`)
+      if (res.changed) hist.commitManual(res.garment, t('labMain.revMoved', { name: getRegion(garment, id)?.name ?? t('labMain.regionFallback') }))
     },
-    [garment, hist],
+    [garment, hist, t],
   )
 
-  const nameOf = (id: string) => getRegion(garment, id)?.name ?? 'region'
+  const nameOf = (id: string) => getRegion(garment, id)?.name ?? t('labMain.regionFallback')
 
   const select = useCallback((id: string | null) => {
     setSelectedId(id)
@@ -177,13 +179,13 @@ export function GarmentLab() {
         const stillThere = result.changedRegionIds.find((id) => result.garment.regions[id])
         setSelectedId(stillThere ?? null)
         setRightTab('ai')
-        toast('AI edit applied — new revision created.', 'success')
+        toast(t('labMain.toastAiApplied'), 'success')
       } else {
         toast(result.summary[0], 'info')
       }
       return result
     },
-    [hist.applyAi, toast],
+    [hist.applyAi, toast, t],
   )
 
   const revNumber = hist.history.currentIndex + 1
@@ -222,7 +224,7 @@ export function GarmentLab() {
         regionCount={Object.keys(garment.regions).length}
         isAi={summary?.origin === 'ai'}
         isFavorite={!!summary?.favorite}
-        savedLabel={savedAgo(savedAt)}
+        savedLabel={savedAgo(savedAt, t)}
         canUndo={hist.canUndo}
         canRedo={hist.canRedo}
         rev={`${revNumber}/${revTotal}`}
@@ -234,9 +236,9 @@ export function GarmentLab() {
         onSave={() => {
           // Save reports the REAL storage outcome, including quota pruning.
           const r = saveHistory(hist.history)
-          if (!r.ok) toast('Could not save — browser storage is full. Export a .threados backup.', 'info')
-          else if (r.pruned) toast('Saved — storage was tight, so the oldest revisions were pruned.', 'info')
-          else toast('All changes saved.', 'success')
+          if (!r.ok) toast(t('labMain.toastSaveFull'), 'info')
+          else if (r.pruned) toast(t('labMain.toastSavePruned'), 'info')
+          else toast(t('labMain.toastSaved'), 'success')
         }}
         onUndo={hist.undo}
         onRedo={hist.redo}
@@ -246,27 +248,27 @@ export function GarmentLab() {
           // Export what the user is looking at — the Back tab exports the back view.
           const toExport = view === 'back' ? { ...garment, views: [...garment.views].reverse() } : garment
           void exportGarmentFlatPng(toExport)
-            .then(() => toast(`Garment flat exported (PNG, ${view === 'back' ? 'back' : 'front'} view).`, 'success'))
-            .catch(() => toast('Could not export the flat.', 'info'))
+            .then(() => toast(t('labMain.toastFlatExported', { view: t(view === 'back' ? 'labMain.viewBack' : 'labMain.viewFront') }), 'success'))
+            .catch(() => toast(t('labMain.toastFlatFailed'), 'info'))
         }}
         onExportThreados={() => {
           try {
             exportGarmentThreados(garment)
-            toast('Editable garment exported (.threados).', 'success')
+            toast(t('labMain.toastThreadosExported'), 'success')
           } catch {
-            toast('Could not export the editable garment.', 'info')
+            toast(t('labMain.toastThreadosFailed'), 'info')
           }
         }}
       />
 
-      <div className="eg-lab__pipeline" aria-label="AI editing pipeline">
+      <div className="eg-lab__pipeline" aria-label={t('labMain.pipelineAria')}>
         {FUTURE_PIPELINE_STAGES.map((stage, i) => (
           <span key={stage} className={`eg-stage${i === 3 ? ' is-current' : ''}`}>
             {stage}
             {i < FUTURE_PIPELINE_STAGES.length - 1 && <em aria-hidden="true">→</em>}
           </span>
         ))}
-        <span className="eg-stage__note">AI edits the same editable garment — manual & AI edits share one history</span>
+        <span className="eg-stage__note">{t('labMain.pipelineNote')}</span>
       </div>
 
       <div className="eg-lab__body eg-lab__body--m8">
@@ -275,12 +277,12 @@ export function GarmentLab() {
           selectedId={selectedId}
           onSelect={select}
           onHighlight={setHighlightId}
-          onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), `${getRegion(garment, id)?.visible ? 'Hid' : 'Showed'} ${nameOf(id)}`)}
-          onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), `${getRegion(garment, id)?.locked ? 'Unlocked' : 'Locked'} ${nameOf(id)}`)}
+          onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), t(getRegion(garment, id)?.visible ? 'labMain.revHid' : 'labMain.revShowed', { name: nameOf(id) }))}
+          onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), t(getRegion(garment, id)?.locked ? 'labMain.revUnlocked' : 'labMain.revLocked', { name: nameOf(id) }))}
           onMove={(id, dir) => {
             // moveRegion returns the SAME garment at the ends — never commit a no-op revision.
             const next = moveRegion(garment, id, dir)
-            if (next !== garment) hist.commitManual(next, `Reordered ${nameOf(id)}`)
+            if (next !== garment) hist.commitManual(next, t('labMain.revReordered', { name: nameOf(id) }))
           }}
           onRename={(id, name) => hist.replaceCurrent(rename(garment, id, name))}
         />
@@ -304,12 +306,12 @@ export function GarmentLab() {
         </main>
 
         <div className="eg-right">
-          <div className="eg-right__tabs" role="tablist" aria-label="Panel">
+          <div className="eg-right__tabs" role="tablist" aria-label={t('labMain.panelAria')}>
             <button type="button" role="tab" aria-selected={rightTab === 'ai'} className={`eg-right__tab${rightTab === 'ai' ? ' is-active' : ''}`} onClick={() => setRightTab('ai')}>
-              AI Designer
+              {t('labMain.tabAiDesigner')}
             </button>
             <button type="button" role="tab" aria-selected={rightTab === 'region'} className={`eg-right__tab${rightTab === 'region' ? ' is-active' : ''}`} onClick={() => setRightTab('region')}>
-              Region
+              {t('labMain.tabRegion')}
             </button>
           </div>
           {rightTab === 'ai' ? (
@@ -319,9 +321,9 @@ export function GarmentLab() {
               garment={garment}
               selectedId={selectedId}
               onRename={(id, name) => hist.replaceCurrent(rename(garment, id, name))}
-              onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), `${getRegion(garment, id)?.visible ? 'Hid' : 'Showed'} ${nameOf(id)}`)}
-              onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), `${getRegion(garment, id)?.locked ? 'Unlocked' : 'Locked'} ${nameOf(id)}`)}
-              onSetColor={(id, hex) => hist.commitManual(setRegionColor(garment, id, hex), hex ? `Coloured ${nameOf(id)}` : `Reset ${nameOf(id)} colour`)}
+              onToggleVisible={(id) => hist.commitManual(toggleVisible(garment, id), t(getRegion(garment, id)?.visible ? 'labMain.revHid' : 'labMain.revShowed', { name: nameOf(id) }))}
+              onToggleLocked={(id) => hist.commitManual(toggleLocked(garment, id), t(getRegion(garment, id)?.locked ? 'labMain.revUnlocked' : 'labMain.revLocked', { name: nameOf(id) }))}
+              onSetColor={(id, hex) => hist.commitManual(setRegionColor(garment, id, hex), hex ? t('labMain.revColoured', { name: nameOf(id) }) : t('labMain.revResetColour', { name: nameOf(id) }))}
             />
           )}
         </div>
@@ -329,11 +331,11 @@ export function GarmentLab() {
 
       {genPrompt !== null && (
         <GenerationExperience
-          eyebrow={isLiveAi() ? 'Generating with OpenAI' : 'Building your editable garment'}
-          title="Creating editable garment…"
+          eyebrow={isLiveAi() ? t('labMain.genEyebrowLive') : t('labMain.genEyebrowLocal')}
+          title={t('labMain.genTitle')}
           subtitle={`“${genPrompt}”`}
           phases={GENERATION_PHASES}
-          etaLabel={isLiveAi() ? 'Estimated time · 20–40 seconds' : 'Assembling front + back regions'}
+          etaLabel={isLiveAi() ? t('labMain.genEtaLive') : t('labMain.genEtaLocal')}
           minRevealMs={isLiveAi() ? 0 : 2800}
           stepMs={isLiveAi() ? 3200 : 300}
           run={async () => ({ garment: (await generateGarment(genPrompt)).garment })}

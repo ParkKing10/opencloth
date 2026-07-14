@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
+import { useT } from '@/i18n'
 import { useIsPhone } from '../../lib/useMediaQuery'
 import { DesktopOnly } from '../../components/DesktopOnly'
 import { DesignStudio } from './DesignStudio'
@@ -11,19 +12,16 @@ import { DesignStudio } from './DesignStudio'
 export function StudioMobileGate() {
   const isPhone = useIsPhone()
   const [params] = useSearchParams()
+  const t = useT()
 
   if (isPhone) {
     const name = params.get('name')
     return (
       <DesktopOnly
-        title="The Design Studio needs a bigger canvas"
-        message={
-          name
-            ? `“${name}” is ready — open loom studios on a laptop or desktop to design, place graphics and export it.`
-            : 'The editor is built for a larger screen. Open loom studios on a laptop or desktop to design, place graphics and export your piece.'
-        }
+        title={t('dsMain.gate.title')}
+        message={name ? t('dsMain.gate.messageNamed', { name }) : t('dsMain.gate.message')}
         backTo="/suite/design"
-        backLabel="Back to Design Studio"
+        backLabel={t('dsMain.gate.back')}
       />
     )
   }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '@/i18n'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { PickerField, type PickerFieldData } from './PickerField'
@@ -6,6 +7,12 @@ import type { StudioConfig } from './studioModel'
 import type { StudioMode } from './CommandBar'
 
 export type PropField = PickerFieldData
+
+const TAB_KEYS: Record<'Properties' | 'Materials' | 'Colors', string> = {
+  Properties: 'dsInspectors.tab.properties',
+  Materials: 'dsInspectors.tab.materials',
+  Colors: 'dsInspectors.tab.colors',
+}
 
 type Props = {
   mode: StudioMode
@@ -25,6 +32,7 @@ type Props = {
  * "Advanced" click away. Pro sees every group expanded. Nothing is removed.
  */
 export function GarmentInspector({ mode, garment, fields, config, onField, onGarment, onConfig, children }: Props) {
+  const t = useT()
   const [propTab, setPropTab] = useState<'Properties' | 'Materials' | 'Colors'>('Properties')
   const isPro = mode === 'pro'
   const Glyph = GARMENT_GLYPHS[garment.kind]
@@ -37,26 +45,26 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
 
   // The four rows a beginner actually thinks in: the piece, the cloth, the cut, the color.
   const heroRows: (PropField | null)[] = [
-    { id: 'g-garment', label: 'Garment', value: garment.name },
-    heroField('d-fabric', 'Fabric'),
-    heroField('d-fit', 'Fit'),
-    detail('d-color') ? { ...detail('d-color')!, label: 'Color' } : null,
+    { id: 'g-garment', label: t('dsInspectors.prop.garment'), value: garment.name },
+    heroField('d-fabric', t('dsInspectors.prop.fabric')),
+    heroField('d-fit', t('dsInspectors.prop.fit')),
+    detail('d-color') ? { ...detail('d-color')!, label: t('dsInspectors.prop.color') } : null,
   ]
 
   const brandToggles = (
     <>
-      <ConfigToggle label="Neck Label Artwork" on={config.neckLabel} onToggle={(v) => onConfig('neckLabel', v)} />
-      <ConfigToggle label="Care Label" on={config.careLabel} onToggle={(v) => onConfig('careLabel', v)} />
+      <ConfigToggle label={t('dsInspectors.toggle.neckLabel')} on={config.neckLabel} onToggle={(v) => onConfig('neckLabel', v)} />
+      <ConfigToggle label={t('dsInspectors.toggle.careLabel')} on={config.careLabel} onToggle={(v) => onConfig('careLabel', v)} />
     </>
   )
   const constructionToggles = (
-    <ConfigToggle label="Construction confirmed" on={config.construction} onToggle={(v) => onConfig('construction', v)} />
+    <ConfigToggle label={t('dsInspectors.toggle.construction')} on={config.construction} onToggle={(v) => onConfig('construction', v)} />
   )
   const manufacturingToggles = (
     <>
-      <ConfigToggle label="Tolerance Table" on={config.tolerance} onToggle={(v) => onConfig('tolerance', v)} />
-      <ConfigToggle label="Production Notes" on={config.productionNotes} onToggle={(v) => onConfig('productionNotes', v)} />
-      <ConfigToggle label="Packaging" on={config.packaging} onToggle={(v) => onConfig('packaging', v)} />
+      <ConfigToggle label={t('dsInspectors.toggle.tolerance')} on={config.tolerance} onToggle={(v) => onConfig('tolerance', v)} />
+      <ConfigToggle label={t('dsInspectors.toggle.productionNotes')} on={config.productionNotes} onToggle={(v) => onConfig('productionNotes', v)} />
+      <ConfigToggle label={t('dsInspectors.toggle.packaging')} on={config.packaging} onToggle={(v) => onConfig('packaging', v)} />
     </>
   )
 
@@ -71,7 +79,7 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
             </span>
             <span className="gi-hero__text">
               <b>{garment.name}</b>
-              <small>{detail('d-fit')?.value ?? garment.fit} fit</small>
+              <small>{t('dsInspectors.fitSuffix', { fit: detail('d-fit')?.value ?? garment.fit })}</small>
             </span>
           </div>
           {heroRows.map((f) =>
@@ -86,14 +94,14 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
           )}
         </div>
 
-        <Accordion title="Design" open>
+        <Accordion title={t('dsInspectors.acc.design')} open>
           {fields.design.map((f) => (
             <PickerField key={f.id} field={f} onChange={(v) => onField('design', f.id, v)} />
           ))}
         </Accordion>
 
         <Advanced>
-          <Accordion title="Details" open>
+          <Accordion title={t('dsInspectors.acc.details')} open>
             {fields.details
               .filter((f) => !['d-fabric', 'd-fit', 'd-color'].includes(f.id))
               .map((f) => (
@@ -103,13 +111,13 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
               <PickerField key={f.id} field={f} onChange={(v) => onField('detailsAdvanced', f.id, v)} />
             ))}
           </Accordion>
-          <Accordion title="Brand" open>
+          <Accordion title={t('dsInspectors.acc.brand')} open>
             {brandToggles}
           </Accordion>
-          <Accordion title="Construction" open>
+          <Accordion title={t('dsInspectors.acc.construction')} open>
             {constructionToggles}
           </Accordion>
-          <Accordion title="Manufacturing" open>
+          <Accordion title={t('dsInspectors.acc.manufacturing')} open>
             {manufacturingToggles}
           </Accordion>
         </Advanced>
@@ -123,14 +131,14 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
   return (
     <>
       <div className="ds-proptabs">
-        {(['Properties', 'Materials', 'Colors'] as const).map((t) => (
+        {(['Properties', 'Materials', 'Colors'] as const).map((tab) => (
           <button
-            key={t}
+            key={tab}
             type="button"
-            className={`ds-proptab${propTab === t ? ' is-active' : ''}`}
-            onClick={() => setPropTab(t)}
+            className={`ds-proptab${propTab === tab ? ' is-active' : ''}`}
+            onClick={() => setPropTab(tab)}
           >
-            {t}
+            {t(TAB_KEYS[tab])}
           </button>
         ))}
       </div>
@@ -140,7 +148,7 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
           <>
             <section className="ds-group">
               <div className="ds-group__head">
-                <span>Item</span>
+                <span>{t('dsInspectors.item')}</span>
               </div>
               <div className="ds-item">
                 <span className="ds-item__thumb">
@@ -152,12 +160,12 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
                 </span>
               </div>
               <PickerField
-                field={{ id: 'g-garment', label: 'Garment', value: garment.name }}
+                field={{ id: 'g-garment', label: t('dsInspectors.prop.garment'), value: garment.name }}
                 onChange={(v) => onGarment(v)}
               />
             </section>
 
-            <Accordion title="Appearance" open>
+            <Accordion title={t('dsInspectors.acc.appearance')} open>
               {fields.details.map((f) => (
                 <PickerField key={f.id} field={f} onChange={(v) => onField('details', f.id, v)} />
               ))}
@@ -166,26 +174,26 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
               ))}
             </Accordion>
 
-            <Accordion title="Design" open>
+            <Accordion title={t('dsInspectors.acc.design')} open>
               {fields.design.map((f) => (
                 <PickerField key={f.id} field={f} onChange={(v) => onField('design', f.id, v)} />
               ))}
             </Accordion>
 
-            <Accordion title="Brand" open>
+            <Accordion title={t('dsInspectors.acc.brand')} open>
               {brandToggles}
             </Accordion>
-            <Accordion title="Construction" open>
+            <Accordion title={t('dsInspectors.acc.construction')} open>
               {constructionToggles}
             </Accordion>
-            <Accordion title="Manufacturing" open>
+            <Accordion title={t('dsInspectors.acc.manufacturing')} open>
               {manufacturingToggles}
             </Accordion>
           </>
         )}
 
         {propTab === 'Materials' && (
-          <Accordion title="Materials" open>
+          <Accordion title={t('dsInspectors.acc.materials')} open>
             {fields.materials.map((f) => (
               <PickerField key={f.id} field={f} onChange={(v) => onField('materials', f.id, v)} />
             ))}
@@ -193,7 +201,7 @@ export function GarmentInspector({ mode, garment, fields, config, onField, onGar
         )}
 
         {propTab === 'Colors' && (
-          <Accordion title="Palette" open>
+          <Accordion title={t('dsInspectors.acc.palette')} open>
             {fields.colors.map((f) => (
               <PickerField key={f.id} field={f} onChange={(v) => onField('colors', f.id, v)} />
             ))}
@@ -222,6 +230,7 @@ function Accordion({ title, open, children }: { title: string; open?: boolean; c
 
 /** Progressive disclosure: professional controls one click away, never removed. */
 function Advanced({ children }: { children: React.ReactNode }) {
+  const t = useT()
   const [isOpen, setIsOpen] = useState(false)
   return (
     <div className="ds-adv">
@@ -232,7 +241,7 @@ function Advanced({ children }: { children: React.ReactNode }) {
         aria-expanded={isOpen}
       >
         <IcoChevron className="ds-adv__caret" width="13" height="13" style={{ transform: isOpen ? 'none' : 'rotate(-90deg)' }} />
-        Advanced
+        {t('dsInspectors.advanced')}
       </button>
       {isOpen && <div className="ds-adv__body">{children}</div>}
     </div>

@@ -5,6 +5,7 @@
  * returns per-region confidences (real vision reconstruction), they're shown before opening the editor.
  */
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import type { RegionConfidence } from '../../garment-model/aiProvider'
 import './garment-lab.css'
@@ -32,6 +33,7 @@ type Props = {
 }
 
 export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabel, minRevealMs, stepMs, run, onComplete, onCancel }: Props) {
+  const t = useT()
   const [phase, setPhase] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [attempt, setAttempt] = useState(0)
@@ -39,9 +41,11 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
 
   const runRef = useRef(run)
   const onCompleteRef = useRef(onComplete)
+  const tRef = useRef(t)
   useEffect(() => {
     runRef.current = run
     onCompleteRef.current = onComplete
+    tRef.current = t
   })
 
   useEffect(() => {
@@ -67,7 +71,7 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
       .catch((err: unknown) => {
         if (cancelled) return
         clearInterval(timer)
-        setError(err instanceof Error ? err.message : 'Something went wrong')
+        setError(err instanceof Error ? err.message : tRef.current('labPanels.gen.somethingWrong'))
       })
 
     return () => {
@@ -79,17 +83,17 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
 
   if (error) {
     return (
-      <div className="gen" role="dialog" aria-modal="true" aria-label="Creation failed">
+      <div className="gen" role="dialog" aria-modal="true" aria-label={t('labPanels.gen.failedAria')}>
         <div className="gen__panel gen__panel--error">
           <div className="gen__err-glyph" aria-hidden="true">!</div>
-          <h2>That didn't finish</h2>
+          <h2>{t('labPanels.gen.didntFinish')}</h2>
           <p className="gen__err-msg">{error}</p>
           <div className="gen__err-actions">
             <button type="button" className="s-btn s-btn--subtle" onClick={onCancel}>
-              Cancel
+              {t('labPanels.gen.cancel')}
             </button>
             <button type="button" className="s-btn s-btn--accent" onClick={() => setAttempt((a) => a + 1)}>
-              Try again
+              {t('labPanels.gen.tryAgain')}
             </button>
           </div>
         </div>
@@ -102,18 +106,18 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
     const notes = done.notes ?? []
     if (done.templateStart) {
       return (
-        <div className="gen" role="dialog" aria-modal="true" aria-label="Template start">
+        <div className="gen" role="dialog" aria-modal="true" aria-label={t('labPanels.gen.templateStartAria')}>
           <div className="gen__panel">
-            <span className="gen__eyebrow">Couldn't read this photo</span>
-            <h2>Template start</h2>
+            <span className="gen__eyebrow">{t('labPanels.gen.cantRead')}</span>
+            <h2>{t('labPanels.gen.templateStart')}</h2>
             <p className="gen__prompt">
-              We couldn't analyse this photo, so we started you from a neutral editable template — it is
-              <strong> not</strong> a reconstruction of your garment. Add an OpenAI key in Settings, or try a
-              clearer, straight-on photo. Everything here is still fully editable.
+              {t('labPanels.gen.tplBody1')}
+              <strong>{t('labPanels.gen.tplNot')}</strong>
+              {t('labPanels.gen.tplBody2')}
             </p>
             <div className="gen__foot">
               <button type="button" className="s-btn s-btn--accent" onClick={() => onCompleteRef.current(done.garment)}>
-                Open template in editor
+                {t('labPanels.gen.openTemplate')}
               </button>
             </div>
           </div>
@@ -121,12 +125,12 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
       )
     }
     return (
-      <div className="gen" role="dialog" aria-modal="true" aria-label="Detected garment">
+      <div className="gen" role="dialog" aria-modal="true" aria-label={t('labPanels.gen.detectedAria')}>
         <div className="gen__panel">
-          <span className="gen__eyebrow">Detected from your photo</span>
-          <h2>Assembled from detected attributes</h2>
+          <span className="gen__eyebrow">{t('labPanels.gen.detectedFrom')}</span>
+          <h2>{t('labPanels.gen.assembled')}</h2>
           <p className="gen__prompt">
-            loom studios matched your photo to an editable technical flat. Anything below can be refined in the editor.
+            {t('labPanels.gen.matched')}
           </p>
           {confidences.length > 0 && (
             <ul className="gen__conf">
@@ -149,9 +153,9 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
             </ul>
           )}
           <div className="gen__foot">
-            <span className="gen__eta">{confidences.length} attribute{confidences.length === 1 ? '' : 's'} detected</span>
+            <span className="gen__eta">{confidences.length === 1 ? t('labPanels.gen.attrDetectedOne', { n: confidences.length }) : t('labPanels.gen.attrDetectedMany', { n: confidences.length })}</span>
             <button type="button" className="s-btn s-btn--accent" onClick={() => onCompleteRef.current(done.garment)}>
-              Open in editor
+              {t('labPanels.gen.openInEditor')}
             </button>
           </div>
         </div>
@@ -185,7 +189,7 @@ export function GenerationExperience({ eyebrow, title, subtitle, phases, etaLabe
         <div className="gen__foot">
           <span className="gen__eta">{etaLabel}</span>
           <button type="button" className="gen__cancel" onClick={onCancel}>
-            Cancel
+            {t('labPanels.gen.cancel')}
           </button>
         </div>
       </div>

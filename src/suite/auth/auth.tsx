@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
+import { useT } from '@/i18n'
 import { useStore } from '../data/store'
 import type { User } from '../data/types'
 import { constantTimeEqual, hashPassword, uid } from '../data/utils'
@@ -29,14 +30,14 @@ function validEmail(email: string): boolean {
 }
 
 /** Map a raw Supabase auth error to a friendly message (never echo raw server text). */
-function friendlyAuthError(message: string): string {
+function friendlyAuthError(message: string, t: (key: string) => string): string {
   const m = message.toLowerCase()
-  if (m.includes('invalid login')) return 'Incorrect email or password.'
-  if (m.includes('already registered') || m.includes('already exists')) return 'An account with that email already exists.'
-  if (m.includes('email not confirmed')) return 'Please confirm your email, then sign in.'
-  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — please wait a moment and try again.'
-  if (m.includes('should be at least') || m.includes('weak')) return 'Password must be at least 8 characters.'
-  return 'Something went wrong. Please try again.'
+  if (m.includes('invalid login')) return t('auth.err.invalidLogin')
+  if (m.includes('already registered') || m.includes('already exists')) return t('auth.err.emailExists')
+  if (m.includes('email not confirmed')) return t('auth.err.emailNotConfirmed')
+  if (m.includes('rate limit') || m.includes('too many')) return t('auth.err.tooMany')
+  if (m.includes('should be at least') || m.includes('weak')) return t('auth.err.pwTooShort')
+  return t('auth.err.generic')
 }
 
 function sessionUserFrom(u: { id: string; email?: string | null; user_metadata?: { name?: string } }): SessionUser {
@@ -44,6 +45,7 @@ function sessionUserFrom(u: { id: string; email?: string | null; user_metadata?:
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const t = useT()
   const { data, mutate } = useStore()
 
   // ---- Fallback (localStorage) session ----
@@ -118,16 +120,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback<AuthApi['login']>(
     async (email, password) => {
       const trimmed = email.trim().toLowerCase()
-      if (!validEmail(trimmed)) return { ok: false, error: 'Enter a valid email address.' }
-      if (!password) return { ok: false, error: 'Enter your password.' }
+      if (!validEmail(trimmed)) return { ok: false, error: t('auth.err.validEmail') }
+      if (!password) return { ok: false, error: t('auth.err.enterPassword') }
 
       if (SUPA) {
         const { data: res, error } = await SUPA.auth.signInWithPassword({ email: trimmed, password })
-        if (error || !res.user) return { ok: false, error: friendlyAuthError(error?.message ?? '') }
+        if (error || !res.user) return { ok: false, error: friendlyAuthError(error?.message ?? '', t) }
         const profile = await loadProfile(sessionUserFrom(res.user))
         if (profile.status === 'suspended') {
           await SUPA.auth.signOut()
-          return { ok: false, error: 'This account has been suspended.' }
+          return { ok: false, error: t('auth.err.suspended') }
         }
         setSupaUserId(res.user.id)
         setSupaProfile(profile)
@@ -136,23 +138,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const found = data.users.find((u) => u.email.toLowerCase() === trimmed)
-      if (!found) return { ok: false, error: 'No account found for that email.' }
-      if (found.status === 'suspended') return { ok: false, error: 'This account has been suspended.' }
+      if (!found) return { ok: false, error: t('auth.err.noAccount') }
+      if (found.status === 'suspended') return { ok: false, error: t('auth.err.suspended') }
       const hash = await hashPassword(password)
-      if (!constantTimeEqual(hash, found.passwordHash)) return { ok: false, error: 'Incorrect password.' }
+      if (!constantTimeEqual(hash, found.passwordHash)) return { ok: false, error: t('auth.err.incorrectPassword') }
       setSessionId(found.id)
       return { ok: true }
     },
-    [data.users, loadProfile],
+    [data.users, loadProfile, t],
   )
 
   const signup = useCallback<AuthApi['signup']>(
     async (name, email, password) => {
       const cleanName = name.trim()
       const trimmed = email.trim().toLowerCase()
-      if (cleanName.length < 2) return { ok: false, error: 'Enter your name.' }
-      if (!validEmail(trimmed)) return { ok: false, error: 'Enter a valid email address.' }
-      if (password.length < 8) return { ok: false, error: 'Password must be at least 8 characters.' }
+      if (cleanName.length < 2) return { ok: false, error: t('auth.err.enterName') }
+      if (!validEmail(trimmed)) return { ok: false, error: t('auth.err.validEmail') }
+      if (password.length < 8) return { ok: false, error: t('auth.err.pwTooShort') }
 
       if (SUPA) {
         const { data: res, error } = await SUPA.auth.signUp({
@@ -160,9 +162,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
           options: { data: { name: cleanName } },
         })
-        if (error) return { ok: false, error: friendlyAuthError(error.message) }
+        if (error) return { ok: false, error: friendlyAuthError(error.message, t) }
         if (!res.session || !res.user) {
-          return { ok: false, error: 'Check your email to confirm your account, then sign in.' }
+          return { ok: false, error: t('auth.err.confirmEmail') }
         }
         const profile = await loadProfile(sessionUserFrom(res.user))
         setSupaUserId(res.user.id)
@@ -172,7 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.users.some((u) => u.email.toLowerCase() === trimmed)) {
-        return { ok: false, error: 'An account with that email already exists.' }
+        return { ok: false, error: t('auth.err.emailExists') }
       }
       const passwordHash = await hashPassword(password)
       const newUser: User = {
@@ -190,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSessionId(newUser.id)
       return { ok: true }
     },
-    [data.users, mutate, loadProfile],
+    [data.users, mutate, loadProfile, t],
   )
 
   const logout = useCallback(() => {
@@ -231,11 +233,12 @@ export function useAuth(): AuthApi {
 
 /** Minimal branded splash shown while the session resolves (Supabase mode). */
 function AuthSplash() {
+  const t = useT()
   return (
     <div className="suite" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
       <style>{'@keyframes threados-auth-spin{to{transform:rotate(360deg)}}'}</style>
       <span
-        aria-label="Loading"
+        aria-label={t('auth.loading')}
         style={{
           width: 26,
           height: 26,

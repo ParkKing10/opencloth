@@ -9,8 +9,9 @@ import {
   type SVGProps,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import { useAssets } from '../useAssets'
-import { filterAssets, recentAssets, FILTER_LABELS, type AssetFilter, type AssetSort } from '../assetFilter'
+import { filterAssets, recentAssets, type AssetFilter, type AssetSort } from '../assetFilter'
 import { touchAsset, type Asset } from '../assetStore'
 import { ACCEPT_ATTR } from '../assetThumb'
 import { useToast } from '../../components/ui/Toast'
@@ -84,6 +85,7 @@ type Props = {
 }
 
 export function AssetLibrary({ userId, onPlace, page = false }: Props) {
+  const t = useT()
   const toast = useToast()
   const { assets, loading, busy, upload, rename, duplicate, remove, toggleFavorite, refresh } = useAssets(userId)
 
@@ -122,10 +124,10 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
   const runUpload = useCallback(
     async (files: File[] | FileList) => {
       const res = await upload(files)
-      if (res.added) toast(`${res.added} ${res.added === 1 ? 'asset' : 'assets'} added to your library.`, 'success')
-      if (res.rejected.length) toast(`Skipped ${res.rejected.length} unsupported file(s). Use PNG, JPG, SVG or WEBP.`, 'info')
+      if (res.added) toast(res.added === 1 ? t('assets.toast.added.one') : t('assets.toast.added.many', { n: res.added }), 'success')
+      if (res.rejected.length) toast(t('assets.toast.skipped', { n: res.rejected.length }), 'info')
     },
-    [upload, toast],
+    [upload, toast, t],
   )
 
   const handlePick = useCallback(
@@ -194,9 +196,9 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
 
   if (!userId) {
     return (
-      <section className="al-panel" aria-label="Graphics library">
+      <section className="al-panel" aria-label={t('assets.aria.library')}>
         <div className="al-empty">
-          <p>Sign in to build your graphics library. Your uploads are saved to your account.</p>
+          <p>{t('assets.signin')}</p>
         </div>
       </section>
     )
@@ -207,7 +209,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
   return (
     <section
       className={`al-panel${isDragOver ? ' is-drop' : ''}`}
-      aria-label="Graphics library"
+      aria-label={t('assets.aria.library')}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -226,12 +228,12 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
 
       <header className="al-head">
         <div>
-          <h2>Graphics</h2>
-          <p className="al-head__hint">Your library — uploads + every AI creation, auto-saved. Drag or double-click onto the garment</p>
+          <h2>{t('assets.head.title')}</h2>
+          <p className="al-head__hint">{t('assets.head.hint')}</p>
         </div>
         <button type="button" className="al-upload" onClick={() => fileInputRef.current?.click()} disabled={busy}>
           {busy ? <span className="al-spin" aria-hidden="true" /> : <IcoUpload width={13} height={13} />}
-          Upload
+          {t('assets.upload')}
         </button>
       </header>
 
@@ -254,10 +256,10 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
             <span className="al-empty__ico">
               <IcoUpload width={16} height={16} />
             </span>
-            <p>Upload PNG, JPG, SVG or WEBP graphics — and everything you make with loom studios AI saves here automatically. All ready to drop onto any garment.</p>
+            <p>{t('assets.empty.body')}</p>
             <button type="button" className="al-upload" onClick={() => fileInputRef.current?.click()}>
               <IcoUpload width={13} height={13} />
-              Upload graphics
+              {t('assets.empty.cta')}
             </button>
           </div>
         </div>
@@ -269,25 +271,25 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
             <div className="al-search">
               <input
                 type="search"
-                placeholder="Search graphics…"
+                placeholder={t('assets.search.placeholder')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search graphics"
+                aria-label={t('assets.search.aria')}
               />
             </div>
-            <nav className="al-chips" aria-label="Filter graphics">
+            <nav className="al-chips" aria-label={t('assets.filter.aria')}>
               {FILTERS.map((f) => (
                 <button key={f} type="button" className={`al-chip${filter === f ? ' is-active' : ''}`} onClick={() => setFilter(f)}>
-                  {FILTER_LABELS[f]}
+                  {t(`assets.filter.${f}`)}
                 </button>
               ))}
               <button
                 type="button"
                 className="al-chip al-chip--sort"
                 onClick={() => setSort((s) => (s === 'newest' ? 'oldest' : 'newest'))}
-                title="Toggle sort order"
+                title={t('assets.sort.title')}
               >
-                {sort === 'newest' ? 'Newest' : 'Oldest'}
+                {sort === 'newest' ? t('assets.sort.newest') : t('assets.sort.oldest')}
               </button>
             </nav>
           </div>
@@ -295,14 +297,14 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
           <div className="al-scroll">
             {recent.length > 0 && (
               <div className="al-recent">
-                <span className="al-section-label">Recent</span>
+                <span className="al-section-label">{t('assets.recent')}</span>
                 <div className="al-recent__row">
                   {recent.map((asset) => (
                     <button
                       key={`r-${asset.id}`}
                       type="button"
                       className="al-recent__item"
-                      title={`${asset.filename} — double-click to place`}
+                      title={t('assets.recent.itemTitle', { name: asset.filename })}
                       draggable
                       onDragStart={(e) => handleDragStart(e, asset)}
                       onDoubleClick={() => void handlePlace(asset.id)}
@@ -315,9 +317,9 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
               </div>
             )}
 
-            <span className="al-section-label">{query || filter !== 'all' ? `${visible.length} result${visible.length === 1 ? '' : 's'}` : 'All graphics'}</span>
+            <span className="al-section-label">{query || filter !== 'all' ? (visible.length === 1 ? t('assets.results.one') : t('assets.results.many', { n: visible.length })) : t('assets.allGraphics')}</span>
             {visible.length === 0 ? (
-              <p className="al-none">No graphics match your search.</p>
+              <p className="al-none">{t('assets.none')}</p>
             ) : (
               <div className="al-grid">
                 {visible.map((asset) => (
@@ -332,14 +334,14 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                       className="al-card__thumb"
                       onClick={page ? () => setLightbox(asset) : undefined}
                       role={page ? 'button' : undefined}
-                      title={page ? `Open “${asset.filename}”` : undefined}
+                      title={page ? t('assets.card.open', { name: asset.filename }) : undefined}
                     >
                       <Thumb asset={asset} />
                       <button
                         type="button"
                         className={`al-star${asset.favorite ? ' is-on' : ''}`}
-                        title={asset.favorite ? 'Remove from favorites' : 'Add to favorites'}
-                        aria-label={asset.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                        title={asset.favorite ? t('assets.fav.remove') : t('assets.fav.add')}
+                        aria-label={asset.favorite ? t('assets.fav.remove') : t('assets.fav.add')}
                         aria-pressed={asset.favorite}
                         onClick={(e) => { e.stopPropagation(); void toggleFavorite(asset.id) }}
                       >
@@ -347,9 +349,9 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                       </button>
                       {!page && (
                         <div className="al-card__hover">
-                          <button type="button" className="al-add" title="Place in center" aria-label={`Place ${asset.filename}`} onClick={(e) => { e.stopPropagation(); void handlePlace(asset.id) }}>
+                          <button type="button" className="al-add" title={t('assets.place.title')} aria-label={t('assets.place.aria', { name: asset.filename })} onClick={(e) => { e.stopPropagation(); void handlePlace(asset.id) }}>
                             <IcoPlus width={13} height={13} />
-                            Place
+                            {t('assets.place')}
                           </button>
                         </div>
                       )}
@@ -382,7 +384,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                       <button
                         type="button"
                         className="al-kebab"
-                        aria-label="Asset actions"
+                        aria-label={t('assets.actions.aria')}
                         onClick={(e) => {
                           e.stopPropagation()
                           setMenuId((cur) => (cur === asset.id ? null : asset.id))
@@ -393,7 +395,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                       {menuId === asset.id && (
                         <div className="al-menu" role="menu" onClick={(e) => e.stopPropagation()}>
                           <button type="button" role="menuitem" onClick={() => startRename(asset)}>
-                            Rename
+                            {t('assets.menu.rename')}
                           </button>
                           <button
                             type="button"
@@ -403,7 +405,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                               void duplicate(asset.id)
                             }}
                           >
-                            Duplicate
+                            {t('assets.menu.duplicate')}
                           </button>
                           <button
                             type="button"
@@ -412,10 +414,10 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                             onClick={() => {
                               setMenuId(null)
                               void remove(asset.id)
-                              toast('Removed from library. Projects that use it keep their own copy.')
+                              toast(t('assets.toast.removed'))
                             }}
                           >
-                            Delete
+                            {t('assets.menu.delete')}
                           </button>
                         </div>
                       )}
@@ -432,7 +434,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
         <div className="al-drop" aria-hidden="true">
           <span className="al-drop__pill">
             <IcoUpload width={14} height={14} />
-            Drop to add to library
+            {t('assets.drop')}
           </span>
         </div>
       )}
@@ -442,7 +444,7 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
           <div className="suite">
             <div className="al-lb" role="dialog" aria-modal="true" onClick={() => setLightbox(null)}>
               <div className="al-lb__panel" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="al-lb__x" aria-label="Close" onClick={() => setLightbox(null)}>×</button>
+                <button type="button" className="al-lb__x" aria-label={t('assets.lb.close')} onClick={() => setLightbox(null)}>×</button>
                 <div className="al-lb__stage al-checker">
                   <LightboxImg asset={lightbox} />
                 </div>
@@ -452,9 +454,9 @@ export function AssetLibrary({ userId, onPlace, page = false }: Props) {
                     <span className="al-lb__sub">{lightbox.width}×{lightbox.height} · {fileTypeLabel(lightbox)} · {fmtDate(lightbox.createdAt)}</span>
                   </div>
                   <div className="al-lb__actions">
-                    <button type="button" className="s-btn" onClick={() => downloadBlob(lightbox.blob, lightbox.filename)}>Download</button>
-                    <button type="button" className="s-btn s-btn--accent" onClick={() => { void handlePlace(lightbox.id); setLightbox(null) }}>Use in design</button>
-                    <button type="button" className="s-btn" onClick={() => { const a = lightbox; setLightbox(null); void remove(a.id); toast('Removed from library. Projects that use it keep their own copy.') }}>Delete</button>
+                    <button type="button" className="s-btn" onClick={() => downloadBlob(lightbox.blob, lightbox.filename)}>{t('assets.lb.download')}</button>
+                    <button type="button" className="s-btn s-btn--accent" onClick={() => { void handlePlace(lightbox.id); setLightbox(null) }}>{t('assets.lb.use')}</button>
+                    <button type="button" className="s-btn" onClick={() => { const a = lightbox; setLightbox(null); void remove(a.id); toast(t('assets.toast.removed')) }}>{t('assets.lb.delete')}</button>
                   </div>
                 </div>
               </div>

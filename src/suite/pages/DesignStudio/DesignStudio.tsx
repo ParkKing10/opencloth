@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useT } from '@/i18n'
 import {
   IcoDesign,
   IcoSearch,
@@ -99,8 +100,28 @@ const ExportMenu = lazy(() => import('../../export/ui/ExportMenu').then((m) => (
 /** The Library — six human categories, every one opens a real panel. */
 const RAIL = ['AI', 'Accessories', 'Layers', 'Graphics', 'Elements', 'Brand Kit', 'Assets', 'Inspiration']
 
+/** i18n key per rail id (rail ids stay English — they're identifiers; only the label is translated). */
+const RAIL_KEY: Record<string, string> = {
+  AI: 'dsMain.rail.ai',
+  Accessories: 'dsMain.rail.accessories',
+  Layers: 'dsMain.rail.layers',
+  Graphics: 'dsMain.rail.graphics',
+  Elements: 'dsMain.rail.elements',
+  'Brand Kit': 'dsMain.rail.brandKit',
+  Assets: 'dsMain.rail.assets',
+  Inspiration: 'dsMain.rail.inspiration',
+}
+
 type Cat = 'All' | 'Tops' | 'Bottoms' | 'Outerwear' | 'Accessories'
 const CATS: Cat[] = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories']
+/** i18n key per category filter chip (chip ids stay English — only the label is translated). */
+const CAT_KEY: Record<Cat, string> = {
+  All: 'dsMain.cat.All',
+  Tops: 'dsMain.cat.Tops',
+  Bottoms: 'dsMain.cat.Bottoms',
+  Outerwear: 'dsMain.cat.Outerwear',
+  Accessories: 'dsMain.cat.Accessories',
+}
 
 /** A studio garment blank — the base the creator designs on. Sourced from the Garment Library. */
 type Garment = {
@@ -252,6 +273,7 @@ const INITIAL_FIELDS: Record<string, PropField[]> = {
 export function DesignStudio() {
   const navigate = useNavigate()
   const toast = useToast()
+  const t = useT()
   const { theme, toggle: toggleTheme } = useSuiteTheme()
   const { user } = useAuth()
   const { data, mutate } = useStore()
@@ -528,10 +550,10 @@ export function DesignStudio() {
       const now = Date.now()
       if (now - lastQuotaWarnRef.current > 15_000) {
         lastQuotaWarnRef.current = now
-        toast('Storage is full — recent changes may not be saved. Export your work, or remove heavy images/versions.', 'info')
+        toast(t('dsMain.toast.storageFull'), 'info')
       }
     }
-  }, [toast])
+  }, [toast, t])
 
   // Apply a generated neck label to the garment — persists in the doc, marks the design dirty.
   const applyNeckLabel = useCallback((dataUrl: string) => {
@@ -539,8 +561,8 @@ export function DesignStudio() {
     neckLabelRef.current = dataUrl
     saveCurrentDoc(presentRef.current)
     setSaveState('unsaved')
-    toast('Neck label added to the garment.', 'success')
-  }, [saveCurrentDoc, toast])
+    toast(t('dsMain.toast.neckLabelAdded'), 'success')
+  }, [saveCurrentDoc, toast, t])
 
   /**
    * Patch the user product specs and persist immediately (design is never blocked by specs).
@@ -603,9 +625,9 @@ export function DesignStudio() {
   const applyGarmentToPage = useCallback(
     (dataUrl: string) => {
       commit({ ...presentRef.current, garmentEdit: dataUrl })
-      toast('Garment applied to this page — start designing on top.', 'success')
+      toast(t('dsMain.toast.garmentApplied'), 'success')
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // ---- Versions / boards: multiple editable variations of the same garment in one file ----
@@ -644,20 +666,20 @@ export function DesignStudio() {
   const addVersion = useCallback(() => {
     const synced = syncActiveVersion(presentRef.current)
     const newId = uid('ver')
-    const name = `Page ${synced.length + 1}`
+    const name = t('dsMain.page.name', { n: synced.length + 1 })
     const blank: Snapshot = { layers: [], hidden: {} }
     const next = [...synced, { id: newId, name, snapshot: blank }]
     versionsRef.current = next
     setVersions(next)
     loadVersion(blank, newId)
     saveCurrentDoc(blank)
-    toast('Blank page added.', 'success')
-  }, [syncActiveVersion, loadVersion, saveCurrentDoc, toast])
+    toast(t('dsMain.toast.blankPageAdded'), 'success')
+  }, [syncActiveVersion, loadVersion, saveCurrentDoc, toast, t])
 
   const deleteVersion = useCallback(
     (id: string) => {
       if (versionsRef.current.length <= 1) {
-        toast('A design needs at least one version.', 'info')
+        toast(t('dsMain.toast.needOneVersion'), 'info')
         return
       }
       const remaining = versionsRef.current.filter((v) => v.id !== id)
@@ -672,9 +694,9 @@ export function DesignStudio() {
       } else {
         saveCurrentDoc(presentRef.current)
       }
-      toast('Version deleted.', 'success')
+      toast(t('dsMain.toast.versionDeleted'), 'success')
     },
-    [loadVersion, saveCurrentDoc, toast],
+    [loadVersion, saveCurrentDoc, toast, t],
   )
 
   // Live mirror so object drags read the freshest state without stale closures.
@@ -702,17 +724,17 @@ export function DesignStudio() {
     const l = makeTextLayer()
     commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
     setSelectedIds([l.id])
-    toast('Text added — double-click on the garment to edit it.', 'success')
-  }, [commit, toast])
+    toast(t('dsMain.toast.textAdded'), 'success')
+  }, [commit, toast, t])
 
   const addGraphicObject = useCallback(
     (glyph: string) => {
       const l = makeGraphicLayer(glyph)
       commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([l.id])
-      toast(`${glyph} added.`, 'success')
+      toast(t('dsMain.toast.glyphAdded', { glyph }), 'success')
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // Drawing tools (Rectangle / Ellipse): the canvas hands back the drawn geometry; we mint a real
@@ -723,9 +745,9 @@ export function DesignStudio() {
       const l = makeShapeLayer(shape, geom)
       commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([l.id])
-      toast(`${shape === 'rect' ? 'Rectangle' : 'Ellipse'} added — set its fill, stroke and corners in the inspector.`, 'success')
+      toast(t(shape === 'rect' ? 'dsMain.toast.rectAdded' : 'dsMain.toast.ellipseAdded'), 'success')
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // loom studios AI → canvas: a generated concept becomes a normal image object (its SVG data URL as
@@ -736,12 +758,12 @@ export function DesignStudio() {
       const layer: Layer = { ...base, name: conceptName(concept.prompt), obj: { ...base.obj!, x: 0.5, y: 0.5, width: 0.42 } }
       commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([layer.id])
-      toast(`“${layer.name}” added to your design.`, 'success')
+      toast(t('dsMain.toast.conceptAdded', { name: layer.name }), 'success')
       // The Creative Director keeps designing with the user, from the real placed object.
       const suggestions = buildDirector(layer.obj!, { prompt: concept.prompt, objectType: 'image' })
       setDirector(suggestions.length ? { objectId: layer.id, suggestions } : null)
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   /** Apply a Creative Director suggestion — every action is real and undoable. */
@@ -782,7 +804,7 @@ export function DesignStudio() {
   const addImageObject = useCallback(
     (file: File) => {
       if (!file.type.startsWith('image/')) {
-        toast('Please choose an image file.', 'info')
+        toast(t('dsMain.toast.chooseImage'), 'info')
         return
       }
       const reader = new FileReader()
@@ -790,12 +812,12 @@ export function DesignStudio() {
         const l = makeImageLayer(file.name, String(reader.result))
         commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
         setSelectedIds([l.id])
-        toast('Image added to your design.', 'success')
+        toast(t('dsMain.toast.imageAdded'), 'success')
       }
-      reader.onerror = () => toast('Could not read that file.', 'info')
+      reader.onerror = () => toast(t('dsMain.toast.readFail'), 'info')
       reader.readAsDataURL(file)
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // Drag: push one history entry on the first move, then update live (no spam).
@@ -851,13 +873,13 @@ export function DesignStudio() {
         const reader = new FileReader()
         reader.onload = () => {
           setObjectProp(id, { src: String(reader.result) })
-          toast('Image replaced.', 'success')
+          toast(t('dsMain.toast.imageReplaced'), 'success')
         }
         reader.readAsDataURL(f)
       }
       input.click()
     },
-    [setObjectProp, toast],
+    [setObjectProp, toast, t],
   )
 
   // ---- Object operations (all go through commit → undoable + autosaved) ----
@@ -885,9 +907,10 @@ export function DesignStudio() {
     if (sel.size === 0) return
     const clones = cloneLayers(base.layers.filter((l) => sel.has(l.id)), 0.03)
     commit({ layers: [...clones, ...base.layers], hidden: base.hidden })
-    setSelectedIds(clones.filter((c) => !c.groupId).map((c) => c.id))
-    toast(`Duplicated ${clones.filter((c) => !c.groupId).length} layer${clones.filter((c) => !c.groupId).length === 1 ? '' : 's'}.`, 'success')
-  }, [commit, toast])
+    const topClones = clones.filter((c) => !c.groupId)
+    setSelectedIds(topClones.map((c) => c.id))
+    toast(t(topClones.length === 1 ? 'dsMain.toast.duplicatedOne' : 'dsMain.toast.duplicatedMany', { n: topClones.length }), 'success')
+  }, [commit, toast, t])
 
   const copySelection = useCallback(() => {
     const base = presentRef.current
@@ -901,8 +924,8 @@ export function DesignStudio() {
     const clones = cloneLayers(clipboardRef.current, 0.04)
     commit({ layers: [...clones, ...base.layers], hidden: base.hidden })
     setSelectedIds(clones.filter((c) => !c.groupId).map((c) => c.id))
-    toast('Pasted.', 'success')
-  }, [commit, toast])
+    toast(t('dsMain.toast.pasted'), 'success')
+  }, [commit, toast, t])
 
   const selectAllObjects = useCallback(() => {
     setSelectedIds(presentRef.current.layers.filter((l) => l.obj && !l.locked).map((l) => l.id))
@@ -928,19 +951,19 @@ export function DesignStudio() {
       .map((id) => base.layers.find((l) => l.id === id))
       .filter((l): l is Layer => !!l && l.type !== 'Group' && !l.groupId)
     if (members.length < 2) {
-      toast('Select at least two layers to group.', 'info')
+      toast(t('dsMain.toast.groupTwo'), 'info')
       return
     }
     const gid = `${freshId()}g`
-    const group: Layer = { id: gid, name: `Group ${base.layers.filter((l) => l.type === 'Group').length + 1}`, type: 'Group' }
+    const group: Layer = { id: gid, name: t('dsMain.layer.groupName', { n: base.layers.filter((l) => l.type === 'Group').length + 1 }), type: 'Group' }
     const memberIds = new Set(members.map((m) => m.id))
     const firstIdx = base.layers.findIndex((l) => memberIds.has(l.id))
     const rest = base.layers.filter((l) => !memberIds.has(l.id))
     const updated = members.map((m) => ({ ...m, groupId: gid }))
     commit({ layers: [...rest.slice(0, firstIdx), group, ...updated, ...rest.slice(firstIdx)], hidden: base.hidden })
     setSelectedIds([gid])
-    toast(`Grouped ${members.length} layers.`, 'success')
-  }, [commit, toast])
+    toast(t('dsMain.toast.grouped', { n: members.length }), 'success')
+  }, [commit, toast, t])
 
   const ungroupSelection = useCallback(() => {
     const base = presentRef.current
@@ -969,8 +992,8 @@ export function DesignStudio() {
     removable.forEach((id) => delete nextHidden[id])
     commit({ layers: base.layers.filter((l) => !removable.has(l.id)), hidden: nextHidden })
     setSelectedIds([])
-    toast(`Removed ${removable.size} ${removable.size === 1 ? 'layer' : 'layers'}.`)
-  }, [commit, toast])
+    toast(t(removable.size === 1 ? 'dsMain.toast.removedOne' : 'dsMain.toast.removedMany', { n: removable.size }))
+  }, [commit, toast, t])
 
   /** Cut = copy then delete. */
   const cutSelection = useCallback(() => {
@@ -1071,7 +1094,7 @@ export function DesignStudio() {
     (axis: 'h' | 'v') => {
       const data = selectionRects()
       if (!data || data.rects.length < 3) {
-        toast('Select 3 or more objects to distribute.', 'info')
+        toast(t('dsMain.toast.distributeThree'), 'info')
         return
       }
       const { box } = data
@@ -1102,7 +1125,7 @@ export function DesignStudio() {
       })
       commit({ layers: patched, hidden: base.hidden })
     },
-    [commit, selectionRects, toast],
+    [commit, selectionRects, toast, t],
   )
 
   // ---- Command palette (⌘K) — every action, searchable (commands built after selection state) ----
@@ -1123,43 +1146,43 @@ export function DesignStudio() {
       const target = effSel[0]
       const items: MenuItem[] = []
       if (opts?.includeRename) {
-        items.push({ label: 'Rename', shortcut: '↵', onSelect: () => renameHandleRef.current?.(opts.includeRename as string) })
+        items.push({ label: t('dsMain.menu.rename'), shortcut: '↵', onSelect: () => renameHandleRef.current?.(opts.includeRename as string) })
         items.push({ kind: 'separator' })
       }
       items.push(
-        { label: 'Cut', shortcut: '⌘X', onSelect: cutSelection },
-        { label: 'Copy', shortcut: '⌘C', onSelect: copySelection },
-        { label: 'Paste', shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
-        { label: 'Duplicate', shortcut: '⌘D', onSelect: duplicateSelection },
+        { label: t('dsMain.menu.cut'), shortcut: '⌘X', onSelect: cutSelection },
+        { label: t('dsMain.menu.copy'), shortcut: '⌘C', onSelect: copySelection },
+        { label: t('dsMain.menu.paste'), shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
+        { label: t('dsMain.menu.duplicate'), shortcut: '⌘D', onSelect: duplicateSelection },
         { kind: 'separator' },
-        { label: 'Bring to Front', shortcut: '⌘⇧]', onSelect: () => target && arrangeLayer(target, 'front') },
-        { label: 'Bring Forward', shortcut: '⌘]', onSelect: () => target && arrangeLayer(target, 'forward') },
-        { label: 'Send Backward', shortcut: '⌘[', onSelect: () => target && arrangeLayer(target, 'backward') },
-        { label: 'Send to Back', shortcut: '⌘⇧[', onSelect: () => target && arrangeLayer(target, 'back') },
+        { label: t('dsMain.menu.bringToFront'), shortcut: '⌘⇧]', onSelect: () => target && arrangeLayer(target, 'front') },
+        { label: t('dsMain.menu.bringForward'), shortcut: '⌘]', onSelect: () => target && arrangeLayer(target, 'forward') },
+        { label: t('dsMain.menu.sendBackward'), shortcut: '⌘[', onSelect: () => target && arrangeLayer(target, 'backward') },
+        { label: t('dsMain.menu.sendToBack'), shortcut: '⌘⇧[', onSelect: () => target && arrangeLayer(target, 'back') },
         { kind: 'separator' },
         someGroup
-          ? { label: 'Ungroup', shortcut: '⌘⇧G', onSelect: ungroupSelection }
-          : { label: 'Group', shortcut: '⌘G', onSelect: groupSelection, disabled: effSel.length < 2 },
-        { label: 'Flip Horizontal', onSelect: () => flipSelection('h') },
-        { label: 'Flip Vertical', onSelect: () => flipSelection('v') },
-        { label: 'Lock / Unlock', onSelect: toggleLockSelection },
-        { label: 'Hide / Show', onSelect: toggleHideSelection },
+          ? { label: t('dsMain.menu.ungroup'), shortcut: '⌘⇧G', onSelect: ungroupSelection }
+          : { label: t('dsMain.menu.group'), shortcut: '⌘G', onSelect: groupSelection, disabled: effSel.length < 2 },
+        { label: t('dsMain.menu.flipH'), onSelect: () => flipSelection('h') },
+        { label: t('dsMain.menu.flipV'), onSelect: () => flipSelection('v') },
+        { label: t('dsMain.menu.lockUnlock'), onSelect: toggleLockSelection },
+        { label: t('dsMain.menu.hideShow'), onSelect: toggleHideSelection },
         { kind: 'separator' },
-        { label: 'Delete', shortcut: '⌫', onSelect: deleteSelection, danger: true },
+        { label: t('dsMain.menu.delete'), shortcut: '⌫', onSelect: deleteSelection, danger: true },
       )
       return items
     },
-    [present.layers, cutSelection, copySelection, paste, duplicateSelection, arrangeLayer, ungroupSelection, groupSelection, flipSelection, toggleLockSelection, toggleHideSelection, deleteSelection],
+    [present.layers, cutSelection, copySelection, paste, duplicateSelection, arrangeLayer, ungroupSelection, groupSelection, flipSelection, toggleLockSelection, toggleHideSelection, deleteSelection, t],
   )
 
   /** Menu for the empty canvas. */
   const emptyMenuItems = useCallback(
     (): MenuItem[] => [
-      { label: 'Add text', onSelect: addTextObject },
-      { label: 'Paste', shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
-      { label: 'Select all', shortcut: '⌘A', onSelect: selectAllObjects },
+      { label: t('dsMain.menu.addText'), onSelect: addTextObject },
+      { label: t('dsMain.menu.paste'), shortcut: '⌘V', onSelect: paste, disabled: clipboardRef.current.length === 0 },
+      { label: t('dsMain.menu.selectAll'), shortcut: '⌘A', onSelect: selectAllObjects },
     ],
-    [addTextObject, paste, selectAllObjects],
+    [addTextObject, paste, selectAllObjects, t],
   )
 
   /** Point the actions at `ids` immediately (ref is synchronous; state catches up). */
@@ -1517,7 +1540,7 @@ export function DesignStudio() {
       activeId = doc.versions.some((v) => v.id === doc.activeVersionId) ? doc.activeVersionId! : loadedVersions[0].id
     } else {
       activeId = uid('ver')
-      loadedVersions = [{ id: activeId, name: 'Page 1', snapshot }]
+      loadedVersions = [{ id: activeId, name: t('dsMain.page.name', { n: 1 }), snapshot }]
     }
     const activeSnapshot = loadedVersions.find((v) => v.id === activeId)?.snapshot ?? snapshot
     setVersions(loadedVersions)
@@ -1636,9 +1659,9 @@ export function DesignStudio() {
         : { id: `l-${Date.now().toString(36)}`, name: asset.name.replace(/\.[^.]+$/, ''), type: asset.folder === 'My Logos' ? 'Logo' : 'Graphic' }
       commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([layer.id])
-      toast(`“${layer.name}” added to the design.`, 'success')
+      toast(t('dsMain.toast.assetAdded', { name: layer.name }), 'success')
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // Place a library graphic: embed the asset's own copy so the project stays self-contained
@@ -1648,7 +1671,7 @@ export function DesignStudio() {
       try {
         const asset = await getAsset(assetId)
         if (!asset) {
-          toast('That graphic is no longer in your library.', 'info')
+          toast(t('dsMain.toast.graphicGone'), 'info')
           return
         }
         const dataUrl = await blobToDataUrl(asset.blob)
@@ -1660,12 +1683,12 @@ export function DesignStudio() {
         commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
         setSelectedIds([layer.id])
         void touchAsset(assetId)
-        toast(`“${layer.name}” placed on the garment.`, 'success')
+        toast(t('dsMain.toast.placedOnGarment', { name: layer.name }), 'success')
       } catch {
-        toast('Could not place that graphic.', 'info')
+        toast(t('dsMain.toast.placeFail'), 'info')
       }
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   // Place a shared-library accessory: its image is already a self-contained data URL, so it drops
@@ -1673,18 +1696,18 @@ export function DesignStudio() {
   const placeAccessory = useCallback(
     (acc: Pick<Accessory, 'name' | 'image'>) => {
       if (!acc.image) return
-      const base = makeImageLayer(acc.name || 'Accessory', acc.image)
+      const base = makeImageLayer(acc.name || t('dsMain.layer.accessory'), acc.image)
       const layer: Layer = { ...base, obj: { ...base.obj!, x: 0.5, y: 0.5, width: 0.4 } }
       commit({ layers: [layer, ...presentRef.current.layers], hidden: presentRef.current.hidden })
       setSelectedIds([layer.id])
-      toast(`“${layer.name}” placed on the garment.`, 'success')
+      toast(t('dsMain.toast.placedOnGarment', { name: layer.name }), 'success')
     },
-    [commit, toast],
+    [commit, toast, t],
   )
 
   function doSelectGarment(g: Garment) {
     setActiveName(g.name)
-    toast(`Loaded ${g.name} blank onto the canvas.`, 'success')
+    toast(t('dsMain.toast.loadedBlank', { name: g.name }), 'success')
   }
 
   /** Copy the current design's prints/graphics onto the target garment, then open it. Region-part
@@ -1700,14 +1723,14 @@ export function DesignStudio() {
         collectionId: collectionIdRef.current,
         specs: specsRef.current,
         projectInfo: projectInfoRef.current,
-        versions: [{ id: verId, name: 'Page 1', layers: src.layers, hidden: src.hidden }],
+        versions: [{ id: verId, name: t('dsMain.page.name', { n: 1 }), layers: src.layers, hidden: src.hidden }],
         activeVersionId: verId,
         updatedAt: Date.now(),
       })
       // If the move can't be written (storage full), don't navigate away and silently drop the work —
       // keep the user on the intact source and tell them.
       if (!ok) {
-        toast(`Storage is full — couldn’t move the design onto ${target.name}. Export or remove heavy images/versions, then try again.`, 'info')
+        toast(t('dsMain.toast.moveStorageFull', { name: target.name }), 'info')
         setGarmentSwitchTarget(null)
         return
       }
@@ -1832,9 +1855,9 @@ export function DesignStudio() {
         patchSpec({ weight: '450 GSM', material: 'Heavy French Terry 450 GSM' })
         rememberChoice('weight', '450 GSM')
       }
-      toast('Applied — the spec is updated.', 'accent')
+      toast(t('dsMain.toast.specUpdated'), 'accent')
     },
-    [setContextField, rememberChoice, toast, patchSpec],
+    [setContextField, rememberChoice, toast, patchSpec, t],
   )
 
   const commitLayers = useCallback(
@@ -1851,8 +1874,8 @@ export function DesignStudio() {
     setFuture((prev) => [present, ...prev])
     setPresent(previous)
     saveCurrentDoc(previous)
-    toast('Undid last change.')
-  }, [past, present, toast, saveCurrentDoc])
+    toast(t('dsMain.toast.undid'))
+  }, [past, present, toast, saveCurrentDoc, t])
 
   const redo = useCallback(() => {
     if (future.length === 0) return
@@ -1861,8 +1884,8 @@ export function DesignStudio() {
     setPast((prev) => [...prev, present])
     setPresent(next)
     saveCurrentDoc(next)
-    toast('Redid change.')
-  }, [future, present, toast, saveCurrentDoc])
+    toast(t('dsMain.toast.redid'))
+  }, [future, present, toast, saveCurrentDoc, t])
 
   // Every Studio action as a searchable command (⌘K). Each just calls the already-wired op, so
   // they inherit undo + autosave + selection exactly like the toolbar, shortcuts and context menu.
@@ -1870,40 +1893,40 @@ export function DesignStudio() {
     const hasSel = liveSelected.length > 0
     const cmd = (id: string, label: string, run: () => void, opts?: Partial<Command>): Command => ({ id, label, run, ...opts })
     return [
-      cmd('undo', 'Undo', undo, { hint: '⌘Z', group: 'Edit', disabled: !canUndo }),
-      cmd('redo', 'Redo', redo, { hint: '⌘⇧Z', group: 'Edit', disabled: !canRedo }),
-      cmd('add-text', 'Add text', addTextObject, { group: 'Insert', keywords: 'new type layer' }),
-      cmd('duplicate', 'Duplicate', duplicateSelection, { hint: '⌘D', group: 'Object', disabled: !hasSel }),
-      cmd('copy', 'Copy', copySelection, { hint: '⌘C', group: 'Object', disabled: !hasSel }),
-      cmd('cut', 'Cut', cutSelection, { hint: '⌘X', group: 'Object', disabled: !hasSel }),
-      cmd('paste', 'Paste', paste, { hint: '⌘V', group: 'Object', disabled: clipboardRef.current.length === 0 }),
-      cmd('delete', 'Delete', deleteSelection, { hint: '⌫', group: 'Object', disabled: !hasSel }),
-      cmd('select-all', 'Select all', selectAllObjects, { hint: '⌘A', group: 'Object' }),
-      cmd('group', 'Group', groupSelection, { hint: '⌘G', group: 'Arrange', disabled: selectedObjIds.length < 2 }),
-      cmd('ungroup', 'Ungroup', ungroupSelection, { hint: '⌘⇧G', group: 'Arrange', disabled: !hasSel }),
-      cmd('front', 'Bring to front', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'front'), { hint: '⌘⇧]', group: 'Arrange', disabled: !hasSel }),
-      cmd('forward', 'Bring forward', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'forward'), { hint: '⌘]', group: 'Arrange', disabled: !hasSel }),
-      cmd('backward', 'Send backward', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'backward'), { hint: '⌘[', group: 'Arrange', disabled: !hasSel }),
-      cmd('back', 'Send to back', () => liveSelected[0] && arrangeLayer(liveSelected[0], 'back'), { hint: '⌘⇧[', group: 'Arrange', disabled: !hasSel }),
-      cmd('align-left', 'Align left', () => alignSelection('left'), { group: 'Align', keywords: 'distribute', disabled: !hasSel }),
-      cmd('align-center', 'Align centers', () => alignSelection('center'), { group: 'Align', disabled: !hasSel }),
-      cmd('align-right', 'Align right', () => alignSelection('right'), { group: 'Align', disabled: !hasSel }),
-      cmd('align-top', 'Align top', () => alignSelection('top'), { group: 'Align', disabled: !hasSel }),
-      cmd('align-middle', 'Align middles', () => alignSelection('middle'), { group: 'Align', disabled: !hasSel }),
-      cmd('align-bottom', 'Align bottom', () => alignSelection('bottom'), { group: 'Align', disabled: !hasSel }),
-      cmd('dist-h', 'Distribute horizontally', () => distributeSelection('h'), { group: 'Align', disabled: selectedObjIds.length < 3 }),
-      cmd('dist-v', 'Distribute vertically', () => distributeSelection('v'), { group: 'Align', disabled: selectedObjIds.length < 3 }),
-      cmd('flip-h', 'Flip horizontal', () => flipSelection('h'), { group: 'Object', disabled: !hasSel }),
-      cmd('flip-v', 'Flip vertical', () => flipSelection('v'), { group: 'Object', disabled: !hasSel }),
-      cmd('lock', 'Lock / unlock', toggleLockSelection, { group: 'Object', disabled: !hasSel }),
-      cmd('hide', 'Hide / show', toggleHideSelection, { group: 'Object', disabled: !hasSel }),
-      cmd('ask-ai', 'Ask loom studios AI', focusAiBar, { group: 'AI', keywords: 'prompt command generate' }),
-      cmd('save', 'Save design…', () => setSaveOpen(true), { group: 'File', keywords: 'store collection' }),
+      cmd('undo', t('dsMain.cmd.undo'), undo, { hint: '⌘Z', group: t('dsMain.group.edit'), disabled: !canUndo }),
+      cmd('redo', t('dsMain.cmd.redo'), redo, { hint: '⌘⇧Z', group: t('dsMain.group.edit'), disabled: !canRedo }),
+      cmd('add-text', t('dsMain.cmd.addText'), addTextObject, { group: t('dsMain.group.insert'), keywords: t('dsMain.kw.addText') }),
+      cmd('duplicate', t('dsMain.cmd.duplicate'), duplicateSelection, { hint: '⌘D', group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('copy', t('dsMain.cmd.copy'), copySelection, { hint: '⌘C', group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('cut', t('dsMain.cmd.cut'), cutSelection, { hint: '⌘X', group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('paste', t('dsMain.cmd.paste'), paste, { hint: '⌘V', group: t('dsMain.group.object'), disabled: clipboardRef.current.length === 0 }),
+      cmd('delete', t('dsMain.cmd.delete'), deleteSelection, { hint: '⌫', group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('select-all', t('dsMain.cmd.selectAll'), selectAllObjects, { hint: '⌘A', group: t('dsMain.group.object') }),
+      cmd('group', t('dsMain.cmd.group'), groupSelection, { hint: '⌘G', group: t('dsMain.group.arrange'), disabled: selectedObjIds.length < 2 }),
+      cmd('ungroup', t('dsMain.cmd.ungroup'), ungroupSelection, { hint: '⌘⇧G', group: t('dsMain.group.arrange'), disabled: !hasSel }),
+      cmd('front', t('dsMain.cmd.bringToFront'), () => liveSelected[0] && arrangeLayer(liveSelected[0], 'front'), { hint: '⌘⇧]', group: t('dsMain.group.arrange'), disabled: !hasSel }),
+      cmd('forward', t('dsMain.cmd.bringForward'), () => liveSelected[0] && arrangeLayer(liveSelected[0], 'forward'), { hint: '⌘]', group: t('dsMain.group.arrange'), disabled: !hasSel }),
+      cmd('backward', t('dsMain.cmd.sendBackward'), () => liveSelected[0] && arrangeLayer(liveSelected[0], 'backward'), { hint: '⌘[', group: t('dsMain.group.arrange'), disabled: !hasSel }),
+      cmd('back', t('dsMain.cmd.sendToBack'), () => liveSelected[0] && arrangeLayer(liveSelected[0], 'back'), { hint: '⌘⇧[', group: t('dsMain.group.arrange'), disabled: !hasSel }),
+      cmd('align-left', t('dsMain.cmd.alignLeft'), () => alignSelection('left'), { group: t('dsMain.group.align'), keywords: t('dsMain.kw.distribute'), disabled: !hasSel }),
+      cmd('align-center', t('dsMain.cmd.alignCenter'), () => alignSelection('center'), { group: t('dsMain.group.align'), disabled: !hasSel }),
+      cmd('align-right', t('dsMain.cmd.alignRight'), () => alignSelection('right'), { group: t('dsMain.group.align'), disabled: !hasSel }),
+      cmd('align-top', t('dsMain.cmd.alignTop'), () => alignSelection('top'), { group: t('dsMain.group.align'), disabled: !hasSel }),
+      cmd('align-middle', t('dsMain.cmd.alignMiddle'), () => alignSelection('middle'), { group: t('dsMain.group.align'), disabled: !hasSel }),
+      cmd('align-bottom', t('dsMain.cmd.alignBottom'), () => alignSelection('bottom'), { group: t('dsMain.group.align'), disabled: !hasSel }),
+      cmd('dist-h', t('dsMain.cmd.distH'), () => distributeSelection('h'), { group: t('dsMain.group.align'), disabled: selectedObjIds.length < 3 }),
+      cmd('dist-v', t('dsMain.cmd.distV'), () => distributeSelection('v'), { group: t('dsMain.group.align'), disabled: selectedObjIds.length < 3 }),
+      cmd('flip-h', t('dsMain.cmd.flipH'), () => flipSelection('h'), { group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('flip-v', t('dsMain.cmd.flipV'), () => flipSelection('v'), { group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('lock', t('dsMain.cmd.lockUnlock'), toggleLockSelection, { group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('hide', t('dsMain.cmd.hideShow'), toggleHideSelection, { group: t('dsMain.group.object'), disabled: !hasSel }),
+      cmd('ask-ai', t('dsMain.cmd.askAi'), focusAiBar, { group: t('dsMain.group.ai'), keywords: t('dsMain.kw.askAi') }),
+      cmd('save', t('dsMain.cmd.saveDesign'), () => setSaveOpen(true), { group: t('dsMain.group.file'), keywords: t('dsMain.kw.saveDesign') }),
     ]
   }, [
     liveSelected, selectedObjIds.length, canUndo, canRedo, undo, redo, addTextObject, duplicateSelection, copySelection,
     cutSelection, paste, deleteSelection, selectAllObjects, groupSelection, ungroupSelection, arrangeLayer, alignSelection,
-    distributeSelection, flipSelection, toggleLockSelection, toggleHideSelection, focusAiBar,
+    distributeSelection, flipSelection, toggleLockSelection, toggleHideSelection, focusAiBar, t,
   ])
 
   // ---- Keyboard shortcuts (skipped while typing) ----
@@ -2039,9 +2062,9 @@ export function DesignStudio() {
       await navigator.clipboard.writeText(window.location.href)
       // Honest: designs are stored on this device today — the link opens the studio, it does not
       // carry the design to other people. Server-backed sharing is a later milestone.
-      toast('Link copied — it opens the studio on this device. Cross-device sharing is coming.', 'info')
+      toast(t('dsMain.toast.linkCopied'), 'info')
     } catch {
-      toast('Could not copy the link. Copy it from the address bar.', 'info')
+      toast(t('dsMain.toast.linkFail'), 'info')
     }
   }
 
@@ -2096,7 +2119,7 @@ export function DesignStudio() {
   const persistDesign = useCallback(
     (name: string, colId: string | undefined, notify: boolean) => {
       if (!user || !designId) {
-        if (notify && !user) toast('Sign in to save designs.', 'info')
+        if (notify && !user) toast(t('dsMain.toast.signInToSave'), 'info')
         return
       }
       setSaveState('saving')
@@ -2124,10 +2147,10 @@ export function DesignStudio() {
       captureThumb(designId, notify) // force a fresh preview on explicit saves, throttle on auto-save
       if (notify) {
         const col = colId ? data.collections.find((c) => c.id === colId)?.name : undefined
-        toast(col ? `“${name}” saved to ${col}.` : `“${name}” saved.`, 'success')
+        toast(col ? t('dsMain.toast.savedTo', { name, col }) : t('dsMain.toast.saved', { name }), 'success')
       }
     },
-    [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections, captureThumb],
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections, captureThumb, t],
   )
 
   // ---- Unsaved-changes guard --------------------------------------------------------------------
@@ -2199,7 +2222,7 @@ export function DesignStudio() {
   const confirmSave = useCallback(
     (choice: SaveChoice) => {
       if (!user || !designId) {
-        toast(!user ? 'Sign in to save designs.' : 'Pick a garment first.', 'info')
+        toast(!user ? t('dsMain.toast.signInToSave') : t('dsMain.toast.pickGarment'), 'info')
         setSaveOpen(false)
         return
       }
@@ -2240,10 +2263,10 @@ export function DesignStudio() {
       captureThumb(designId, true) // real preview for Recent Designs
       window.setTimeout(() => setSaveState('saved'), 350)
       const colName = choice.newCollection ?? (choice.collectionId ? myCollections.find((c) => c.id === choice.collectionId)?.name : undefined)
-      toast(colName ? `“${choice.name}” saved to ${colName}.` : `“${choice.name}” saved.`, 'success')
+      toast(colName ? t('dsMain.toast.savedTo', { name: choice.name, col: colName }) : t('dsMain.toast.saved', { name: choice.name }), 'success')
       setSaveOpen(false)
     },
-    [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc, captureThumb],
+    [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc, captureThumb, t],
   )
 
   // Auto-save (metadata → Recent Designs): any real change persists after 2s of quiet.
@@ -2283,10 +2306,10 @@ export function DesignStudio() {
           presentRef.current.layers.find((l) => l.obj && selectedIds.includes(l.id)) ??
           presentRef.current.layers.find((l) => l.obj && !presentRef.current.hidden[l.id])
         if (spot && target) setObjectProp(target.id, { x: spot.x, y: spot.y })
-        else if (!target) toast('Add a graphic or text first — there is nothing to reposition yet.', 'info')
+        else if (!target) toast(t('dsMain.toast.addGraphicFirst'), 'info')
       }
     },
-    [patchSpec, setObjectProp, selectedIds, toast],
+    [patchSpec, setObjectProp, selectedIds, toast, t],
   )
 
   const applyAction = useCallback(
@@ -2327,20 +2350,20 @@ export function DesignStudio() {
       const action = map[id]
       if (action) {
         applyAction(action)
-        toast('Marked ready.', 'success')
+        toast(t('dsMain.toast.markedReady'), 'success')
       } else if (id === 'front-art') {
         // Real fix: open the Graphics library so the user can place artwork right now.
         setRail('Graphics')
-        toast('Pick a graphic — or use Add text in the toolbar. It lands on the garment.', 'info')
+        toast(t('dsMain.toast.pickGraphic'), 'info')
       } else if (id === 'materials' || id === 'colors') {
         // Real fix: open the Product Specs panel where these fields actually live.
         setRightHidden(false)
-        toast(id === 'materials' ? 'Set the material in Product Specs on the right.' : 'Add a colorway in Product Specs on the right.', 'info')
+        toast(id === 'materials' ? t('dsMain.toast.setMaterial') : t('dsMain.toast.addColorway'), 'info')
       } else {
-        toast('Add this from the design panel on the right.', 'info')
+        toast(t('dsMain.toast.addFromPanel'), 'info')
       }
     },
-    [applyAction, toast],
+    [applyAction, toast, t],
   )
 
   /** Set a garment property (picker-driven — no dialogs anywhere). Routed to the real specs too. */
@@ -2383,9 +2406,17 @@ export function DesignStudio() {
         /* ignore */
       }
       setWizardOpen(false)
-      toast(`Your ${r.garmentName.toLowerCase()} is ready — ${r.colorName}, ${r.fit.toLowerCase()}, ${r.weight}.`, 'accent')
+      toast(
+        t('dsMain.toast.wizardReady', {
+          garment: r.garmentName.toLowerCase(),
+          color: r.colorName,
+          fit: r.fit.toLowerCase(),
+          weight: r.weight,
+        }),
+        'accent',
+      )
     },
-    [rememberChoice, toast, patchSpec],
+    [rememberChoice, toast, patchSpec, t],
   )
 
   const skipWizard = useCallback(() => {
@@ -2427,9 +2458,9 @@ export function DesignStudio() {
       // Brand defaults land in the REAL specs the panel shows and exports read.
       patchSpec({ material: k.defaultFabric, fit: k.defaultFit, ...(gsm ? { weight: gsm } : {}) })
       kitRef.current = k
-      toast('Brand Kit defaults applied to this design.', 'accent')
+      toast(t('dsMain.toast.brandKitApplied'), 'accent')
     },
-    [toast, patchSpec],
+    [toast, patchSpec, t],
   )
 
   return (
@@ -2450,40 +2481,40 @@ export function DesignStudio() {
         </div>
 
         <div className="ds-top__right">
-          <button className="ds-cmdk" type="button" title="Command palette (⌘K)" onClick={() => setPaletteOpen(true)}>
+          <button className="ds-cmdk" type="button" title={t('dsMain.cmdk.title')} onClick={() => setPaletteOpen(true)}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4.3-4.3" />
             </svg>
-            <span>Actions</span>
+            <span>{t('dsMain.actions')}</span>
             <kbd>⌘K</kbd>
           </button>
-          <button className="s-btn s-btn--ghost" type="button" title="Start a new design" onClick={() => setWizardOpen(true)}>
-            New
+          <button className="s-btn s-btn--ghost" type="button" title={t('dsMain.new.title')} onClick={() => setWizardOpen(true)}>
+            {t('dsMain.new')}
           </button>
           <button
             className="s-btn s-btn--ghost"
             type="button"
-            title="Save this design to a collection"
+            title={t('dsMain.save.title')}
             onClick={() => setSaveOpen(true)}
           >
-            Save
+            {t('dsMain.save')}
           </button>
           <button className="s-btn s-btn--ghost" type="button" onClick={shareDesign}>
-            <IcoUpload width="16" height="16" /> Share
+            <IcoUpload width="16" height="16" /> {t('dsMain.share')}
           </button>
           <button
             className="s-btn s-btn--accent"
             type="button"
-            title="Generate campaign photos of this garment on a model"
+            title={t('dsMain.generate.title')}
             onClick={() => setCampaignOpen(true)}
           >
-            <IcoSparkle width="15" height="15" /> Generate
+            <IcoSparkle width="15" height="15" /> {t('dsMain.generate')}
           </button>
           <Suspense
             fallback={
               <button className="s-btn s-btn--accent" type="button" disabled>
-                Export
+                {t('dsMain.export')}
               </button>
             }
           >
@@ -2499,8 +2530,8 @@ export function DesignStudio() {
           <button
             className="ds-icon"
             type="button"
-            aria-label="Undo"
-            title={canUndo ? 'Undo (⌘Z)' : 'Nothing to undo'}
+            aria-label={t('dsMain.undo')}
+            title={canUndo ? t('dsMain.undo.title') : t('dsMain.undo.none')}
             disabled={!canUndo}
             onClick={undo}
           >
@@ -2509,8 +2540,8 @@ export function DesignStudio() {
           <button
             className="ds-icon"
             type="button"
-            aria-label="Redo"
-            title={canRedo ? 'Redo (⇧⌘Z)' : 'Nothing to redo'}
+            aria-label={t('dsMain.redo')}
+            title={canRedo ? t('dsMain.redo.title') : t('dsMain.redo.none')}
             disabled={!canRedo}
             onClick={redo}
           >
@@ -2520,8 +2551,8 @@ export function DesignStudio() {
           <button
             className="ds-icon"
             type="button"
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            aria-label={theme === 'dark' ? t('dsMain.theme.toLight') : t('dsMain.theme.toDark')}
+            title={theme === 'dark' ? t('dsMain.theme.light') : t('dsMain.theme.dark')}
             onClick={toggleTheme}
           >
             {theme === 'dark' ? <IcoSun width="18" height="18" /> : <IcoMoon width="17" height="17" />}
@@ -2531,8 +2562,8 @@ export function DesignStudio() {
             <button
               className="ds-icon"
               type="button"
-              aria-label="Keyboard shortcuts & help"
-              title="Shortcuts & help"
+              aria-label={t('dsMain.help.aria')}
+              title={t('dsMain.help.title')}
               aria-expanded={helpOpen}
               onClick={() => {
                 setHelpOpen((v) => !v)
@@ -2542,16 +2573,16 @@ export function DesignStudio() {
               <IcoHelp width="18" height="18" />
             </button>
             {helpOpen && (
-              <div className="ds-pop" role="dialog" aria-label="Shortcuts">
-                <b className="ds-pop__title">Shortcuts</b>
+              <div className="ds-pop" role="dialog" aria-label={t('dsMain.shortcuts')}>
+                <b className="ds-pop__title">{t('dsMain.shortcuts')}</b>
                 {[
-                  ['⌘Z / ⇧⌘Z', 'Undo / Redo'],
-                  ['⌘D', 'Duplicate layer'],
-                  ['Delete', 'Remove selection'],
-                  ['Esc', 'Deselect'],
-                  ['Scroll', 'Zoom to cursor'],
-                  ['Space + drag', 'Pan the canvas'],
-                  ['Double-click', 'Fit to view'],
+                  ['⌘Z / ⇧⌘Z', t('dsMain.help.undoRedo')],
+                  ['⌘D', t('dsMain.help.duplicateLayer')],
+                  [t('dsMain.help.keyDelete'), t('dsMain.help.removeSelection')],
+                  ['Esc', t('dsMain.help.deselect')],
+                  [t('dsMain.help.keyScroll'), t('dsMain.help.zoomCursor')],
+                  [t('dsMain.help.keySpaceDrag'), t('dsMain.help.panCanvas')],
+                  [t('dsMain.help.keyDoubleClick'), t('dsMain.help.fitView')],
                 ].map(([k, v]) => (
                   <div className="ds-pop__row" key={k}>
                     <kbd>{k}</kbd>
@@ -2566,8 +2597,8 @@ export function DesignStudio() {
             <button
               className="ds-icon ds-icon--badge"
               type="button"
-              aria-label={`Notifications${unread ? ` (${unread} unread)` : ''}`}
-              title="Notifications"
+              aria-label={unread ? t('dsMain.notif.ariaUnread', { n: unread }) : t('dsMain.notif.title')}
+              title={t('dsMain.notif.title')}
               aria-expanded={notifOpen}
               onClick={() => {
                 setNotifOpen((v) => !v)
@@ -2581,9 +2612,9 @@ export function DesignStudio() {
               {unread > 0 && <span className="ds-icon__badge">{unread}</span>}
             </button>
             {notifOpen && (
-              <div className="ds-pop ds-pop--notif" role="dialog" aria-label="Notifications">
-                <b className="ds-pop__title">Notifications</b>
-                {data.notifications.length === 0 && <p className="ds-pop__empty">You're all caught up.</p>}
+              <div className="ds-pop ds-pop--notif" role="dialog" aria-label={t('dsMain.notif.title')}>
+                <b className="ds-pop__title">{t('dsMain.notif.title')}</b>
+                {data.notifications.length === 0 && <p className="ds-pop__empty">{t('dsMain.notif.empty')}</p>}
                 {data.notifications.map((n) => (
                   <div className="ds-pop__notif" key={n.id}>
                     <b>{n.title}</b>
@@ -2602,8 +2633,8 @@ export function DesignStudio() {
         style={libraryW ? ({ '--library-w': `${libraryW}px` } as React.CSSProperties) : undefined}
       >
         {/* Library rail — five human categories, all real */}
-        <nav className="ds-rail" aria-label="Library">
-          <span className="ds-rail__eyebrow">Library</span>
+        <nav className="ds-rail" aria-label={t('dsMain.library')}>
+          <span className="ds-rail__eyebrow">{t('dsMain.library')}</span>
           {RAIL.map((r) => (
             <button
               key={r}
@@ -2612,7 +2643,7 @@ export function DesignStudio() {
               onClick={() => selectRail(r)}
             >
               <RailIcon name={r} />
-              <span>{r}</span>
+              <span>{t(RAIL_KEY[r] ?? r)}</span>
             </button>
           ))}
         </nav>
@@ -2623,8 +2654,8 @@ export function DesignStudio() {
           className={`ds-collapse ds-collapse--left${leftHidden ? ' is-collapsed' : ''}`}
           onClick={toggleLeft}
           aria-expanded={!leftHidden}
-          aria-label={leftHidden ? 'Show library' : 'Hide library'}
-          title={leftHidden ? 'Show library' : 'Hide library — focus on the canvas'}
+          aria-label={leftHidden ? t('dsMain.left.show') : t('dsMain.left.hide')}
+          title={leftHidden ? t('dsMain.left.show') : t('dsMain.left.hideTitle')}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d={leftHidden ? 'M9 6l6 6-6 6' : 'M15 6l-6 6 6 6'} />
@@ -2637,8 +2668,8 @@ export function DesignStudio() {
             className="ds-lib-resize"
             role="separator"
             aria-orientation="vertical"
-            aria-label="Resize library"
-            title="Drag to resize the library"
+            aria-label={t('dsMain.left.resize')}
+            title={t('dsMain.left.resizeTitle')}
             onPointerDown={startLibraryResize}
           />
         )}
@@ -2671,7 +2702,7 @@ export function DesignStudio() {
                 setField('details', 'd-fabric', p.fabric)
                 setField('details', 'd-color', p.colorHex)
                 if (p.text) commit({ layers: [makeTextLayer(p.text, p.textColor ?? '#F4F4F6'), ...presentRef.current.layers], hidden: presentRef.current.hidden })
-                toast(`“${p.name}” look applied.`, 'accent')
+                toast(t('dsMain.toast.lookApplied', { name: p.name }), 'accent')
               }}
             />
           )}
@@ -2680,13 +2711,13 @@ export function DesignStudio() {
           {rail === 'Garments' && (
           <div className="ds-left__scroll">
             <div className="ds-panel-head">
-              <h2>Catalog</h2>
+              <h2>{t('dsMain.catalog.heading')}</h2>
               <button
                 className={`ds-mini${showCatalogHint ? ' is-active' : ''}`}
                 type="button"
-                aria-label="Toggle catalog help"
+                aria-label={t('dsMain.catalog.helpAria')}
                 aria-pressed={showCatalogHint}
-                title="Show how the catalog works"
+                title={t('dsMain.catalog.helpTitle')}
                 onClick={() => setShowCatalogHint((v) => !v)}
               >
                 <IcoDots width="15" height="15" />
@@ -2695,18 +2726,17 @@ export function DesignStudio() {
 
             {showCatalogHint && (
               <p className="ds-hint">
-                Pick a garment blank below, then design it on the canvas. Use the Layers panel to stack
-                graphics and materials.
+                {t('dsMain.catalog.hint')}
               </p>
             )}
 
             <label className="ds-search">
               <IcoSearch width="15" height="15" />
               <input
-                placeholder="Search for items…"
+                placeholder={t('dsMain.catalog.searchPlaceholder')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search garments"
+                aria-label={t('dsMain.catalog.searchAria')}
               />
             </label>
 
@@ -2718,7 +2748,7 @@ export function DesignStudio() {
                   className={`ds-cat${cat === c ? ' is-active' : ''}`}
                   onClick={() => setCat(c)}
                 >
-                  {c}
+                  {t(CAT_KEY[c])}
                 </button>
               ))}
             </div>
@@ -2733,8 +2763,8 @@ export function DesignStudio() {
               </div>
             ) : catalog.length === 0 ? (
               <p className="ds-empty">
-                No garments imported yet.
-                <span className="ds-empty__sub">An admin adds garments in the Garment Library.</span>
+                {t('dsMain.catalog.emptyTitle')}
+                <span className="ds-empty__sub">{t('dsMain.catalog.emptySub')}</span>
               </p>
             ) : visibleGarments.length > 0 ? (
               <div className="ds-garments">
@@ -2763,9 +2793,9 @@ export function DesignStudio() {
               </div>
             ) : (
               <p className="ds-empty">
-                No garments match “{query.trim()}”.
+                {t('dsMain.catalog.noMatch', { query: query.trim() })}
                 <button type="button" className="ds-empty__reset" onClick={() => setQuery('')}>
-                  Clear search
+                  {t('dsMain.catalog.clearSearch')}
                 </button>
               </p>
             )}
@@ -2892,8 +2922,8 @@ export function DesignStudio() {
           className={`ds-collapse${rightHidden ? ' is-collapsed' : ''}`}
           onClick={toggleRight}
           aria-expanded={!rightHidden}
-          aria-label={rightHidden ? 'Show inspector' : 'Hide inspector'}
-          title={rightHidden ? 'Show inspector' : 'Hide inspector — focus on the canvas'}
+          aria-label={rightHidden ? t('dsMain.right.show') : t('dsMain.right.hide')}
+          title={rightHidden ? t('dsMain.right.show') : t('dsMain.right.hideTitle')}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d={rightHidden ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} />
@@ -3013,12 +3043,12 @@ export function DesignStudio() {
         <div className="ds-leave" role="dialog" aria-modal="true" aria-labelledby="ds-leave-title">
           <div className="ds-leave__scrim" onClick={() => setPendingLeave(null)} />
           <div className="ds-leave__card">
-            <b id="ds-leave-title">Save before leaving?</b>
-            <span>You have unsaved changes. Save this design to your collection, or leave without saving? (Your canvas autosaves, so it’ll still be here next time.)</span>
+            <b id="ds-leave-title">{t('dsMain.leave.title')}</b>
+            <span>{t('dsMain.leave.body')}</span>
             <div className="ds-leave__actions">
-              <button type="button" className="s-btn" onClick={() => setPendingLeave(null)}>Cancel</button>
-              <button type="button" className="s-btn s-btn--ghost" onClick={leaveNow}>Leave without saving</button>
-              <button type="button" className="s-btn s-btn--accent" onClick={saveAndLeave}>Save &amp; leave</button>
+              <button type="button" className="s-btn" onClick={() => setPendingLeave(null)}>{t('dsMain.leave.cancel')}</button>
+              <button type="button" className="s-btn s-btn--ghost" onClick={leaveNow}>{t('dsMain.leave.leave')}</button>
+              <button type="button" className="s-btn s-btn--accent" onClick={saveAndLeave}>{t('dsMain.leave.saveLeave')}</button>
             </div>
           </div>
         </div>

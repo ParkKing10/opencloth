@@ -5,6 +5,7 @@
  * garment vs. the artwork (artwork layers live in the Design Studio).
  */
 import { useMemo, useState, type SVGProps } from 'react'
+import { useT } from '@/i18n'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { flattenRegions } from '../../garment-model/regionTree'
 
@@ -59,6 +60,7 @@ type Props = {
 }
 
 export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, onToggleVisible, onToggleLocked, onMove, onRename }: Props) {
+  const t = useT()
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameText, setRenameText] = useState('')
@@ -95,14 +97,14 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
   }
 
   return (
-    <div className="eg-tree" role="tree" aria-label="Garment layers">
+    <div className="eg-tree" role="tree" aria-label={t('labPanels.tree.layersAria')}>
       <div className="eg-tree__head">
         <span className="eg-tree__title">{garment.name}</span>
-        <span className="eg-tree__count">{all.length} regions</span>
+        <span className="eg-tree__count">{t('labPanels.tree.regions', { n: all.length })}</span>
       </div>
 
       <div className="eg-tree__list">
-        <span className="eg-tree__section">Garment</span>
+        <span className="eg-tree__section">{t('labPanels.tree.sectionGarment')}</span>
         {rows.map(({ region, depth }) => {
           const hasChildren = region.children.length > 0
           return (
@@ -117,7 +119,7 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
               onMouseLeave={() => onHighlight(null)}
             >
               {hasChildren ? (
-                <button type="button" className="eg-caret" onClick={() => toggleCollapse(region.id)} aria-label={collapsed.has(region.id) ? 'Expand' : 'Collapse'}>
+                <button type="button" className="eg-caret" onClick={() => toggleCollapse(region.id)} aria-label={collapsed.has(region.id) ? t('labPanels.tree.expand') : t('labPanels.tree.collapse')}>
                   <IcoChevron open={!collapsed.has(region.id)} />
                 </button>
               ) : (
@@ -135,7 +137,7 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
                     if (e.key === 'Enter') commitRename(region.id)
                     if (e.key === 'Escape') setRenamingId(null)
                   }}
-                  aria-label="Region name"
+                  aria-label={t('labPanels.tree.nameAria')}
                 />
               ) : (
                 <button
@@ -146,7 +148,7 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
                     setRenameText(region.name)
                     setRenamingId(region.id)
                   }}
-                  title={`${region.type} region — double-click to rename`}
+                  title={t('labPanels.tree.rowTitle', { type: region.type })}
                 >
                   <span className={`eg-row__dot eg-dot--${region.type}`} aria-hidden="true" />
                   <span className="eg-row__label">{region.name}</span>
@@ -155,17 +157,17 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
               )}
 
               <div className="eg-row__actions">
-                <button type="button" className="eg-icobtn" title="Move up" aria-label="Move up" onClick={() => onMove(region.id, -1)}>
+                <button type="button" className="eg-icobtn" title={t('labPanels.tree.moveUp')} aria-label={t('labPanels.tree.moveUp')} onClick={() => onMove(region.id, -1)}>
                   <IcoUp />
                 </button>
-                <button type="button" className="eg-icobtn" title="Move down" aria-label="Move down" onClick={() => onMove(region.id, 1)}>
+                <button type="button" className="eg-icobtn" title={t('labPanels.tree.moveDown')} aria-label={t('labPanels.tree.moveDown')} onClick={() => onMove(region.id, 1)}>
                   <IcoDown />
                 </button>
                 <button
                   type="button"
                   className={`eg-icobtn${region.locked ? ' is-on' : ''}`}
-                  title={region.locked ? 'Unlock' : 'Lock'}
-                  aria-label={region.locked ? 'Unlock region' : 'Lock region'}
+                  title={region.locked ? t('labPanels.tree.unlock') : t('labPanels.tree.lock')}
+                  aria-label={region.locked ? t('labPanels.tree.unlockRegion') : t('labPanels.tree.lockRegion')}
                   aria-pressed={region.locked}
                   onClick={() => onToggleLocked(region.id)}
                 >
@@ -174,8 +176,8 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
                 <button
                   type="button"
                   className={`eg-icobtn${region.visible ? '' : ' is-off'}`}
-                  title={region.visible ? 'Hide' : 'Show'}
-                  aria-label={region.visible ? 'Hide region' : 'Show region'}
+                  title={region.visible ? t('labPanels.tree.hide') : t('labPanels.tree.show')}
+                  aria-label={region.visible ? t('labPanels.tree.hideRegion') : t('labPanels.tree.showRegion')}
                   aria-pressed={!region.visible}
                   onClick={() => onToggleVisible(region.id)}
                 >
@@ -186,8 +188,8 @@ export function RegionTreePanel({ garment, selectedId, onSelect, onHighlight, on
           )
         })}
 
-        <span className="eg-tree__section eg-tree__section--design">Design</span>
-        <p className="eg-tree__design-note">Artwork layers (logos, text, graphics) appear here when you design this garment in the Design Studio.</p>
+        <span className="eg-tree__section eg-tree__section--design">{t('labPanels.tree.sectionDesign')}</span>
+        <p className="eg-tree__design-note">{t('labPanels.tree.designNote')}</p>
       </div>
     </div>
   )

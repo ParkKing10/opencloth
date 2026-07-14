@@ -1,4 +1,5 @@
 import type { DragEvent } from 'react'
+import { useT } from '@/i18n'
 import { GRAPHIC_MARKS } from './objectModel'
 import { ELEMENT_GROUPS } from './elementsCatalog'
 import './library-panels.css'
@@ -29,11 +30,12 @@ function handleDragStart(event: DragEvent<HTMLButtonElement>, name: string): voi
  * streetwear marks, frames). Clicking or dragging one drops a normal graphic object on the canvas.
  */
 export function ElementsPanel({ onAdd }: { onAdd: (name: string) => void }) {
+  const t = useT()
   return (
-    <section className="lib-panel" aria-label="Elements">
+    <section className="lib-panel" aria-label={t('dsPanels.el.aria')}>
       <header className="lib-head">
-        <h2>Elements</h2>
-        <p className="lib-head__hint">Shapes, marks & frames — drop them on your piece</p>
+        <h2>{t('dsPanels.el.title')}</h2>
+        <p className="lib-head__hint">{t('dsPanels.el.hint')}</p>
       </header>
 
       <div className="lib-scroll">
@@ -47,7 +49,7 @@ export function ElementsPanel({ onAdd }: { onAdd: (name: string) => void }) {
                   key={name}
                   className="lib-gcard"
                   draggable={true}
-                  aria-label={`Add ${name} to design`}
+                  aria-label={t('dsPanels.addToDesign', { name })}
                   title={name}
                   onClick={() => onAdd(name)}
                   onDragStart={(event) => handleDragStart(event, name)}
@@ -63,7 +65,7 @@ export function ElementsPanel({ onAdd }: { onAdd: (name: string) => void }) {
         ))}
       </div>
 
-      <footer className="lib-foot">Recolour, scale &amp; rotate any element after adding. Your own uploads live in Assets.</footer>
+      <footer className="lib-foot">{t('dsPanels.el.foot')}</footer>
     </section>
   )
 }

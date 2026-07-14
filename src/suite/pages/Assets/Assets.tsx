@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useT } from '@/i18n'
 import { SuitePage } from '../_shared/SuitePage'
 import { useAuth } from '../../auth/auth'
 import { AssetLibrary } from '../../assets/ui/AssetLibrary'
@@ -12,11 +13,12 @@ import './assets.css'
 export function Assets() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const t = useT()
   return (
     <SuitePage
-      eyebrow="Workspace"
-      title="Assets"
-      subtitle="Every graphic you've uploaded or generated with loom studios AI — prints, patches, stickers and campaign shots."
+      eyebrow={t('assets.page.eyebrow')}
+      title={t('assets.page.title')}
+      subtitle={t('assets.page.subtitle')}
       wide
     >
       <div className="assets-page">

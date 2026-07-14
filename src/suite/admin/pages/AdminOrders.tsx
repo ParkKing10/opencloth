@@ -1,12 +1,6 @@
 import { useStore } from '../../data/store'
+import { useT } from '../../../i18n'
 
-const STAGE_LABEL: Record<string, string> = {
-  sample: 'Sample',
-  production: 'Production',
-  qc: 'Quality Check',
-  shipping: 'Shipping',
-  delivered: 'Delivered',
-}
 const STAGE_BADGE: Record<string, string> = {
   sample: 'adm-badge--muted',
   production: 'adm-badge--role',
@@ -17,14 +11,15 @@ const STAGE_BADGE: Record<string, string> = {
 
 export function AdminOrders() {
   const { data } = useStore()
+  const t = useT()
   const units = data.orders.reduce((sum, o) => sum + o.qty, 0)
 
   return (
     <div>
       <header style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Production orders</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('adminPages.orders.title')}</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: 'var(--s-text-2)' }}>
-          {data.orders.length} orders · {units.toLocaleString()} units in the pipeline.
+          {t('adminPages.orders.subtitle', { orders: data.orders.length, units: units.toLocaleString() })}
         </p>
       </header>
 
@@ -32,12 +27,12 @@ export function AdminOrders() {
         <table className="adm-table">
           <thead>
             <tr>
-              <th>Order</th>
-              <th>Qty</th>
-              <th>Manufacturer</th>
-              <th>Stage</th>
-              <th>Progress</th>
-              <th>ETA</th>
+              <th>{t('adminPages.col.order')}</th>
+              <th>{t('adminPages.col.qty')}</th>
+              <th>{t('adminPages.col.manufacturer')}</th>
+              <th>{t('adminPages.col.stage')}</th>
+              <th>{t('adminPages.col.progress')}</th>
+              <th>{t('adminPages.col.eta')}</th>
             </tr>
           </thead>
           <tbody>
@@ -49,7 +44,7 @@ export function AdminOrders() {
                   {o.manufacturer} · {o.country}
                 </td>
                 <td>
-                  <span className={`adm-badge ${STAGE_BADGE[o.stage]}`}>{STAGE_LABEL[o.stage]}</span>
+                  <span className={`adm-badge ${STAGE_BADGE[o.stage]}`}>{t(`adminPages.stage.${o.stage}`)}</span>
                 </td>
                 <td>{o.progress}%</td>
                 <td>{o.eta}</td>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { IcoChevron } from '../../components/ui/Icons'
 import { FIELD_PRESETS } from './presets'
 import './picker.css'
@@ -18,6 +19,7 @@ type Props = {
  * options (plus a custom input) — no native prompt dialogs anywhere.
  */
 export function PickerField({ field, onChange, disabled, hero }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [custom, setCustom] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -58,7 +60,7 @@ export function PickerField({ field, onChange, disabled, hero }: Props) {
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={open}
-        title={disabled ? 'Locked' : `Change ${field.label}`}
+        title={disabled ? t('dsInspectors.pk.locked') : t('dsInspectors.pk.change', { label: field.label })}
       >
         {field.swatch && <span className="pk__swatch" style={{ background: field.value }} />}
         <span className="pk__text">
@@ -69,7 +71,7 @@ export function PickerField({ field, onChange, disabled, hero }: Props) {
       </button>
 
       {open && (
-        <div className="pk__pop" role="listbox" aria-label={`${field.label} options`}>
+        <div className="pk__pop" role="listbox" aria-label={t('dsInspectors.pk.optionsAria', { label: field.label })}>
           {options && hasSwatches && (
             <div className="pk__swatches">
               {options.map((o) => (
@@ -111,14 +113,14 @@ export function PickerField({ field, onChange, disabled, hero }: Props) {
             }}
           >
             <input
-              placeholder={options ? 'Custom…' : `Set ${field.label.toLowerCase()}…`}
+              placeholder={options ? t('dsInspectors.pk.customPlaceholder') : t('dsInspectors.pk.setPlaceholder', { label: field.label.toLowerCase() })}
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
-              aria-label={`Custom ${field.label}`}
+              aria-label={t('dsInspectors.pk.customAria', { label: field.label })}
               autoFocus={!options}
             />
             <button type="submit" disabled={!custom.trim()}>
-              Set
+              {t('dsInspectors.pk.set')}
             </button>
           </form>
         </div>

@@ -1,3 +1,5 @@
+import { useT } from '@/i18n'
+
 /**
  * Minimal area chart rendered as inline SVG — no dependency, crisp at any size.
  * Two smoothed series over a shared x-axis.
@@ -39,12 +41,13 @@ function buildPath(data: number[]) {
 }
 
 export function ProgressChart() {
+  const t = useT()
   const { line, area, pts } = buildPath(DATA)
   const last = pts[pts.length - 1]
 
   return (
     <div className="chart">
-      <svg viewBox={`0 0 ${W} ${H}`} className="chart__svg" preserveAspectRatio="none" role="img" aria-label="Progress over time">
+      <svg viewBox={`0 0 ${W} ${H}`} className="chart__svg" preserveAspectRatio="none" role="img" aria-label={t('dashboard.chart.ariaLabel')}>
         <defs>
           <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--s-accent)" stopOpacity="0.35" />

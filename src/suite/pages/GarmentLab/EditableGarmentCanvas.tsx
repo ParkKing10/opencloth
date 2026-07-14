@@ -8,6 +8,7 @@
  * so a back is never blank; templates carry intentional per-view construction.
  */
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useT } from '@/i18n'
 import type { EditableGarment, GarmentViewId } from '../../garment-model/editableGarment'
 import { flattenRegions, isEffectivelyVisible } from '../../garment-model/regionTree'
 import { paintForShape } from '../../garment-model/garmentStyle'
@@ -26,6 +27,7 @@ type Props = {
 const MOVE_THRESHOLD = 3 // px before a click becomes a drag
 
 export function EditableGarmentCanvas({ garment, view, selectedId, highlightId, onSelect, onHighlight, onMoveRegion }: Props) {
+  const t = useT()
   const viewBox = garment.views.find((v) => v.id === view)?.viewBox ?? { w: 400, h: 560 }
   const order = useMemo(() => flattenRegions(garment), [garment])
   const svgRef = useRef<SVGSVGElement>(null)
@@ -62,7 +64,7 @@ export function EditableGarmentCanvas({ garment, view, selectedId, highlightId, 
       className={`eg-canvas${drag?.moved ? ' is-dragging' : ''}`}
       viewBox={`0 0 ${viewBox.w} ${viewBox.h}`}
       role="img"
-      aria-label={`${garment.name} — ${view} technical flat`}
+      aria-label={t('labPanels.canvas.aria', { name: garment.name, view })}
       onClick={() => !drag && onSelect(null)}
       onPointerMove={onMove}
       onPointerUp={endDrag}

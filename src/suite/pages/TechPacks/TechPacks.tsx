@@ -9,6 +9,7 @@ import {
   IcoCommand,
 } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS } from '../../components/ui/Garments'
+import { useT } from '@/i18n'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
@@ -48,30 +49,25 @@ const STATUS_CHIP: Record<TechPackStatus, ChipKey> = {
   in_review: 'review',
   draft: 'draft',
 }
-const STATUS_LABEL: Record<TechPackStatus, string> = {
-  ready: 'Ready',
-  in_review: 'In Review',
-  draft: 'Draft',
-}
 
 /* --- Filters -------------------------------------------------------------- */
 type FilterKey = 'all' | TechPackStatus
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'ready', label: 'Ready' },
-  { key: 'in_review', label: 'In Review' },
-  { key: 'draft', label: 'Draft' },
+const FILTERS: { key: FilterKey; labelKey: string }[] = [
+  { key: 'all', labelKey: 'techPacks.filter.all' },
+  { key: 'ready', labelKey: 'techPacks.status.ready' },
+  { key: 'in_review', labelKey: 'techPacks.status.in_review' },
+  { key: 'draft', labelKey: 'techPacks.status.draft' },
 ]
 
 type ViewMode = 'grid' | 'list'
 
 /** Newest-first, then a spread of names so "New Tech Pack" cycles variety. */
-const NEW_PACK_NAMES = [
-  'Untitled Hoodie',
-  'Untitled Tee',
-  'Untitled Jacket',
-  'Untitled Pants',
-  'Untitled Cap',
+const NEW_PACK_NAME_KEYS = [
+  'techPacks.newName.hoodie',
+  'techPacks.newName.tee',
+  'techPacks.newName.jacket',
+  'techPacks.newName.pants',
+  'techPacks.newName.cap',
 ]
 const NEW_PACK_KINDS: GarmentKind[] = ['hoodie', 'tee', 'jacket', 'pants', 'cap']
 
@@ -80,17 +76,18 @@ function packCode(pack: TechPack, index: number): string {
   const short = pack.id.replace(/[^a-z0-9]/gi, '').slice(-4).toUpperCase() || String(index)
   return `TP-${short}`
 }
-function packSize(pack: TechPack): string {
-  if (pack.status === 'draft') return `Draft · ${(pack.pages * 0.18 + 0.4).toFixed(1)} MB`
+function packSize(pack: TechPack, t: (k: string) => string): string {
+  if (pack.status === 'draft') return `${t('techPacks.status.draft')} · ${(pack.pages * 0.18 + 0.4).toFixed(1)} MB`
   return `PDF · ${(pack.pages * 0.32 + 0.6).toFixed(1)} MB`
 }
 
 /* --- Status chip ---------------------------------------------------------- */
 function StatusChip({ status }: { status: TechPackStatus }) {
+  const t = useT()
   return (
     <span className={`tp-status tp-status--${STATUS_CHIP[status]}`}>
       <span className="tp-status__dot" />
-      {STATUS_LABEL[status]}
+      {t(`techPacks.status.${status}`)}
     </span>
   )
 }
@@ -106,6 +103,7 @@ type ActionProps = {
 }
 
 function CardActions({ pack, menuOpen, onToggleMenu, onCloseMenu, onDownload, onDelete }: ActionProps) {
+  const t = useT()
   const isDraft = pack.status === 'draft'
   return (
     <div className="tp-card__foot">
@@ -117,10 +115,10 @@ function CardActions({ pack, menuOpen, onToggleMenu, onCloseMenu, onDownload, on
           onDownload()
         }}
         disabled={isDraft}
-        title={isDraft ? 'Finish the draft to export a PDF' : 'Download the tech pack PDF'}
+        title={isDraft ? t('techPacks.download.draftTitle') : t('techPacks.download.title')}
       >
         <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
-        Download PDF
+        {t('techPacks.download')}
       </button>
       <div className="tp-menu-wrap">
         <button
@@ -130,10 +128,10 @@ function CardActions({ pack, menuOpen, onToggleMenu, onCloseMenu, onDownload, on
             e.stopPropagation()
             onToggleMenu()
           }}
-          aria-label="More options"
+          aria-label={t('techPacks.moreOptions')}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          title="More options"
+          title={t('techPacks.moreOptions')}
         >
           <IcoDots width="16" height="16" />
         </button>
@@ -156,6 +154,7 @@ function PackMenu({
   onDownload: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const isDraft = pack.status === 'draft'
   return (
     <>
@@ -164,7 +163,7 @@ function PackMenu({
       <button
         type="button"
         className="tp-menu__scrim"
-        aria-label="Close menu"
+        aria-label={t('techPacks.closeMenu')}
         onClick={(e) => {
           e.stopPropagation()
           onClose()
@@ -179,7 +178,7 @@ function PackMenu({
           onClick={onDownload}
         >
           <IcoUpload width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
-          Download PDF
+          {t('techPacks.download')}
         </button>
         <button
           className="tp-menu__item tp-menu__item--danger"
@@ -188,7 +187,7 @@ function PackMenu({
           onClick={onDelete}
         >
           <IcoTrash width="14" height="14" />
-          Delete tech pack
+          {t('techPacks.delete')}
         </button>
       </div>
     </>
@@ -213,6 +212,7 @@ function PackCard({
   onDownload: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const Glyph = GARMENT_GLYPHS[pack.kind]
   return (
     <article className="tp-card" tabIndex={0}>
@@ -231,7 +231,7 @@ function PackCard({
           <div>
             <h3 className="tp-card__name">{pack.name}</h3>
             <p className="tp-card__code">
-              {packCode(pack, index)} · Updated {relativeTime(pack.updatedAt)}
+              {packCode(pack, index)} · {t('techPacks.updated', { time: relativeTime(pack.updatedAt) })}
             </p>
           </div>
         </div>
@@ -244,22 +244,22 @@ function PackCard({
             {pack.manufacturer ? (
               <>
                 <span className="tp-maker__name">{pack.manufacturer}</span>
-                <span className="tp-maker__place">Matched manufacturer</span>
+                <span className="tp-maker__place">{t('techPacks.matchedManufacturer')}</span>
               </>
             ) : (
               <>
-                <span className="tp-maker__name tp-maker__unmatched">No manufacturer yet</span>
-                <span className="tp-maker__place">Match a factory to produce</span>
+                <span className="tp-maker__name tp-maker__unmatched">{t('techPacks.noManufacturer')}</span>
+                <span className="tp-maker__place">{t('techPacks.matchFactory')}</span>
               </>
             )}
           </span>
         </div>
 
         <div className="tp-card__meta">
-          <span>Updated {relativeTime(pack.updatedAt)}</span>
+          <span>{t('techPacks.updated', { time: relativeTime(pack.updatedAt) })}</span>
           <span className="tp-card__meta-sep" aria-hidden="true" />
           <span>
-            {pack.pages} pages · {packSize(pack)}
+            {t('techPacks.pages', { n: pack.pages })} · {packSize(pack, t)}
           </span>
         </div>
       </div>
@@ -294,6 +294,7 @@ function PackRow({
   onDownload: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const Glyph = GARMENT_GLYPHS[pack.kind]
   const isDraft = pack.status === 'draft'
   return (
@@ -305,7 +306,7 @@ function PackRow({
         <span className="tp-row__names">
           <span className="tp-row__name">{pack.name}</span>
           <span className="tp-row__code">
-            {packCode(pack, index)} · {pack.pages} pages · {packSize(pack)}
+            {packCode(pack, index)} · {t('techPacks.pages', { n: pack.pages })} · {packSize(pack, t)}
           </span>
         </span>
       </div>
@@ -318,7 +319,7 @@ function PackRow({
         {pack.manufacturer ? (
           <span>{pack.manufacturer}</span>
         ) : (
-          <span className="tp-maker__unmatched">No manufacturer yet</span>
+          <span className="tp-maker__unmatched">{t('techPacks.noManufacturer')}</span>
         )}
       </div>
 
@@ -333,7 +334,7 @@ function PackRow({
             onDownload()
           }}
           disabled={isDraft}
-          title={isDraft ? 'Finish the draft to export a PDF' : 'Download the tech pack PDF'}
+          title={isDraft ? t('techPacks.download.draftTitle') : t('techPacks.download.title')}
         >
           <IcoUpload width="13" height="13" style={{ transform: 'rotate(180deg)' }} />
           PDF
@@ -346,10 +347,10 @@ function PackRow({
               e.stopPropagation()
               onToggleMenu()
             }}
-            aria-label="More options"
+            aria-label={t('techPacks.moreOptions')}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
-            title="More options"
+            title={t('techPacks.moreOptions')}
           >
             <IcoDots width="16" height="16" />
           </button>
@@ -367,6 +368,7 @@ export function TechPacks() {
   const { data, mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const [filter, setFilter] = useState<FilterKey>('all')
   const [view, setView] = useState<ViewMode>('grid')
@@ -407,14 +409,14 @@ export function TechPacks() {
 
   function createPack() {
     if (!user) {
-      toast('Sign in to create a tech pack.', 'info')
+      toast(t('techPacks.toast.signIn'), 'info')
       return
     }
     const seed = data.techPacks.length
     const newPack: TechPack = {
       id: uid('t'),
       ownerId: user.id,
-      name: NEW_PACK_NAMES[seed % NEW_PACK_NAMES.length],
+      name: t(NEW_PACK_NAME_KEYS[seed % NEW_PACK_NAME_KEYS.length]),
       kind: NEW_PACK_KINDS[seed % NEW_PACK_KINDS.length],
       status: 'draft',
       pages: 1,
@@ -423,13 +425,13 @@ export function TechPacks() {
     mutate((d) => ({ ...d, techPacks: [newPack, ...d.techPacks] }))
     setFilter('all')
     setQuery('')
-    toast('New draft tech pack created.', 'success')
+    toast(t('techPacks.toast.created'), 'success')
   }
 
   function downloadPack(pack: TechPack) {
     setOpenMenuId(null)
     if (pack.status === 'draft') {
-      toast('Finish this draft before exporting a PDF.', 'info')
+      toast(t('techPacks.toast.finishDraft'), 'info')
       return
     }
     try {
@@ -439,15 +441,15 @@ export function TechPacks() {
         kind: pack.kind,
         manufacturer: pack.manufacturer,
       })
-      toast(`“${pack.name}” PDF downloaded.`, 'success')
+      toast(t('techPacks.toast.downloaded', { name: pack.name }), 'success')
     } catch {
-      toast('Could not generate the PDF. Please try again.', 'info')
+      toast(t('techPacks.toast.pdfError'), 'info')
     }
   }
 
   function exportList() {
     if (visible.length === 0) {
-      toast('Nothing to export in the current view.', 'info')
+      toast(t('techPacks.toast.nothingExport'), 'info')
       return
     }
     try {
@@ -456,22 +458,27 @@ export function TechPacks() {
         code: packCode(p, i),
         name: p.name,
         kind: p.kind,
-        status: STATUS_LABEL[p.status],
+        status: t(`techPacks.status.${p.status}`),
         manufacturer: p.manufacturer ?? '',
         pages: p.pages,
         updated: new Date(p.updatedAt).toISOString(),
       }))
       downloadCsv(rows, 'threados-tech-packs.csv')
-      toast(`Exported ${rows.length} tech pack${rows.length === 1 ? '' : 's'} to CSV.`, 'success')
+      toast(
+        t(rows.length === 1 ? 'techPacks.toast.exportedOne' : 'techPacks.toast.exportedMany', {
+          n: rows.length,
+        }),
+        'success',
+      )
     } catch {
-      toast('Could not export the list. Please try again.', 'info')
+      toast(t('techPacks.toast.exportError'), 'info')
     }
   }
 
   function deletePack(pack: TechPack) {
     setOpenMenuId(null)
     mutate((d) => ({ ...d, techPacks: d.techPacks.filter((p) => p.id !== pack.id) }))
-    toast(`“${pack.name}” deleted.`, 'default')
+    toast(t('techPacks.toast.deleted', { name: pack.name }), 'default')
   }
 
   const hasAnyPacks = myPacks.length > 0
@@ -479,47 +486,47 @@ export function TechPacks() {
 
   return (
     <SuitePage
-      eyebrow="Library"
-      title="Tech Packs"
-      subtitle="Production-ready specs for every garment — preview, status, matched manufacturer and PDF export."
+      eyebrow={t('techPacks.eyebrow')}
+      title={t('techPacks.title')}
+      subtitle={t('techPacks.subtitle')}
       actions={
         <button className="s-btn s-btn--accent" type="button" onClick={createPack}>
-          <IcoPlus width="16" height="16" /> New Tech Pack
+          <IcoPlus width="16" height="16" /> {t('techPacks.new')}
         </button>
       }
     >
       {/* Count summary — reflects real, owned packs */}
-      <section className="tp-summary" aria-label="Tech pack summary">
+      <section className="tp-summary" aria-label={t('techPacks.summary.aria')}>
         <div className="tp-summary__cell">
           <span className="tp-summary__value">{counts.all}</span>
-          <span className="tp-summary__label">Total packs</span>
+          <span className="tp-summary__label">{t('techPacks.summary.total')}</span>
         </div>
         <div className="tp-summary__cell">
           <span className="tp-summary__value">
             <span className="tp-summary__dot" style={{ background: 'var(--s-good)' }} />
             {counts.ready}
           </span>
-          <span className="tp-summary__label">Ready to produce</span>
+          <span className="tp-summary__label">{t('techPacks.summary.ready')}</span>
         </div>
         <div className="tp-summary__cell">
           <span className="tp-summary__value">
             <span className="tp-summary__dot" style={{ background: 'var(--s-warn)' }} />
             {counts.in_review}
           </span>
-          <span className="tp-summary__label">In review</span>
+          <span className="tp-summary__label">{t('techPacks.summary.inReview')}</span>
         </div>
         <div className="tp-summary__cell">
           <span className="tp-summary__value">
             <span className="tp-summary__dot" style={{ background: 'var(--s-text-3)' }} />
             {counts.draft}
           </span>
-          <span className="tp-summary__label">Drafts</span>
+          <span className="tp-summary__label">{t('techPacks.summary.drafts')}</span>
         </div>
       </section>
 
       {/* Toolbar */}
       <section className="tp-toolbar">
-        <div className="s-tabs" role="tablist" aria-label="Filter tech packs">
+        <div className="s-tabs" role="tablist" aria-label={t('techPacks.filterAria')}>
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -529,7 +536,7 @@ export function TechPacks() {
               className={`s-tab${filter === f.key ? ' is-active' : ''}`}
               onClick={() => setFilter(f.key)}
             >
-              {f.label}
+              {t(f.labelKey)}
             </button>
           ))}
         </div>
@@ -542,10 +549,10 @@ export function TechPacks() {
             <input
               className="tp-search__input"
               type="search"
-              placeholder="Search packs, styles, factories…"
+              placeholder={t('techPacks.search.placeholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search tech packs"
+              aria-label={t('techPacks.search.aria')}
             />
             <span className="tp-search__kbd" aria-hidden="true">
               <IcoCommand width="11" height="11" />K
@@ -557,20 +564,20 @@ export function TechPacks() {
             type="button"
             onClick={exportList}
             disabled={visible.length === 0}
-            title="Export the visible tech packs as a CSV file"
+            title={t('techPacks.export.title')}
           >
             <IcoUpload width="14" height="14" />
-            Export list
+            {t('techPacks.export.label')}
           </button>
 
-          <div className="tp-view" role="group" aria-label="View mode">
+          <div className="tp-view" role="group" aria-label={t('techPacks.view.aria')}>
             <button
               type="button"
               className={`tp-view__btn${view === 'grid' ? ' is-active' : ''}`}
               onClick={() => setView('grid')}
-              aria-label="Grid view"
+              aria-label={t('techPacks.view.grid')}
               aria-pressed={view === 'grid'}
-              title="Grid view"
+              title={t('techPacks.view.grid')}
             >
               <IcoGrid width="16" height="16" />
             </button>
@@ -578,9 +585,9 @@ export function TechPacks() {
               type="button"
               className={`tp-view__btn${view === 'list' ? ' is-active' : ''}`}
               onClick={() => setView('list')}
-              aria-label="List view"
+              aria-label={t('techPacks.view.list')}
               aria-pressed={view === 'list'}
-              title="List view"
+              title={t('techPacks.view.list')}
             >
               <IcoTechPack width="16" height="16" />
             </button>
@@ -597,8 +604,8 @@ export function TechPacks() {
             </div>
             {hasAnyPacks ? (
               <>
-                <h3>No tech packs found</h3>
-                <p>Try a different search term or filter.</p>
+                <h3>{t('techPacks.empty.foundTitle')}</h3>
+                <p>{t('techPacks.empty.foundBody')}</p>
                 {isFiltering && (
                   <button
                     className="s-btn tp-empty__cta"
@@ -608,16 +615,16 @@ export function TechPacks() {
                       setQuery('')
                     }}
                   >
-                    Clear filters
+                    {t('techPacks.empty.clear')}
                   </button>
                 )}
               </>
             ) : (
               <>
-                <h3>No tech packs yet</h3>
-                <p>Create your first spec sheet — status, pages and a matched manufacturer, all in one place.</p>
+                <h3>{t('techPacks.empty.title')}</h3>
+                <p>{t('techPacks.empty.body')}</p>
                 <button className="s-btn s-btn--accent tp-empty__cta" type="button" onClick={createPack}>
-                  <IcoPlus width="16" height="16" /> New Tech Pack
+                  <IcoPlus width="16" height="16" /> {t('techPacks.new')}
                 </button>
               </>
             )}
@@ -641,10 +648,10 @@ export function TechPacks() {
       ) : (
         <section className="tp-list">
           <div className="tp-list__head">
-            <span>Tech pack</span>
-            <span>Status</span>
-            <span>Manufacturer</span>
-            <span>Updated</span>
+            <span>{t('techPacks.col.techPack')}</span>
+            <span>{t('techPacks.col.status')}</span>
+            <span>{t('techPacks.col.manufacturer')}</span>
+            <span>{t('techPacks.col.updated')}</span>
             <span />
           </div>
           {visible.map((pack, i) => (

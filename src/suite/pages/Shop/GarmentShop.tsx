@@ -15,6 +15,7 @@ import { categoryLabel, type Garment } from '../../garments/types'
 import { createGarment } from '../../garment-model/garmentLibrary'
 import { buildEditable, readOwned, markOwned } from '../../garment-model/garmentShop'
 import { IcoCoins } from '../../components/ui/Icons'
+import { useT } from '@/i18n'
 import './shop.css'
 
 export function GarmentShop() {
@@ -23,6 +24,7 @@ export function GarmentShop() {
   const toast = useToast()
   const navigate = useNavigate()
   const { garments, loading } = useGarments()
+  const t = useT()
 
   const [cat, setCat] = useState('all')
   const [query, setQuery] = useState('')
@@ -41,8 +43,8 @@ export function GarmentShop() {
   // Category chips built from what's actually in the shop (id + label), plus an "All".
   const cats = useMemo(() => {
     const ids = Array.from(new Set(garments.map((g) => g.category)))
-    return [{ id: 'all', label: 'All' }, ...ids.map((id) => ({ id, label: categoryLabel(id) }))]
-  }, [garments])
+    return [{ id: 'all', label: t('shop.cat.all') }, ...ids.map((id) => ({ id, label: categoryLabel(id) }))]
+  }, [garments, t])
 
   const items = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -59,7 +61,7 @@ export function GarmentShop() {
       return
     }
     if (item.price > 0 && coins < item.price) {
-      toast(`Not enough coins — you have ${coins}, “${item.name}” costs ${item.price}. Top up in Settings → Billing.`, 'info')
+      toast(t('shop.toast.notEnough', { coins, name: item.name, price: item.price }), 'info')
       return
     }
     setBuyingId(item.id)
@@ -75,14 +77,14 @@ export function GarmentShop() {
       setOwned(readOwned(user.id))
       toast(
         item.price > 0
-          ? `Bought “${item.name}” for ${item.price} coins — opening the Garment Lab.`
-          : `Added “${item.name}” — opening the Garment Lab.`,
+          ? t('shop.toast.bought', { name: item.name, price: item.price })
+          : t('shop.toast.added', { name: item.name }),
         'success',
       )
       navigate(`/suite/garment-lab/${summary.id}`)
     } catch (err) {
       // No layers (or the source couldn't be read) → don't charge, don't file an empty garment.
-      toast(err instanceof Error ? err.message : 'Could not prepare that garment.', 'info')
+      toast(err instanceof Error ? err.message : t('shop.toast.prepFail'), 'info')
     } finally {
       setBuyingId(null)
     }
@@ -90,18 +92,18 @@ export function GarmentShop() {
 
   return (
     <SuitePage
-      eyebrow="Workspace"
-      title="Garment Shop"
-      subtitle="Premium editable garments. Buy one with coins and it lands, fully editable, in My Garments."
+      eyebrow={t('shop.eyebrow')}
+      title={t('shop.title')}
+      subtitle={t('shop.subtitle')}
       actions={
-        <span className="shop-balance" title="Your coin balance">
+        <span className="shop-balance" title={t('shop.balanceTitle')}>
           <IcoCoins width="17" height="17" />
-          <b>{coins.toLocaleString()}</b> coins
+          <b>{coins.toLocaleString()}</b> {t('shop.coins')}
         </span>
       }
     >
       <div className="gm-tools">
-        <input className="gm-search" type="search" placeholder="Search the shop…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search garments" />
+        <input className="gm-search" type="search" placeholder={t('shop.searchPlaceholder')} value={query} onChange={(e) => setQuery(e.target.value)} aria-label={t('shop.searchAria')} />
       </div>
 
       <div className="shop-cats">
@@ -119,9 +121,9 @@ export function GarmentShop() {
           const busy = buyingId === item.id
           return (
             <article key={item.id} className="shop-card">
-              <button type="button" className="shop-card__thumb" onClick={() => setPreview(item)} title={`Preview “${item.name}”`} aria-label={`Preview ${item.name}`}>
+              <button type="button" className="shop-card__thumb" onClick={() => setPreview(item)} title={t('shop.previewTitle', { name: item.name })} aria-label={t('shop.previewAria', { name: item.name })}>
                 {item.thumbUrl ? <img src={item.thumbUrl} alt={item.name} loading="lazy" /> : <div className="shop-card__noimg" aria-hidden="true">🧥</div>}
-                {isOwned && <span className="shop-owned-badge">Owned</span>}
+                {isOwned && <span className="shop-owned-badge">{t('shop.owned')}</span>}
               </button>
               <div className="shop-card__body">
                 <div className="shop-card__row">
@@ -133,19 +135,19 @@ export function GarmentShop() {
                   className={`shop-buy${isOwned ? ' is-owned' : ''}${!isOwned && !affordable ? ' is-locked' : ''}`}
                   onClick={() => buy(item)}
                   disabled={busy}
-                  title={isOwned ? 'Open in the editor' : affordable ? (item.price > 0 ? `Buy for ${item.price} coins` : 'Free — open in the editor') : `Costs ${item.price} coins — you have ${coins}`}
+                  title={isOwned ? t('shop.buyTitle.open') : affordable ? (item.price > 0 ? t('shop.buyTitle.buy', { price: item.price }) : t('shop.buyTitle.free')) : t('shop.buyTitle.locked', { price: item.price, coins })}
                 >
                   {busy ? (
-                    'Opening…'
+                    t('shop.opening')
                   ) : isOwned ? (
-                    'Open'
+                    t('shop.open')
                   ) : item.price > 0 ? (
                     <>
                       <IcoCoins width="14" height="14" />
                       {item.price}
                     </>
                   ) : (
-                    'Free'
+                    t('shop.free')
                   )}
                 </button>
               </div>
@@ -154,10 +156,10 @@ export function GarmentShop() {
         })}
         {!loading && items.length === 0 && (
           <p className="shop-empty">
-            {garments.length === 0 ? 'No garments in the shop yet — upload garments in Admin → Garments to stock it.' : 'No garments match your search.'}
+            {garments.length === 0 ? t('shop.emptyNoStock') : t('shop.emptyNoMatch')}
           </p>
         )}
-        {loading && <p className="shop-empty">Loading the shop…</p>}
+        {loading && <p className="shop-empty">{t('shop.loading')}</p>}
       </div>
 
       {preview &&
@@ -165,7 +167,7 @@ export function GarmentShop() {
           <div className="suite">
             <div className="shop-lb" role="dialog" aria-modal="true" onClick={() => setPreview(null)}>
               <div className="shop-lb__panel" onClick={(e) => e.stopPropagation()}>
-                <button type="button" className="shop-lb__x" aria-label="Close" onClick={() => setPreview(null)}>×</button>
+                <button type="button" className="shop-lb__x" aria-label={t('shop.close')} onClick={() => setPreview(null)}>×</button>
                 <div className="shop-lb__stage">
                   {preview.thumbUrl ? <img src={preview.thumbUrl} alt={preview.name} /> : <div className="shop-lb__noimg" aria-hidden="true">🧥</div>}
                 </div>
@@ -180,7 +182,7 @@ export function GarmentShop() {
                     disabled={buyingId === preview.id || (!owned[preview.id] && preview.price > 0 && coins < preview.price)}
                     onClick={() => { const it = preview; setPreview(null); void buy(it) }}
                   >
-                    {owned[preview.id] ? 'Open in editor' : preview.price > 0 ? <><IcoCoins width="14" height="14" /> Buy · {preview.price}</> : 'Get free'}
+                    {owned[preview.id] ? t('shop.lb.open') : preview.price > 0 ? <><IcoCoins width="14" height="14" /> {t('shop.lb.buy', { n: preview.price })}</> : t('shop.lb.free')}
                   </button>
                 </div>
               </div>

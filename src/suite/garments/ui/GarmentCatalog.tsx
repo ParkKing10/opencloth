@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useT } from '@/i18n'
 import type { Garment, GarmentCategoryId } from '../types'
 import { CATEGORIES, categoryLabel } from '../types'
 import { GarmentCard } from './GarmentCard'
@@ -14,6 +15,7 @@ type Props = {
 type Filter = 'all' | GarmentCategoryId
 
 export function GarmentCatalog({ garments, loading, admin, onOpen, onDelete }: Props) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
 
@@ -48,18 +50,18 @@ export function GarmentCatalog({ garments, loading, admin, onOpen, onDelete }: P
         <input
           className="gl__search"
           type="search"
-          placeholder="Search garments…"
+          placeholder={t('garmentUi.catalog.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search garments"
+          aria-label={t('garmentUi.catalog.searchAria')}
         />
-        <div className="gl__chips" role="tablist" aria-label="Filter by category">
+        <div className="gl__chips" role="tablist" aria-label={t('garmentUi.catalog.filterAria')}>
           <button
             type="button"
             className={`gl__chip${filter === 'all' ? ' is-active' : ''}`}
             onClick={() => setFilter('all')}
           >
-            All <span className="gl__chip-n">{garments.length}</span>
+            {t('garmentUi.catalog.all')} <span className="gl__chip-n">{garments.length}</span>
           </button>
           {presentCategories.map((c) => (
             <button
@@ -89,13 +91,13 @@ export function GarmentCatalog({ garments, loading, admin, onOpen, onDelete }: P
         <div className="gl__empty">
           {garments.length === 0 ? (
             <>
-              <strong>No garments yet</strong>
-              <span>Upload a garment pack to build the library.</span>
+              <strong>{t('garmentUi.catalog.emptyTitle')}</strong>
+              <span>{t('garmentUi.catalog.emptyBody')}</span>
             </>
           ) : (
             <>
-              <strong>No matches</strong>
-              <span>Try a different search or category.</span>
+              <strong>{t('garmentUi.catalog.noMatchTitle')}</strong>
+              <span>{t('garmentUi.catalog.noMatchBody')}</span>
             </>
           )}
         </div>

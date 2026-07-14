@@ -1,4 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
+import { useT } from '@/i18n'
 import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
@@ -457,6 +458,7 @@ type DesignerCardProps = {
 }
 
 function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }: DesignerCardProps) {
+  const t = useT()
   const Ghost = GARMENT_GLYPHS[designer.thumbs[0]]
 
   return (
@@ -473,7 +475,7 @@ function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }
           <span className="com-designer__name">
             {designer.name}
             {designer.verified && (
-              <span className="com-verify" title="Verified designer">
+              <span className="com-verify" title={t('community.designer.verified')}>
                 <IcoCheck width="9" height="9" />
               </span>
             )}
@@ -488,10 +490,10 @@ function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }
           {designer.location}
         </span>
         <span>
-          <b>{designer.followers}</b> followers
+          <b>{designer.followers}</b> {t('community.designer.followers')}
         </span>
         <span>
-          <b>{designer.projects}</b> projects
+          <b>{designer.projects}</b> {t('community.designer.projects')}
         </span>
       </div>
 
@@ -499,7 +501,11 @@ function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }
         {designer.thumbs.map((kind, i) => {
           const Glyph = GARMENT_GLYPHS[kind]
           return (
-            <span className="com-thumb" key={`${designer.id}-${kind}-${i}`} title={`${kind} project`}>
+            <span
+              className="com-thumb"
+              key={`${designer.id}-${kind}-${i}`}
+              title={t('community.thumb.title', { kind })}
+            >
               <Glyph width="34" height="34" />
             </span>
           )
@@ -511,15 +517,19 @@ function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }
           type="button"
           className={`s-btn s-btn--accent com-follow${isFollowing ? ' is-following' : ''}`}
           aria-pressed={isFollowing}
-          title={isFollowing ? `Unfollow ${designer.name}` : `Follow ${designer.name}`}
+          title={
+            isFollowing
+              ? t('community.designer.unfollowTitle', { name: designer.name })
+              : t('community.designer.followTitle', { name: designer.name })
+          }
           onClick={() => onToggleFollow(designer)}
         >
           {isFollowing ? (
             <>
-              <IcoCheck width="14" height="14" /> Following
+              <IcoCheck width="14" height="14" /> {t('community.designer.following')}
             </>
           ) : (
-            'Follow'
+            t('community.designer.follow')
           )}
         </button>
         <button
@@ -527,17 +537,17 @@ function DesignerCard({ designer, isFollowing, isHired, onToggleFollow, onHire }
           className={`s-btn s-btn--subtle com-hire${isHired ? ' is-hired' : ''}`}
           title={
             isHired
-              ? `Hire link for ${designer.name} copied — copy again`
-              : `Copy a hire link for ${designer.name}`
+              ? t('community.designer.hireTitleCopied', { name: designer.name })
+              : t('community.designer.hireTitle', { name: designer.name })
           }
           onClick={() => onHire(designer)}
         >
           {isHired ? (
             <>
-              <IcoCheck width="14" height="14" /> Copied
+              <IcoCheck width="14" height="14" /> {t('community.designer.copied')}
             </>
           ) : (
-            'Hire'
+            t('community.designer.hire')
           )}
         </button>
       </div>
@@ -562,6 +572,7 @@ function ProjectCard({
   onToggleLike,
   onToggleSave,
 }: ProjectCardProps) {
+  const t = useT()
   const Glyph = GARMENT_GLYPHS[project.kind]
 
   return (
@@ -576,14 +587,18 @@ function ProjectCard({
             }`}
           >
             {project.tag !== 'New' && <IcoStar width="11" height="11" />}
-            {project.tag}
+            {project.tag === 'New'
+              ? t('community.tag.new')
+              : project.tag === 'Trending'
+                ? t('community.tag.trending')
+                : t('community.tag.editorsPick')}
           </span>
         )}
         <button
           type="button"
           className={`com-proj__save${isSaved ? ' is-saved' : ''}`}
           aria-pressed={isSaved}
-          title={isSaved ? 'Remove from saved' : 'Save to your board'}
+          title={isSaved ? t('community.saved.remove') : t('community.project.save')}
           onClick={() => onToggleSave(project)}
         >
           <IcoBookmark />
@@ -605,13 +620,16 @@ function ProjectCard({
               type="button"
               className={`com-proj__stat com-proj__stat--like${isLiked ? ' is-liked' : ''}`}
               aria-pressed={isLiked}
-              title={isLiked ? 'Unlike' : 'Like this project'}
+              title={isLiked ? t('community.project.unlike') : t('community.project.like')}
               onClick={() => onToggleLike(project)}
             >
               {isLiked ? <IcoHeartFill /> : <IcoHeart />}
               {formatLikes(likeCount)}
             </button>
-            <span className="com-proj__stat" title={`${project.views} views`}>
+            <span
+              className="com-proj__stat"
+              title={t('community.project.viewsTitle', { views: project.views })}
+            >
               <IcoEye width="13" height="13" />
               {project.views}
             </span>
@@ -629,6 +647,7 @@ type CollectionCardProps = {
 }
 
 function CollectionCard({ collection, isSaved, onToggleSave }: CollectionCardProps) {
+  const t = useT()
   return (
     <article className="com-col">
       <div className="com-col__cover">
@@ -647,7 +666,7 @@ function CollectionCard({ collection, isSaved, onToggleSave }: CollectionCardPro
       <div className="com-col__body">
         <div className="com-col__head">
           <h3 className="com-col__title">{collection.name}</h3>
-          <span className="com-col__cat">{collection.category}</span>
+          <span className="com-col__cat">{t(`community.cat.${collection.category}`)}</span>
         </div>
         <div className="com-col__foot">
           <span className="com-author">
@@ -658,11 +677,11 @@ function CollectionCard({ collection, isSaved, onToggleSave }: CollectionCardPro
             type="button"
             className={`com-col__save${isSaved ? ' is-saved' : ''}`}
             aria-pressed={isSaved}
-            title={isSaved ? 'Remove from saved' : 'Save collection'}
+            title={isSaved ? t('community.saved.remove') : t('community.collection.save')}
             onClick={() => onToggleSave(collection)}
           >
             <IcoBookmark width={13} height={13} />
-            {isSaved ? 'Saved' : collection.saves}
+            {isSaved ? t('community.collection.saved') : collection.saves}
           </button>
         </div>
       </div>
@@ -678,6 +697,7 @@ export function Community() {
   const { data } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const [tab, setTab] = useState<Tab>('Designers')
   const [category, setCategory] = useState<Category>('All')
@@ -734,7 +754,7 @@ export function Community() {
         return {
           id: c.id,
           name: c.name,
-          author: `${user.name} · You`,
+          author: `${user.name} · ${t('community.you')}`,
           initials: initialsOf(user.name),
           grad: 'com-grad-1',
           category: 'Streetwear' as Exclude<Category, 'All'>,
@@ -743,7 +763,7 @@ export function Community() {
           saves: '—',
         }
       })
-  }, [data.collections, data.designs, user])
+  }, [data.collections, data.designs, user, t])
 
   const visibleCommunityCollections = useMemo(
     () =>
@@ -770,7 +790,9 @@ export function Community() {
       return next
     })
     toast(
-      nowFollowing ? `Following ${designer.name}` : `Unfollowed ${designer.name}`,
+      nowFollowing
+        ? t('community.toast.following', { name: designer.name })
+        : t('community.toast.unfollowed', { name: designer.name }),
       nowFollowing ? 'success' : 'default',
     )
   }
@@ -779,20 +801,22 @@ export function Community() {
   // actually reach the designer, plus mark them as contacted in local state.
   async function hire(designer: Designer) {
     const handle = slugify(designer.name)
-    const subject = encodeURIComponent(`Project enquiry — ${designer.name}`)
-    const from = user ? `${user.name} (${user.email})` : 'A loom studios member'
+    const subject = encodeURIComponent(t('community.hire.subject', { name: designer.name }))
+    const from = user ? `${user.name} (${user.email})` : t('community.hire.member')
     const body = encodeURIComponent(
-      `Hi ${designer.name.split(' ')[0]},\n\n` +
-        `${from} would like to discuss a ${designer.category.toLowerCase()} project with you. ` +
-        `Are you open to new commissions?\n\nSent via loom studios Community.`,
+      t('community.hire.body', {
+        name: designer.name.split(' ')[0],
+        from,
+        category: t(`community.cat.${designer.category}`),
+      }),
     )
     const mailto = `mailto:${handle}@makers.threados.app?subject=${subject}&body=${body}`
     try {
       await navigator.clipboard.writeText(mailto)
       setHired((prev) => new Set(prev).add(designer.id))
-      toast(`Hire link for ${designer.name} copied to clipboard`, 'accent')
+      toast(t('community.toast.hireCopied', { name: designer.name }), 'accent')
     } catch {
-      toast('Could not copy the hire link — clipboard is blocked', 'info')
+      toast(t('community.toast.hireFail'), 'info')
     }
   }
 
@@ -804,7 +828,7 @@ export function Community() {
       else next.add(project.id)
       return next
     })
-    toast(nowLiked ? 'Added to your likes' : 'Removed from your likes', 'accent')
+    toast(nowLiked ? t('community.toast.liked') : t('community.toast.unliked'), 'accent')
   }
 
   function toggleSaveProject(project: Project) {
@@ -815,7 +839,7 @@ export function Community() {
       else next.add(project.id)
       return next
     })
-    toast(wasSaved ? 'Removed from saved' : 'Saved to your board', 'info')
+    toast(wasSaved ? t('community.toast.removedSaved') : t('community.toast.savedBoard'), 'info')
   }
 
   function toggleSaveCollection(collection: CommunityCollection) {
@@ -826,16 +850,21 @@ export function Community() {
       else next.add(collection.id)
       return next
     })
-    toast(wasSaved ? 'Removed from saved' : `Saved “${collection.name}”`, 'info')
+    toast(
+      wasSaved
+        ? t('community.toast.removedSaved')
+        : t('community.toast.savedCollection', { name: collection.name }),
+      'info',
+    )
   }
 
   // Real effect: copy a shareable link to this community page to the clipboard.
   async function shareWork() {
     try {
       await navigator.clipboard.writeText(window.location.href)
-      toast('Share link copied — send it to invite people to your work', 'accent')
+      toast(t('community.toast.shareCopied'), 'accent')
     } catch {
-      toast('Could not copy the share link — clipboard is blocked', 'info')
+      toast(t('community.toast.shareFail'), 'info')
     }
   }
 
@@ -852,43 +881,46 @@ export function Community() {
         <IcoSearch width="16" height="16" />
         <input
           type="text"
-          placeholder="Search designers, drops…"
-          aria-label="Search community"
+          placeholder={t('community.search.placeholder')}
+          aria-label={t('community.search.aria')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
         <kbd>/</kbd>
       </label>
       <button type="button" className="s-btn s-btn--accent" onClick={shareWork}>
-        <IcoUpload width="16" height="16" /> Share your work
+        <IcoUpload width="16" height="16" /> {t('community.share')}
       </button>
     </>
   )
 
-  const filterLabel = category === 'All' ? 'Across every category' : `Filtered by ${category}`
+  const filterLabel =
+    category === 'All'
+      ? t('community.filter.all')
+      : t('community.filter.by', { category: t(`community.cat.${category}`) })
   const hasQuery = q.length > 0
 
   return (
     <SuitePage
-      eyebrow="Community"
-      title="Community"
-      subtitle="Behance for fashion — discover top designers, browse trending drops and hire the makers behind them."
+      eyebrow={t('community.eyebrow')}
+      title={t('community.title')}
+      subtitle={t('community.subtitle')}
       actions={actions}
     >
       <div className="com-root">
         {/* Tabs + category filters */}
         <div className="com-tabsrow">
-          <div className="s-tabs" role="tablist" aria-label="Community view">
-            {TABS.map((t) => (
+          <div className="s-tabs" role="tablist" aria-label={t('community.view.aria')}>
+            {TABS.map((tb) => (
               <button
-                key={t}
+                key={tb}
                 type="button"
                 role="tab"
-                aria-selected={tab === t}
-                className={`s-tab${tab === t ? ' is-active' : ''}`}
-                onClick={() => setTab(t)}
+                aria-selected={tab === tb}
+                className={`s-tab${tab === tb ? ' is-active' : ''}`}
+                onClick={() => setTab(tb)}
               >
-                {t}
+                {t(`community.tab.${tb}`)}
               </button>
             ))}
           </div>
@@ -901,7 +933,7 @@ export function Community() {
                 aria-pressed={category === c}
                 onClick={() => setCategory(c)}
               >
-                {c}
+                {t(`community.cat.${c}`)}
               </button>
             ))}
           </div>
@@ -910,7 +942,8 @@ export function Community() {
         {followCount > 0 && (
           <p className="com-followbar">
             <IcoUserPlus width={13} height={13} />
-            You’re following <b>{followCount}</b> designer{followCount === 1 ? '' : 's'}.
+            {t('community.followbar.pre')} <b>{followCount}</b>{' '}
+            {followCount === 1 ? t('community.followbar.one') : t('community.followbar.many')}
           </p>
         )}
 
@@ -923,16 +956,21 @@ export function Community() {
                   <span className="com-sec-ico">
                     <IcoCommunity width="15" height="15" />
                   </span>
-                  Top designers
+                  {t('community.designers.head')}
                 </h2>
                 <p className="com-sechead__sub">
                   {hasQuery || category !== 'All'
-                    ? `${visibleDesigners.length} designer${visibleDesigners.length === 1 ? '' : 's'} match your filters`
-                    : 'Verified makers shipping the most-loved work this month.'}
+                    ? t(
+                        visibleDesigners.length === 1
+                          ? 'community.designers.match.one'
+                          : 'community.designers.match.many',
+                        { n: visibleDesigners.length },
+                      )
+                    : t('community.designers.sub')}
                 </p>
               </div>
               <button type="button" className="s-link com-link" onClick={() => setTab('Trending')}>
-                Browse trending work <IcoArrowRight width="13" height="13" />
+                {t('community.designers.browseTrending')} <IcoArrowRight width="13" height="13" />
               </button>
             </div>
 
@@ -952,8 +990,8 @@ export function Community() {
             ) : (
               <EmptyState
                 icon={<IcoCommunity width="22" height="22" />}
-                title="No designers match"
-                body="Try a different category or clear your search to see every maker."
+                title={t('community.empty.designers.title')}
+                body={t('community.empty.designers.body')}
                 onClear={clearFilters}
               />
             )}
@@ -971,11 +1009,9 @@ export function Community() {
                       <span className="com-sec-ico">
                         <IcoCollections width="15" height="15" />
                       </span>
-                      Your collections
+                      {t('community.mine.head')}
                     </h2>
-                    <p className="com-sechead__sub">
-                      Publish any of these to the community when you’re ready.
-                    </p>
+                    <p className="com-sechead__sub">{t('community.mine.sub')}</p>
                   </div>
                 </div>
                 <div className="com-colgrid">
@@ -998,16 +1034,21 @@ export function Community() {
                     <span className="com-sec-ico">
                       <IcoCollections width="15" height="15" />
                     </span>
-                    Featured collections
+                    {t('community.collections.head')}
                   </h2>
                   <p className="com-sechead__sub">
                     {hasQuery || category !== 'All'
-                      ? `${visibleCommunityCollections.length} collection${visibleCommunityCollections.length === 1 ? '' : 's'} match your filters`
-                      : 'Curated capsule drops from makers across the community.'}
+                      ? t(
+                          visibleCommunityCollections.length === 1
+                            ? 'community.collections.match.one'
+                            : 'community.collections.match.many',
+                          { n: visibleCommunityCollections.length },
+                        )
+                      : t('community.collections.sub')}
                   </p>
                 </div>
                 <button type="button" className="s-link com-link" onClick={() => setTab('Designers')}>
-                  Meet the designers <IcoArrowRight width="13" height="13" />
+                  {t('community.collections.meet')} <IcoArrowRight width="13" height="13" />
                 </button>
               </div>
 
@@ -1025,8 +1066,8 @@ export function Community() {
               ) : (
                 <EmptyState
                   icon={<IcoCollections width="22" height="22" />}
-                  title="No collections match"
-                  body="Try a different category or clear your search to see every capsule."
+                  title={t('community.empty.collections.title')}
+                  body={t('community.empty.collections.body')}
                   onClear={clearFilters}
                 />
               )}
@@ -1043,16 +1084,21 @@ export function Community() {
                   <span className="com-sec-ico">
                     <IcoTrend width="15" height="15" />
                   </span>
-                  Trending projects
+                  {t('community.trending.head')}
                 </h2>
                 <p className="com-sechead__sub">
                   {hasQuery || category !== 'All'
-                    ? `${visibleProjects.length} project${visibleProjects.length === 1 ? '' : 's'} match your filters`
-                    : `${filterLabel} · updated hourly`}
+                    ? t(
+                        visibleProjects.length === 1
+                          ? 'community.trending.match.one'
+                          : 'community.trending.match.many',
+                        { n: visibleProjects.length },
+                      )
+                    : t('community.trending.sub', { filter: filterLabel })}
                 </p>
               </div>
               <button type="button" className="s-link com-link" onClick={() => setTab('Collections')}>
-                Browse collections <IcoArrowRight width="13" height="13" />
+                {t('community.trending.browseCollections')} <IcoArrowRight width="13" height="13" />
               </button>
             </div>
 
@@ -1073,8 +1119,8 @@ export function Community() {
             ) : (
               <EmptyState
                 icon={<IcoTrend width="22" height="22" />}
-                title="No projects match"
-                body="Try a different category or clear your search to see the full gallery."
+                title={t('community.empty.trending.title')}
+                body={t('community.empty.trending.body')}
                 onClear={clearFilters}
               />
             )}
@@ -1097,6 +1143,7 @@ type EmptyStateProps = {
 }
 
 function EmptyState({ icon, title, body, onClear }: EmptyStateProps) {
+  const t = useT()
   return (
     <div className="com-empty">
       <span className="com-empty__ico" aria-hidden="true">
@@ -1105,7 +1152,7 @@ function EmptyState({ icon, title, body, onClear }: EmptyStateProps) {
       <h3 className="com-empty__title">{title}</h3>
       <p className="com-empty__body">{body}</p>
       <button type="button" className="s-btn s-btn--subtle" onClick={onClear}>
-        Clear filters
+        {t('community.empty.clear')}
       </button>
     </div>
   )

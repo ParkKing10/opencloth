@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useT, LanguageToggle } from '@/i18n'
 import { useAuth } from '../auth/auth'
 import { useSuiteTheme } from '../theme'
 import { useIsPhone } from '../lib/useMediaQuery'
@@ -20,15 +21,16 @@ import {
 import '../suite.css'
 import './admin.css'
 
+// `label` holds the i18n key; it is translated at render.
 const NAV = [
-  { to: '/admin', label: 'Overview', icon: IcoDashboard, end: true },
-  { to: '/admin/garments', label: 'Garments', icon: IcoGrid },
-  { to: '/admin/accessories', label: 'Accessories', icon: IcoDesign },
-  { to: '/admin/users', label: 'Users', icon: IcoCommunity },
-  { to: '/admin/designs', label: 'Designs', icon: IcoDesign },
-  { to: '/admin/manufacturers', label: 'Manufacturers', icon: IcoFactory },
-  { to: '/admin/orders', label: 'Orders', icon: IcoProduction },
-  { to: '/admin/settings', label: 'Platform', icon: IcoSettings },
+  { to: '/admin', label: 'adminShell.nav.overview', icon: IcoDashboard, end: true },
+  { to: '/admin/garments', label: 'adminShell.nav.garments', icon: IcoGrid },
+  { to: '/admin/accessories', label: 'adminShell.nav.accessories', icon: IcoDesign },
+  { to: '/admin/users', label: 'adminShell.nav.users', icon: IcoCommunity },
+  { to: '/admin/designs', label: 'adminShell.nav.designs', icon: IcoDesign },
+  { to: '/admin/manufacturers', label: 'adminShell.nav.manufacturers', icon: IcoFactory },
+  { to: '/admin/orders', label: 'adminShell.nav.orders', icon: IcoProduction },
+  { to: '/admin/settings', label: 'adminShell.nav.platform', icon: IcoSettings },
 ]
 
 export function AdminApp() {
@@ -36,15 +38,16 @@ export function AdminApp() {
   const { theme, toggle } = useSuiteTheme()
   const navigate = useNavigate()
   const isPhone = useIsPhone()
+  const t = useT()
 
   // The admin console is a dense, desktop-oriented internal tool — gate it on phones.
   if (isPhone) {
     return (
       <DesktopOnly
-        title="Admin Console is desktop-only"
-        message="The admin tools (garments, accessories, users, orders) are built for a desktop. Open loom studios on a larger screen to manage them."
+        title={t('adminShell.gate.title')}
+        message={t('adminShell.gate.message')}
         backTo="/suite"
-        backLabel="Back to app"
+        backLabel={t('adminShell.backToApp')}
       />
     )
   }
@@ -59,11 +62,11 @@ export function AdminApp() {
             </span>
             <span className="adm__brand-text">
               <span className="adm__name">loom studios</span>
-              <span className="adm__tag">Admin Console</span>
+              <span className="adm__tag">{t('adminShell.tag')}</span>
             </span>
           </div>
 
-          <nav className="adm__nav" aria-label="Admin navigation">
+          <nav className="adm__nav" aria-label={t('adminShell.nav.aria')}>
             {NAV.map(({ to, label, icon: Icon, end }) => (
               <NavLink
                 key={to}
@@ -72,7 +75,7 @@ export function AdminApp() {
                 className={({ isActive }) => `adm__item${isActive ? ' is-active' : ''}`}
               >
                 <Icon width="18" height="18" />
-                <span>{label}</span>
+                <span>{t(label)}</span>
               </NavLink>
             ))}
           </nav>
@@ -80,15 +83,15 @@ export function AdminApp() {
           <div className="adm__foot">
             <button className="adm__back" type="button" onClick={() => navigate('/suite')}>
               <IcoArrowRight width="15" height="15" style={{ transform: 'scaleX(-1)' }} />
-              Back to app
+              {t('adminShell.backToApp')}
             </button>
             <div className="adm__user">
               <span className="adm__avatar">{(user?.name ?? 'A').slice(0, 2).toUpperCase()}</span>
               <span className="adm__user-text">
                 <span className="adm__user-name">{user?.name}</span>
-                <span className="adm__user-role">Administrator</span>
+                <span className="adm__user-role">{t('adminShell.role')}</span>
               </span>
-              <button className="adm__logout" type="button" onClick={logout} aria-label="Log out">
+              <button className="adm__logout" type="button" onClick={logout} aria-label={t('adminShell.logout')}>
                 <IcoLogout width="16" height="16" />
               </button>
             </div>
@@ -98,18 +101,19 @@ export function AdminApp() {
         <div className="adm__main">
           <header className="adm__topbar">
             <div className="adm__crumb">
-              <span>Admin</span>
+              <span>{t('adminShell.crumb')}</span>
             </div>
             <div className="adm__topbar-actions">
+              <LanguageToggle />
               <button
                 className="s-icon-btn"
                 type="button"
                 onClick={toggle}
-                aria-label="Toggle theme"
+                aria-label={t('adminShell.toggleTheme')}
               >
                 {theme === 'dark' ? <IcoSun width="19" height="19" /> : <IcoMoon width="18" height="18" />}
               </button>
-              <span className="adm__env">Production</span>
+              <span className="adm__env">{t('adminShell.env')}</span>
             </div>
           </header>
           <div className="adm__content">

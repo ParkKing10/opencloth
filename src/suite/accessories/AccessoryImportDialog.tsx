@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { useToast } from '../components/ui/Toast'
 import { ACCESSORY_CATEGORIES, publishAccessories } from './accessoryClient'
 import '../garments/garments.css'
@@ -59,6 +60,7 @@ export function AccessoryImportDialog({
   onPublished: () => void
 }) {
   const toast = useToast()
+  const t = useT()
   const [category, setCategory] = useState(ACCESSORY_CATEGORIES[0].id)
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [drag, setDrag] = useState(false)
@@ -70,7 +72,7 @@ export function AccessoryImportDialog({
     async (files: FileList | File[]) => {
       const imgs = Array.from(files).filter((f) => f.type.startsWith('image/'))
       if (imgs.length === 0) {
-        setError('Those files are not images. Add PNG, SVG, WebP or JPG.')
+        setError(t('accessories.import.errNotImages'))
         return
       }
       setError('')
@@ -86,12 +88,12 @@ export function AccessoryImportDialog({
       }
       setBusy(false)
       if (next.length === 0) {
-        setError('None of those images could be read.')
+        setError(t('accessories.import.errNoneRead'))
         return
       }
       setDrafts((d) => [...d, ...next])
     },
-    [category],
+    [category, t],
   )
 
   if (!open) return null
@@ -112,7 +114,8 @@ export function AccessoryImportDialog({
     const r = await publishAccessories(drafts.map((d) => ({ name: d.name, category: d.category, image: d.image })))
     setBusy(false)
     if (r.ok) {
-      toast(`Published ${r.value.published} accessor${r.value.published === 1 ? 'y' : 'ies'}.`, 'success')
+      const n = r.value.published
+      toast(n === 1 ? t('accessories.import.publishedOne', { n }) : t('accessories.import.publishedMany', { n }), 'success')
       reset()
       onPublished()
       onClose()
@@ -126,10 +129,10 @@ export function AccessoryImportDialog({
       <div className="gl-imp" onClick={(e) => e.stopPropagation()}>
         <div className="gl-imp__head">
           <div>
-            <h2>Upload accessory pack</h2>
-            <p>Add several images at once. Each becomes an accessory every user can place on a garment for free.</p>
+            <h2>{t('accessories.import.title')}</h2>
+            <p>{t('accessories.import.subtitle')}</p>
           </div>
-          <button className="gl-modal__close" type="button" onClick={close} aria-label="Close">
+          <button className="gl-modal__close" type="button" onClick={close} aria-label={t('accessories.import.close')}>
             ×
           </button>
         </div>
@@ -137,18 +140,20 @@ export function AccessoryImportDialog({
         {/* Batch category — the default for everything added; each item can be changed below. */}
         <div className="gl-imp__reviewbar">
           <span>
-            New accessories go into{' '}
+            {t('accessories.import.goInto')}{' '}
             <select className="gl-imp__cat" value={category} onChange={(e) => setCategory(e.target.value)}>
               {ACCESSORY_CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.label}
+                  {t(`accessories.cat.${c.id}`)}
                 </option>
               ))}
             </select>
           </span>
           {drafts.length > 0 && (
             <strong>
-              {drafts.length} image{drafts.length === 1 ? '' : 's'} ready
+              {drafts.length === 1
+                ? t('accessories.import.readyOne', { n: drafts.length })
+                : t('accessories.import.readyMany', { n: drafts.length })}
             </strong>
           )}
         </div>
@@ -171,8 +176,8 @@ export function AccessoryImportDialog({
             tabIndex={0}
           >
             <span className="gl-imp__drop-icon">⬆</span>
-            <strong>{busy ? 'Reading images…' : 'Drop accessory images here'}</strong>
-            <span>or click to browse — PNG, SVG, WebP, JPG. Transparent PNGs look best.</span>
+            <strong>{busy ? t('accessories.import.dropReading') : t('accessories.import.dropTitle')}</strong>
+            <span>{t('accessories.import.dropHint')}</span>
             {error && <div className="gl-imp__error">{error}</div>}
           </div>
         ) : (
@@ -187,7 +192,7 @@ export function AccessoryImportDialog({
                     className="gl-imp__name"
                     value={d.name}
                     onChange={(e) => setDrafts((list) => list.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
-                    placeholder="Accessory name"
+                    placeholder={t('accessories.import.namePlaceholder')}
                   />
                   <div className="gl-imp__row">
                     <select
@@ -197,7 +202,7 @@ export function AccessoryImportDialog({
                     >
                       {ACCESSORY_CATEGORIES.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.label}
+                          {t(`accessories.cat.${c.id}`)}
                         </option>
                       ))}
                     </select>
@@ -205,9 +210,9 @@ export function AccessoryImportDialog({
                       className="gl-card__del"
                       type="button"
                       onClick={() => setDrafts((list) => list.filter((_, j) => j !== i))}
-                      title="Remove from this upload"
+                      title={t('accessories.import.removeTitle')}
                     >
-                      Remove
+                      {t('accessories.import.remove')}
                     </button>
                   </div>
                 </div>
@@ -220,14 +225,18 @@ export function AccessoryImportDialog({
         <div className="gl-imp__foot">
           {drafts.length > 0 && (
             <button className="s-btn" type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
-              Add more
+              {t('accessories.import.addMore')}
             </button>
           )}
           <button className="s-btn" type="button" onClick={close} disabled={busy}>
-            Cancel
+            {t('accessories.import.cancel')}
           </button>
           <button className="s-btn s-btn--accent" type="button" onClick={publish} disabled={busy || drafts.length === 0}>
-            {busy ? 'Publishing…' : drafts.length > 0 ? `Publish ${drafts.length}` : 'Publish'}
+            {busy
+              ? t('accessories.import.publishing')
+              : drafts.length > 0
+                ? t('accessories.import.publishN', { n: drafts.length })
+                : t('accessories.import.publish')}
           </button>
         </div>
 

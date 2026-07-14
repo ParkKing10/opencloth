@@ -5,6 +5,7 @@
  * workspace only.
  */
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useT } from '@/i18n'
 import type { EditableGarment, GarmentViewId } from '../../garment-model/editableGarment'
 import { flattenRegions } from '../../garment-model/regionTree'
 import { styleForRole, type ShapeRole } from '../../garment-model/garmentStyle'
@@ -22,6 +23,7 @@ type Props = {
 }
 
 export function DrawMode({ garment, view, onCommit, onExit }: Props) {
+  const t = useT()
   const vb = garment.views.find((v) => v.id === view)?.viewBox ?? { w: 400, h: 560 }
   const svgRef = useRef<SVGSVGElement>(null)
   const [tool, setTool] = useState<Tool>('pen')
@@ -68,16 +70,16 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
   return (
     <div className="draw">
       <div className="draw__toolbar">
-        <span className="draw__eyebrow">Draw garment</span>
-        <div className="draw__tools" role="toolbar" aria-label="Drawing tools">
-          {(['pen', 'rect', 'line'] as Tool[]).map((t) => (
-            <button key={t} type="button" className={`draw__tool${tool === t ? ' is-active' : ''}`} onClick={() => setTool(t)}>
-              {t === 'pen' ? 'Pen' : t === 'rect' ? 'Rectangle' : 'Line'}
+        <span className="draw__eyebrow">{t('labPanels.draw.eyebrow')}</span>
+        <div className="draw__tools" role="toolbar" aria-label={t('labPanels.draw.toolsAria')}>
+          {(['pen', 'rect', 'line'] as Tool[]).map((toolId) => (
+            <button key={toolId} type="button" className={`draw__tool${tool === toolId ? ' is-active' : ''}`} onClick={() => setTool(toolId)}>
+              {toolId === 'pen' ? t('labPanels.draw.pen') : toolId === 'rect' ? t('labPanels.draw.rectangle') : t('labPanels.draw.line')}
             </button>
           ))}
         </div>
         <button type="button" className="s-btn s-btn--accent draw__done" onClick={onExit}>
-          Done
+          {t('labPanels.draw.done')}
         </button>
       </div>
 
@@ -106,7 +108,7 @@ export function DrawMode({ garment, view, onCommit, onExit }: Props) {
         </svg>
       </div>
 
-      <p className="draw__hint">Draw {tool === 'pen' ? 'freehand' : tool === 'rect' ? 'a rectangle' : 'a line'} — each stroke becomes an editable region. Bezier &amp; brush tools arrive next.</p>
+      <p className="draw__hint">{tool === 'pen' ? t('labPanels.draw.hintPen') : tool === 'rect' ? t('labPanels.draw.hintRect') : t('labPanels.draw.hintLine')}</p>
     </div>
   )
 }

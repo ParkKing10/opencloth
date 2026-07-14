@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useT, LanguageToggle } from '@/i18n'
 import { useAuth } from '../../auth/auth'
 import { DEMO_CREDENTIALS } from '../../data/seed'
 import { isSupabaseConfigured } from '../../../lib/supabase'
@@ -11,6 +12,7 @@ type LocationState = { from?: string }
 const DEMO_NAMES = { user: 'Mike Carter', admin: 'Ava Reyes' } as const
 
 export function Login() {
+  const t = useT()
   const { login, signup } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -30,7 +32,7 @@ export function Login() {
     const res = await login(em, pw)
     setBusy(false)
     if (res.ok) navigate(from, { replace: true })
-    else setError(res.error ?? 'Could not sign in.')
+    else setError(res.error ?? t('auth.err.couldNotSignIn'))
   }
 
   async function fillDemo(role: 'user' | 'admin') {
@@ -47,7 +49,7 @@ export function Login() {
     }
     setBusy(false)
     if (res.ok) navigate(from, { replace: true })
-    else setError(res.error ?? 'Could not sign in.')
+    else setError(res.error ?? t('auth.err.couldNotSignIn'))
   }
 
   return (
@@ -56,30 +58,31 @@ export function Login() {
         <AuthBrand />
         <main className="auth__panel">
           <Link className="auth__back" to="/">
-            ← Back to site
+            ← {t('auth.backToSite')}
           </Link>
+          <LanguageToggle variant="ghost" />
           <div className="auth__card">
-            <h1 className="auth__title">Welcome back</h1>
-            <p className="auth__sub">Sign in to your loom studios workspace.</p>
+            <h1 className="auth__title">{t('auth.login.title')}</h1>
+            <p className="auth__sub">{t('auth.login.sub')}</p>
 
             <form className="auth__form" onSubmit={(e) => submit(e)}>
               <div className="auth__field">
                 <label className="auth__label" htmlFor="login-email">
-                  Email
+                  {t('auth.field.email')}
                 </label>
                 <input
                   id="login-email"
                   className="auth__input"
                   type="email"
                   autoComplete="email"
-                  placeholder="you@brand.com"
+                  placeholder={t('auth.field.emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div className="auth__field">
                 <label className="auth__label" htmlFor="login-pw">
-                  Password
+                  {t('auth.field.password')}
                 </label>
                 <input
                   id="login-pw"
@@ -95,24 +98,25 @@ export function Login() {
               {error && <div className="auth__error">{error}</div>}
 
               <button className="auth__submit" type="submit" disabled={busy}>
-                {busy ? 'Signing in…' : 'Sign in'}
+                {busy ? t('auth.login.busy') : t('auth.login.submit')}
               </button>
             </form>
 
             <div className="auth__demo">
-              <div className="auth__demo-head">Try a demo account</div>
+              <div className="auth__demo-head">{t('auth.login.demoHead')}</div>
               <div className="auth__demo-row">
                 <button className="auth__demo-btn" type="button" onClick={() => fillDemo('user')}>
-                  Creator
+                  {t('auth.login.demoCreator')}
                 </button>
                 <button className="auth__demo-btn" type="button" onClick={() => fillDemo('admin')}>
-                  Admin
+                  {t('auth.login.demoAdmin')}
                 </button>
               </div>
             </div>
 
             <p className="auth__alt">
-              Don't have an account? <Link to="/signup">Create one</Link>
+              {t('auth.login.noAccount')}
+              <Link to="/signup">{t('auth.login.createOne')}</Link>
             </p>
           </div>
         </main>

@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useT } from '@/i18n'
 import { IcoArrowRight, IcoPlus } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS } from '../../components/ui/Garments'
 import { TechPackFlats, GlobePins, ShopArt } from './FeatureArt'
@@ -21,9 +22,9 @@ type ArtKind = 'tee' | 'hoodie' | 'techpack' | 'globe' | 'shop'
 type Tint = 'violet' | 'slate' | 'blue' | 'teal' | 'amber'
 
 type Feature = {
-  title: string
-  desc: string
-  cta: string
+  titleKey: string
+  descKey: string
+  ctaKey: string
   to: string
   tint: Tint
   art: ArtKind
@@ -33,43 +34,43 @@ type Feature = {
 
 const FEATURES: Feature[] = [
   {
-    title: 'Design Studio',
-    desc: 'Create new designs with our easy drag & drop editor.',
-    cta: 'Start Designing',
+    titleKey: 'dashboard.feature.design.title',
+    descKey: 'dashboard.feature.design.desc',
+    ctaKey: 'dashboard.cta.startDesigning',
     to: '/suite/design',
     tint: 'violet',
     art: 'tee',
     primary: true,
   },
   {
-    title: 'Garments Studio',
-    desc: 'Build fully editable garments with real region layers.',
-    cta: 'Open Studio',
+    titleKey: 'dashboard.feature.garments.title',
+    descKey: 'dashboard.feature.garments.desc',
+    ctaKey: 'dashboard.feature.garments.cta',
     to: '/suite/garments',
     tint: 'slate',
     art: 'techpack',
   },
   {
-    title: 'AI Designer',
-    desc: 'Generate unique designs with the power of AI.',
-    cta: 'Generate',
+    titleKey: 'dashboard.feature.ai.title',
+    descKey: 'dashboard.feature.ai.desc',
+    ctaKey: 'dashboard.feature.ai.cta',
     to: '/suite/ai',
     tint: 'blue',
     art: 'hoodie',
     isNew: true,
   },
   {
-    title: 'Garment Shop',
-    desc: 'Buy premium editable garments with coins and design on them.',
-    cta: 'Open Shop',
+    titleKey: 'dashboard.feature.shop.title',
+    descKey: 'dashboard.feature.shop.desc',
+    ctaKey: 'dashboard.feature.shop.cta',
     to: '/suite/shop',
     tint: 'teal',
     art: 'shop',
   },
   {
-    title: 'Manufacturer Hub',
-    desc: 'Find the best manufacturers for your products.',
-    cta: 'Find Manufacturers',
+    titleKey: 'dashboard.feature.manufacturers.title',
+    descKey: 'dashboard.feature.manufacturers.desc',
+    ctaKey: 'dashboard.feature.manufacturers.cta',
     to: '/suite/manufacturers',
     tint: 'amber',
     art: 'globe',
@@ -77,7 +78,14 @@ const FEATURES: Feature[] = [
 ]
 
 // Decorative hero showcase content (the floating Layers/Colors panel + mini toolbar).
-const HERO_LAYERS = ['Front Design', 'Back Design', 'Left Sleeve', 'Right Sleeve', 'Hood', 'Pocket']
+const HERO_LAYERS = [
+  'dashboard.layer.frontDesign',
+  'dashboard.layer.backDesign',
+  'dashboard.layer.leftSleeve',
+  'dashboard.layer.rightSleeve',
+  'dashboard.layer.hood',
+  'dashboard.layer.pocket',
+]
 const HERO_COLORS = ['#c9f24f', '#d7d7dc', '#8b8b93', '#2b2b52', '#6b4de6']
 const HERO_TOOLS = [
   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 3l7 17 2.5-6.5L20 11z" /></svg>,
@@ -107,6 +115,7 @@ const RECENT_LIMIT = 12
 
 export function Dashboard() {
   const navigate = useNavigate()
+  const t = useT()
   const { data } = useStore()
   const { user } = useAuth()
   const toast = useToast()
@@ -129,20 +138,20 @@ export function Dashboard() {
             <div className="dash-hero__left">
               <span className="dash-hero__kicker">
                 <span className="dash-hero__kicker-mark" aria-hidden="true" />
-                Design Studio
+                {t('dashboard.hero.kicker')}
               </span>
               <h1 className="dash-hero__headline">
-                Design without<br />
-                <span className="dash-hero__headline-accent">limits.</span>
+                {t('dashboard.hero.headline1')}<br />
+                <span className="dash-hero__headline-accent">{t('dashboard.hero.headlineAccent')}</span>
               </h1>
-              <p className="dash-hero__tagline">Create. Customize. Launch.</p>
+              <p className="dash-hero__tagline">{t('dashboard.hero.tagline')}</p>
               <div className="dash-hero__cta">
                 <button type="button" className="dash-hero__start" onClick={() => navigate('/suite/design')}>
-                  Start Designing <IcoArrowRight width="16" height="16" />
+                  {t('dashboard.cta.startDesigning')} <IcoArrowRight width="16" height="16" />
                 </button>
-                <button type="button" className="dash-hero__demo" onClick={() => toast('A product walkthrough is coming soon.', 'info')}>
+                <button type="button" className="dash-hero__demo" onClick={() => toast(t('dashboard.hero.demoToast'), 'info')}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-                  Watch Demo
+                  {t('dashboard.hero.watchDemo')}
                 </button>
               </div>
               <div className="dash-hero__social">
@@ -152,7 +161,7 @@ export function Dashboard() {
                   ))}
                 </div>
                 <p className="dash-hero__social-text">
-                  Join <b>12,400+</b> designers<br />building the future of fashion
+                  {t('dashboard.hero.socialBefore')}<b>12,400+</b>{t('dashboard.hero.socialLine1')}<br />{t('dashboard.hero.socialLine2')}
                 </p>
               </div>
             </div>
@@ -165,16 +174,16 @@ export function Dashboard() {
                 ))}
               </div>
               <div className="dash-hero__panel" aria-hidden="true">
-                <span className="dash-hero__panel-head">Layers</span>
+                <span className="dash-hero__panel-head">{t('dashboard.hero.panelLayers')}</span>
                 <ul className="dash-hero__layers">
                   {HERO_LAYERS.map((l) => (
                     <li key={l}>
-                      <span className="dash-hero__layer-name">{l}</span>
+                      <span className="dash-hero__layer-name">{t(l)}</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="2.6" /></svg>
                     </li>
                   ))}
                 </ul>
-                <span className="dash-hero__panel-head">Colors</span>
+                <span className="dash-hero__panel-head">{t('dashboard.hero.panelColors')}</span>
                 <div className="dash-hero__swatches">
                   {HERO_COLORS.map((c) => (
                     <span key={c} className="dash-hero__swatch" style={{ background: c }} />
@@ -188,7 +197,7 @@ export function Dashboard() {
           <section className="dash-features">
             {FEATURES.map((f) => (
               <article
-                key={f.title}
+                key={f.titleKey}
                 className={`feat feat--${f.tint}${f.primary ? ' feat--primary' : ''}`}
                 onClick={() => navigate(f.to)}
               >
@@ -199,10 +208,10 @@ export function Dashboard() {
 
                 <div className="feat__copy">
                   <div className="feat__title-row">
-                    <h3 className="feat__title">{f.title}</h3>
-                    {f.isNew && <span className="feat__new">NEW</span>}
+                    <h3 className="feat__title">{t(f.titleKey)}</h3>
+                    {f.isNew && <span className="feat__new">{t('dashboard.badge.new')}</span>}
                   </div>
-                  <p className="feat__desc">{f.desc}</p>
+                  <p className="feat__desc">{t(f.descKey)}</p>
                 </div>
 
                 <button
@@ -213,7 +222,7 @@ export function Dashboard() {
                     navigate(f.to)
                   }}
                 >
-                  {f.cta} <IcoArrowRight width="15" height="15" />
+                  {t(f.ctaKey)} <IcoArrowRight width="15" height="15" />
                 </button>
               </article>
             ))}
@@ -222,14 +231,14 @@ export function Dashboard() {
           {/* Recent designs */}
           <section>
             <div className="s-section-head">
-              <h2 className="s-section-title">Recent Designs</h2>
+              <h2 className="s-section-title">{t('dashboard.recent.title')}</h2>
               {recentDesigns.length > 0 && (
                 <button
                   className="s-link"
                   type="button"
                   onClick={() => navigate('/suite/collections')}
                 >
-                  View all <IcoArrowRight width="13" height="13" />
+                  {t('dashboard.recent.viewAll')} <IcoArrowRight width="13" height="13" />
                 </button>
               )}
             </div>
@@ -243,12 +252,12 @@ export function Dashboard() {
                     <article
                       className="design"
                       key={d.id}
-                      title={`Open ${d.name} in the Design Studio`}
+                      title={t('dashboard.design.openTitle', { name: d.name })}
                       onClick={() => navigate(`/suite/studio?garment=${encodeURIComponent(d.id)}&name=${encodeURIComponent(d.name)}`)}
                     >
                       <div className={`design__preview${thumb ? ' design__preview--img' : ''}`}>
                         {thumb ? (
-                          <img src={thumb} alt={`${d.name} preview`} loading="lazy" />
+                          <img src={thumb} alt={t('dashboard.design.previewAlt', { name: d.name })} loading="lazy" />
                         ) : (
                           <Glyph width="52" height="52" />
                         )}
@@ -271,14 +280,14 @@ export function Dashboard() {
                 <div className="page-empty__ico">
                   <IcoPlus width="24" height="24" />
                 </div>
-                <h3>No designs yet</h3>
-                <p>Your recent designs will show up here. Start your first one to get going.</p>
+                <h3>{t('dashboard.empty.title')}</h3>
+                <p>{t('dashboard.empty.body')}</p>
                 <button
                   className="s-btn s-btn--accent dash-empty__cta"
                   type="button"
                   onClick={() => navigate('/suite/design')}
                 >
-                  <IcoPlus width="15" height="15" /> Create your first design
+                  <IcoPlus width="15" height="15" /> {t('dashboard.empty.cta')}
                 </button>
               </div>
             )}

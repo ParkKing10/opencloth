@@ -4,6 +4,7 @@
  * (Back · Rename · Favorite · Save · Open Design Studio · Export), plus undo/redo and view toggle.
  */
 import { useEffect, useRef, useState, type SVGProps } from 'react'
+import { useT } from '@/i18n'
 
 const IcoStar = (p: SVGProps<SVGSVGElement>) => (
   <svg width="16" height="16" viewBox="0 0 24 24" strokeWidth={1.6} strokeLinejoin="round" {...p}>
@@ -41,6 +42,7 @@ export type GarmentHeaderProps = {
 }
 
 export function GarmentHeader(props: GarmentHeaderProps) {
+  const t = useT()
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState(props.name)
   const [exportOpen, setExportOpen] = useState(false)
@@ -66,8 +68,8 @@ export function GarmentHeader(props: GarmentHeaderProps) {
 
   return (
     <header className="gh">
-      <button type="button" className="gh__back" onClick={props.onBack} aria-label="Back to Garments">
-        ← Garments
+      <button type="button" className="gh__back" onClick={props.onBack} aria-label={t('labMain.headerBackAria')}>
+        ← {t('labMain.headerBackGarments')}
       </button>
 
       <div className="gh__id">
@@ -82,10 +84,10 @@ export function GarmentHeader(props: GarmentHeaderProps) {
               if (e.key === 'Enter') commitRename()
               if (e.key === 'Escape') setRenaming(false)
             }}
-            aria-label="Garment name"
+            aria-label={t('labMain.headerNameInputAria')}
           />
         ) : (
-          <button type="button" className="gh__name" onClick={startRename} title="Click to rename">
+          <button type="button" className="gh__name" onClick={startRename} title={t('labMain.headerRenameTitle')}>
             {props.name}
           </button>
         )}
@@ -94,28 +96,28 @@ export function GarmentHeader(props: GarmentHeaderProps) {
           <i aria-hidden="true">·</i>
           <span>{props.views.map((v) => v.label).join(' + ')}</span>
           <i aria-hidden="true">·</i>
-          <span>{props.regionCount} regions</span>
+          <span>{t('labMain.headerRegions', { n: props.regionCount })}</span>
           <i aria-hidden="true">·</i>
-          <span className="gh__chip gh__chip--editable">Editable</span>
+          <span className="gh__chip gh__chip--editable">{t('labMain.headerEditable')}</span>
           <span className="gh__saved">
             <span className="gh__saved-dot" aria-hidden="true" />
             {props.savedLabel}
           </span>
-          {props.isAi && <span className="gh__chip gh__ai">AI</span>}
+          {props.isAi && <span className="gh__chip gh__ai">{t('labMain.headerAiBadge')}</span>}
         </div>
       </div>
 
       <div className="gh__history">
-        <button type="button" className="gh__icbtn" onClick={props.onUndo} disabled={!props.canUndo} title="Undo (⌘Z)" aria-label="Undo">
+        <button type="button" className="gh__icbtn" onClick={props.onUndo} disabled={!props.canUndo} title={t('labMain.headerUndoTitle')} aria-label={t('labMain.headerUndo')}>
           ↶
         </button>
         <span className="gh__rev">{props.rev}</span>
-        <button type="button" className="gh__icbtn" onClick={props.onRedo} disabled={!props.canRedo} title="Redo (⌘⇧Z)" aria-label="Redo">
+        <button type="button" className="gh__icbtn" onClick={props.onRedo} disabled={!props.canRedo} title={t('labMain.headerRedoTitle')} aria-label={t('labMain.headerRedo')}>
           ↷
         </button>
       </div>
 
-      <div className="gh__views" role="tablist" aria-label="Garment view">
+      <div className="gh__views" role="tablist" aria-label={t('labMain.headerViewAria')}>
         {props.views.map((v) => (
           <button key={v.id} type="button" role="tab" aria-selected={props.view === v.id} className={`gh__view${props.view === v.id ? ' is-active' : ''}`} onClick={() => props.onSetView(v.id)}>
             {v.label}
@@ -128,33 +130,33 @@ export function GarmentHeader(props: GarmentHeaderProps) {
           type="button"
           className={`gh__icon-action${props.isFavorite ? ' is-on' : ''}`}
           onClick={props.onToggleFavorite}
-          title={props.isFavorite ? 'Unfavorite' : 'Favorite'}
+          title={props.isFavorite ? t('labMain.headerUnfavorite') : t('labMain.headerFavorite')}
           aria-pressed={props.isFavorite}
         >
           <IcoStar fill={props.isFavorite ? 'currentColor' : 'none'} stroke="currentColor" />
         </button>
         <button type="button" className="gh__btn" onClick={startRename}>
-          Rename
+          {t('labMain.headerRename')}
         </button>
-        <button type="button" className="gh__btn" onClick={props.onSave} title="Changes save automatically">
-          Save
+        <button type="button" className="gh__btn" onClick={props.onSave} title={t('labMain.headerSaveTitle')}>
+          {t('labMain.headerSave')}
         </button>
         <button type="button" className="gh__btn gh__btn--studio" onClick={props.onOpenDesignStudio}>
-          Open Design Studio
+          {t('labMain.headerOpenStudio')}
         </button>
         <div className="gh__export" ref={exportRef}>
           <button type="button" className="gh__btn gh__btn--accent" onClick={() => setExportOpen((v) => !v)} aria-haspopup="menu" aria-expanded={exportOpen}>
-            Export <IcoDown />
+            {t('labMain.headerExport')} <IcoDown />
           </button>
           {exportOpen && (
             <div className="gh__menu" role="menu">
               <button type="button" role="menuitem" onClick={() => { setExportOpen(false); props.onExportPng() }}>
-                Garment flat (PNG)
+                {t('labMain.headerExportPng')}
               </button>
               <button type="button" role="menuitem" onClick={() => { setExportOpen(false); props.onExportThreados() }}>
-                Editable garment (.threados)
+                {t('labMain.headerExportThreados')}
               </button>
-              <span className="gh__menu-note">Full manufacturing package lives in the Design Studio.</span>
+              <span className="gh__menu-note">{t('labMain.headerExportNote')}</span>
             </div>
           )}
         </div>

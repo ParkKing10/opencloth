@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import './versions.css'
 
 export type VersionTab = { id: string; name: string }
@@ -18,6 +19,7 @@ type Props = {
  * Only shows once there's more than one version OR on hover of the + (kept quiet for single designs).
  */
 export function VersionsBar({ versions, activeId, onSwitch, onAdd, onRename, onDelete }: Props) {
+  const t = useT()
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -38,8 +40,8 @@ export function VersionsBar({ versions, activeId, onSwitch, onAdd, onRename, onD
   const multiple = versions.length > 1
 
   return (
-    <div className="vbar" role="tablist" aria-label="Design versions">
-      {multiple && <span className="vbar__label">Versions</span>}
+    <div className="vbar" role="tablist" aria-label={t('dsPanels.vb.aria')}>
+      {multiple && <span className="vbar__label">{t('dsPanels.vb.versions')}</span>}
       <div className="vbar__tabs">
         {versions.map((v) => {
           const active = v.id === activeId
@@ -56,7 +58,7 @@ export function VersionsBar({ versions, activeId, onSwitch, onAdd, onRename, onD
                   if (e.key === 'Enter') commitRename()
                   else if (e.key === 'Escape') setEditingId(null)
                 }}
-                aria-label="Version name"
+                aria-label={t('dsPanels.vb.nameAria')}
               />
             )
           }
@@ -69,17 +71,17 @@ export function VersionsBar({ versions, activeId, onSwitch, onAdd, onRename, onD
                 className="vbar__name"
                 onClick={() => onSwitch(v.id)}
                 onDoubleClick={() => startRename(v)}
-                title={active ? 'Double-click to rename' : `Switch to ${v.name}`}
+                title={active ? t('dsPanels.vb.dblRename') : t('dsPanels.vb.switchTo', { name: v.name })}
               >
                 {v.name}
               </button>
               {active && (
                 <>
-                  <button type="button" className="vbar__mini" title="Rename version" aria-label="Rename version" onClick={() => startRename(v)}>
+                  <button type="button" className="vbar__mini" title={t('dsPanels.vb.rename')} aria-label={t('dsPanels.vb.rename')} onClick={() => startRename(v)}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3Z" /></svg>
                   </button>
                   {multiple && (
-                    <button type="button" className="vbar__mini vbar__mini--del" title="Delete version" aria-label="Delete version" onClick={() => onDelete(v.id)}>
+                    <button type="button" className="vbar__mini vbar__mini--del" title={t('dsPanels.vb.delete')} aria-label={t('dsPanels.vb.delete')} onClick={() => onDelete(v.id)}>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
                     </button>
                   )}
@@ -89,9 +91,9 @@ export function VersionsBar({ versions, activeId, onSwitch, onAdd, onRename, onD
           )
         })}
       </div>
-      <button type="button" className="vbar__add" onClick={onAdd} title="Add a new version (a copy of the current one)">
+      <button type="button" className="vbar__add" onClick={onAdd} title={t('dsPanels.vb.addTitle')}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-        {!multiple && <span>New version</span>}
+        {!multiple && <span>{t('dsPanels.vb.newVersion')}</span>}
       </button>
     </div>
   )

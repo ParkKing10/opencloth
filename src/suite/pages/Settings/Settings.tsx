@@ -4,6 +4,7 @@ import { SuitePage } from '../_shared/SuitePage'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
+import { useT } from '@/i18n'
 import { uid } from '../../data/utils'
 import { downloadCsv, downloadJson, downloadText, slugify } from '../../lib/download'
 import { useStorageEstimate, formatBytes as formatBytesLabel } from '../../lib/useStorageEstimate'
@@ -184,6 +185,7 @@ export function Settings() {
   const { data, mutate } = useStore()
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
   const location = useLocation()
 
   const [active, setActive] = useState<NavKey>('profile')
@@ -237,16 +239,25 @@ export function Settings() {
   const avatarInitials = useMemo(() => initialsOf(name || user?.name || ''), [name, user?.name])
   const accentHex = ACCENTS.find((a) => a.id === accent)?.hex ?? ACCENTS[0].hex
 
+  /* -- Localized labels for the local const arrays, resolved at the render site -- */
+  const navLabel = (key: NavKey) => t(`settings.nav.${key}`)
+  const accentLabel = (id: string) => t(`settings.accent.${id}`)
+  const regionLabel = (id: string) => t(`settings.region.${id}`)
+  const roleLabel = (role: string) => t(`settings.role.${role.toLowerCase()}`)
+  const notifTitle = (id: string) => t(`settings.notif.${id}.title`)
+  const notifSub = (id: string) => t(`settings.notif.${id}.sub`)
+  const integDesc = (id: string) => t(`settings.integ.${id}.desc`)
+
   const handleToggle = (id: string) => {
-    setToggles((prev) => prev.map((t) => (t.id === id ? { ...t, on: !t.on } : t)))
-    const next = toggles.find((t) => t.id === id)
-    toast(next?.on ? `Muted “${next.title}”` : `“${next?.title}” notifications on`, 'default')
+    setToggles((prev) => prev.map((tog) => (tog.id === id ? { ...tog, on: !tog.on } : tog)))
+    const next = toggles.find((tog) => tog.id === id)
+    const title = notifTitle(id)
+    toast(next?.on ? t('settings.notif.muted', { title }) : t('settings.notif.on', { title }), 'default')
   }
 
   const handlePickAccent = (id: string) => {
     setAccent(id)
-    const label = ACCENTS.find((a) => a.id === id)?.label ?? id
-    toast(`${label} set as your brand accent`, 'accent')
+    toast(t('settings.accent.set', { color: accentLabel(id) }), 'accent')
   }
 
   const saveProfile = () => {
@@ -254,25 +265,25 @@ export function Settings() {
     const cleanName = name.trim()
     const cleanEmail = email.trim().toLowerCase()
     if (cleanName.length < 2) {
-      toast('Enter your full name before saving.', 'default')
+      toast(t('settings.profile.nameRequired'), 'default')
       setActive('profile')
       return
     }
     if (!EMAIL_RE.test(cleanEmail)) {
-      toast('Enter a valid email address.', 'default')
+      toast(t('settings.profile.emailInvalid'), 'default')
       setActive('profile')
       return
     }
     const clash = data.users.some((u) => u.id !== user.id && u.email.toLowerCase() === cleanEmail)
     if (clash) {
-      toast('That email is already used by another account.', 'default')
+      toast(t('settings.profile.emailClash'), 'default')
       return
     }
     const nextProfile: StoredProfile = { company: company.trim(), handle: handle.trim(), bio: bio.trim() }
     try {
       localStorage.setItem(profileKey(user.id), JSON.stringify(nextProfile))
     } catch {
-      toast('Could not save — browser storage is unavailable.', 'default')
+      toast(t('settings.profile.storageUnavailable'), 'default')
       return
     }
     mutate((d) => ({
@@ -285,7 +296,7 @@ export function Settings() {
     setCompany(nextProfile.company)
     setHandle(nextProfile.handle)
     setBio(nextProfile.bio)
-    toast('Profile saved', 'success')
+    toast(t('settings.profile.saved'), 'success')
   }
 
   const discard = () => {
@@ -295,24 +306,24 @@ export function Settings() {
     setCompany(savedProfile.company)
     setHandle(savedProfile.handle)
     setBio(savedProfile.bio)
-    toast('Reverted to your last saved profile', 'default')
+    toast(t('settings.profile.reverted'), 'default')
   }
 
   const submitInvite = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (members.length + 1 >= SEAT_LIMIT) {
-      toast(`All ${SEAT_LIMIT} seats are in use — upgrade to add more.`, 'default')
+      toast(t('settings.team.seatsFull', { n: SEAT_LIMIT }), 'default')
       setActive('billing')
       return
     }
     const clean = inviteEmail.trim().toLowerCase()
     if (!EMAIL_RE.test(clean)) {
-      toast('Enter a valid email address to invite.', 'default')
+      toast(t('settings.team.inviteEmailInvalid'), 'default')
       return
     }
     const ownEmail = (email.trim() || user?.email || '').toLowerCase()
     if (clean === ownEmail || members.some((m) => m.email.toLowerCase() === clean)) {
-      toast('That email is already on this team.', 'default')
+      toast(t('settings.team.emailOnTeam'), 'default')
       return
     }
     const invited: Member = {
@@ -325,7 +336,7 @@ export function Settings() {
     }
     setMembers((prev) => [...prev, invited])
     setInviteEmail('')
-    toast(`Invite for ${clean} recorded — email delivery arrives with the backend.`, 'success')
+    toast(t('settings.team.inviteRecorded', { email: clean }), 'success')
   }
 
   const cycleRole = (m: Member) => {
@@ -333,12 +344,17 @@ export function Settings() {
     const idx = ROLES.indexOf(m.role as (typeof ROLES)[number])
     const nextRole = ROLES[(idx + 1) % ROLES.length]
     setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, role: nextRole } : x)))
-    toast(`${m.name} is now ${nextRole}`, 'default')
+    toast(t('settings.role.changed', { name: m.name, role: roleLabel(nextRole) }), 'default')
   }
 
   const removeMember = (m: Member) => {
     setMembers((prev) => prev.filter((x) => x.id !== m.id))
-    toast(m.pending ? `Invite for ${m.email} revoked` : `${m.name} removed from the workspace`, 'default')
+    toast(
+      m.pending
+        ? t('settings.team.inviteRevoked', { email: m.email })
+        : t('settings.team.memberRemoved', { name: m.name }),
+      'default',
+    )
   }
 
   /* -- Upgrade: real plan change persisted to the store -- */
@@ -346,14 +362,14 @@ export function Settings() {
     if (!user) return
     const target = nextPlan(user.plan as Plan)
     if (!target) {
-      toast('You are already on the top plan.', 'default')
+      toast(t('settings.billing.alreadyTop'), 'default')
       return
     }
     mutate((d) => ({
       ...d,
       users: d.users.map((u) => (u.id === user.id ? { ...u, plan: target } : u)),
     }))
-    toast(`Upgraded to the ${target} plan`, 'success')
+    toast(t('settings.billing.upgraded', { plan: target }), 'success')
   }
 
   /* -- Billing history: exports the REAL account state. No payment processor is wired yet,
@@ -369,13 +385,13 @@ export function Settings() {
       },
     ]
     downloadCsv(rows, 'threados-plan-summary.csv')
-    toast('Plan summary exported — no charges have been processed yet.', 'info')
+    toast(t('settings.billing.exportedToast'), 'info')
   }
 
   /* -- Documentation: real navigation to the docs site -- */
   const documentation = () => {
     window.open(DOCS_URL, '_blank', 'noopener,noreferrer')
-    toast('Opening the loom studios documentation', 'info')
+    toast(t('settings.doc.opening'), 'info')
   }
 
   /* -- Avatar upload: real file picker → data URL → visible avatar image -- */
@@ -386,31 +402,31 @@ export function Settings() {
     e.target.value = '' // allow re-picking the same file
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      toast('Choose a PNG or JPG image.', 'default')
+      toast(t('settings.profile.avatarType'), 'default')
       return
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      toast('Image is over 4MB — choose a smaller file.', 'default')
+      toast(t('settings.profile.avatarTooBig'), 'default')
       return
     }
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         setAvatarUrl(reader.result)
-        toast('Avatar updated', 'success')
+        toast(t('settings.profile.avatarUpdated'), 'success')
       }
     }
-    reader.onerror = () => toast('Could not read that image — try another file.', 'default')
+    reader.onerror = () => toast(t('settings.profile.avatarReadError'), 'default')
     reader.readAsDataURL(file)
   }
 
   const removeAvatar = () => {
     if (!avatarUrl) {
-      toast('No avatar image to remove.', 'default')
+      toast(t('settings.profile.avatarNone'), 'default')
       return
     }
     setAvatarUrl(null)
-    toast('Avatar removed — using your initials.', 'default')
+    toast(t('settings.profile.avatarRemoved'), 'default')
   }
 
   /* -- Export account data: real JSON of the profile + owned designs/collections -- */
@@ -437,7 +453,7 @@ export function Settings() {
       collections,
     }
     downloadJson(payload, `threados-account-${slugify(user.name)}.json`)
-    toast('Account data exported', 'success')
+    toast(t('settings.profile.exported'), 'success')
   }
 
   /* -- Transfer ownership: pick a member, confirm, then promote in the roster -- */
@@ -445,7 +461,7 @@ export function Settings() {
 
   const openTransfer = () => {
     if (eligibleOwners.length === 0) {
-      toast('Invite a teammate before transferring ownership.', 'default')
+      toast(t('settings.team.inviteNeeded'), 'default')
       setActive('team')
       return
     }
@@ -456,14 +472,14 @@ export function Settings() {
   const confirmTransfer = () => {
     const to = members.find((m) => m.id === transferTo)
     if (!to) {
-      toast('Choose a member to receive ownership.', 'default')
+      toast(t('settings.team.chooseOwner'), 'default')
       return
     }
     setMembers((prev) => prev.map((m) => (m.id === to.id ? { ...m, role: 'Owner', owner: true } : m)))
     setOwnershipTransferred(true)
     setTransferOpen(false)
     setTransferTo('')
-    toast(`${to.name} is now the workspace owner — recorded in this workspace.`, 'success')
+    toast(t('settings.team.transferred', { name: to.name }), 'success')
     setActive('team')
   }
 
@@ -519,36 +535,36 @@ export function Settings() {
       'Thank you for building with loom studios.',
     ].join('\n')
     downloadText(body, `threados-plan-summary-${now.toISOString().slice(0, 10)}.txt`)
-    toast('Plan summary downloaded — no payment has been processed.', 'info')
+    toast(t('settings.billing.downloadedToast'), 'info')
   }
 
   return (
     <SuitePage
-      eyebrow="Settings"
-      title="Settings"
-      subtitle="Manage your profile, brand, plan, team and integrations across the loom studios workspace."
+      eyebrow={t('settings.title')}
+      title={t('settings.title')}
+      subtitle={t('settings.subtitle')}
       actions={
         <>
           <button className="s-btn s-btn--subtle" type="button" onClick={documentation}>
-            Documentation
+            {t('settings.documentation')}
           </button>
           <button
             className="s-btn s-btn--accent"
             type="button"
             onClick={saveProfile}
             disabled={!isDirty}
-            title={isDirty ? 'Save your profile changes' : 'No unsaved changes'}
+            title={isDirty ? t('settings.save.title.dirty') : t('settings.save.title.clean')}
           >
-            <IcoCheck width="16" height="16" /> Save changes
+            <IcoCheck width="16" height="16" /> {t('settings.save')}
           </button>
         </>
       }
     >
       <div className="set-shell">
         {/* ---------- Left sub-nav ---------- */}
-        <nav className="set-nav" aria-label="Settings sections">
+        <nav className="set-nav" aria-label={t('settings.nav.aria')}>
           <div className="set-nav__group">
-            <span className="set-nav__group-label">Account</span>
+            <span className="set-nav__group-label">{t('settings.nav.account')}</span>
           </div>
           {NAV.map((item) => {
             const Icon = item.icon
@@ -565,7 +581,7 @@ export function Settings() {
                 <span className="set-nav__ico">
                   <Icon width="17" height="17" />
                 </span>
-                {item.label}
+                {navLabel(item.key)}
                 {count && <span className="set-nav__count">{count}</span>}
               </button>
             )
@@ -579,15 +595,15 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Profile</h2>
-                <p>This information appears on tech packs, invites and factory intros.</p>
+                <h2>{t('settings.profile.title')}</h2>
+                <p>{t('settings.profile.desc')}</p>
               </div>
               <div className="set-head-actions">
                 <span className="s-chip s-chip--good">
-                  <IcoCheck width="12" height="12" /> Verified
+                  <IcoCheck width="12" height="12" /> {t('settings.profile.verified')}
                 </span>
                 <button className="s-btn s-btn--subtle" type="button" onClick={exportAccountData}>
-                  <IcoUpload width="15" height="15" /> Export data
+                  <IcoUpload width="15" height="15" /> {t('settings.profile.exportData')}
                 </button>
               </div>
             </div>
@@ -597,14 +613,14 @@ export function Settings() {
                 <div className="set-avatar">
                   <span className="set-avatar__ring" aria-hidden="true" />
                   {avatarUrl ? (
-                    <img className="set-avatar__img" src={avatarUrl} alt="Your avatar" />
+                    <img className="set-avatar__img" src={avatarUrl} alt={t('settings.profile.avatarAlt')} />
                   ) : (
                     avatarInitials
                   )}
                 </div>
                 <div className="set-avatar-meta">
-                  <b>{name || user?.name || 'Your name'}</b>
-                  <span>PNG or JPG, up to 4MB. 512×512 recommended.</span>
+                  <b>{name || user?.name || t('settings.profile.yourName')}</b>
+                  <span>{t('settings.profile.avatarHint')}</span>
                 </div>
                 <div className="set-avatar-actions">
                   <input
@@ -615,10 +631,10 @@ export function Settings() {
                     onChange={onAvatarPicked}
                   />
                   <button className="s-btn s-btn--ghost" type="button" onClick={uploadAvatar}>
-                    <IcoUpload width="15" height="15" /> Upload
+                    <IcoUpload width="15" height="15" /> {t('settings.profile.upload')}
                   </button>
                   <button className="s-btn s-btn--subtle" type="button" onClick={removeAvatar}>
-                    Remove
+                    {t('settings.profile.remove')}
                   </button>
                 </div>
               </div>
@@ -627,19 +643,19 @@ export function Settings() {
               <div className="set-fields">
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-name">
-                    Full name
+                    {t('settings.profile.fullName')}
                   </label>
                   <input
                     id="set-name"
                     className="set-input"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Your name"
+                    placeholder={t('settings.profile.yourName')}
                   />
                 </div>
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-email">
-                    Email address
+                    {t('settings.profile.email')}
                   </label>
                   <input
                     id="set-email"
@@ -652,19 +668,19 @@ export function Settings() {
                 </div>
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-company">
-                    Company
+                    {t('settings.profile.company')}
                   </label>
                   <input
                     id="set-company"
                     className="set-input"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    placeholder="Brand name"
+                    placeholder={t('settings.profile.companyPlaceholder')}
                   />
                 </div>
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-handle">
-                    Brand handle
+                    {t('settings.profile.handle')}
                   </label>
                   <div className="set-input-wrap">
                     <span className="set-input-wrap__prefix">threados.co/</span>
@@ -673,26 +689,26 @@ export function Settings() {
                       className="set-input"
                       value={handle}
                       onChange={(e) => setHandle(e.target.value.replace(/[^a-z0-9-]/gi, '').toLowerCase())}
-                      placeholder="handle"
+                      placeholder={t('settings.profile.handlePlaceholder')}
                     />
                     <span className="set-input-wrap__suffix">
-                      <IcoCheck width="13" height="13" /> Available
+                      <IcoCheck width="13" height="13" /> {t('settings.profile.handleAvailable')}
                     </span>
                   </div>
                 </div>
                 <div className="set-field set-field--full">
                   <label className="set-field__label" htmlFor="set-bio">
-                    Studio bio
-                    <span className="set-field__opt">Optional</span>
+                    {t('settings.profile.bio')}
+                    <span className="set-field__opt">{t('settings.profile.optional')}</span>
                   </label>
                   <input
                     id="set-bio"
                     className="set-input"
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
-                    placeholder="Tell factories about your brand"
+                    placeholder={t('settings.profile.bioPlaceholder')}
                   />
-                  <span className="set-hint">Shown on your public marketplace profile and factory intros.</span>
+                  <span className="set-hint">{t('settings.profile.bioHint')}</span>
                 </div>
               </div>
             </div>
@@ -705,30 +721,30 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Workspace</h2>
-                <p>Name, data region and defaults for everyone in {workspaceName || 'this workspace'}.</p>
+                <h2>{t('settings.workspace.title')}</h2>
+                <p>{t('settings.workspace.desc', { name: workspaceName || t('settings.workspace.thisWorkspace') })}</p>
               </div>
               <span className="s-chip s-chip--good">
-                <IcoCheck width="12" height="12" /> Active
+                <IcoCheck width="12" height="12" /> {t('settings.workspace.active')}
               </span>
             </div>
             <div className="set-card__body">
               <div className="set-fields">
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-ws-name">
-                    Workspace name
+                    {t('settings.workspace.name')}
                   </label>
                   <input
                     id="set-ws-name"
                     className="set-input"
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
-                    placeholder="Workspace name"
+                    placeholder={t('settings.workspace.name')}
                   />
                 </div>
                 <div className="set-field">
                   <label className="set-field__label" htmlFor="set-ws-region">
-                    Data region
+                    {t('settings.workspace.region')}
                   </label>
                   <select
                     id="set-ws-region"
@@ -736,17 +752,16 @@ export function Settings() {
                     value={region}
                     onChange={(e) => {
                       setRegion(e.target.value)
-                      const label = REGIONS.find((r) => r.id === e.target.value)?.label ?? e.target.value
-                      toast(`Data region set to ${label}`, 'default')
+                      toast(t('settings.workspace.regionSet', { region: regionLabel(e.target.value) }), 'default')
                     }}
                   >
                     {REGIONS.map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.label}
+                        {regionLabel(r.id)}
                       </option>
                     ))}
                   </select>
-                  <span className="set-hint">Where your designs, tech packs and orders are stored.</span>
+                  <span className="set-hint">{t('settings.workspace.regionHint')}</span>
                 </div>
               </div>
             </div>
@@ -756,18 +771,15 @@ export function Settings() {
           <section className="set-card set-card--danger">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Danger zone</h2>
-                <p>Irreversible and destructive actions.</p>
+                <h2>{t('settings.danger.title')}</h2>
+                <p>{t('settings.danger.desc')}</p>
               </div>
             </div>
             <div className="set-card__body">
               <div className="set-danger-row">
                 <div className="set-danger-row__text" style={{ flex: 1 }}>
-                  <b>Transfer ownership</b>
-                  <p>
-                    Move this workspace to another team member. The change is recorded in this
-                    workspace — no emails are sent.
-                  </p>
+                  <b>{t('settings.danger.transferTitle')}</b>
+                  <p>{t('settings.danger.transferDesc')}</p>
                   {transferOpen && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       <select
@@ -775,12 +787,12 @@ export function Settings() {
                         style={{ maxWidth: 260 }}
                         value={transferTo}
                         onChange={(e) => setTransferTo(e.target.value)}
-                        aria-label="New workspace owner"
+                        aria-label={t('settings.danger.newOwnerAria')}
                       >
-                        <option value="">Choose a member…</option>
+                        <option value="">{t('settings.danger.chooseMember')}</option>
                         {eligibleOwners.map((m) => (
                           <option key={m.id} value={m.id}>
-                            {m.name} — {m.role}
+                            {m.name} — {roleLabel(m.role)}
                           </option>
                         ))}
                       </select>
@@ -790,7 +802,7 @@ export function Settings() {
                         disabled={!transferTo}
                         onClick={confirmTransfer}
                       >
-                        Confirm transfer
+                        {t('settings.danger.confirmTransfer')}
                       </button>
                       <button
                         className="s-btn s-btn--subtle"
@@ -800,7 +812,7 @@ export function Settings() {
                           setTransferTo('')
                         }}
                       >
-                        Cancel
+                        {t('settings.common.cancel')}
                       </button>
                     </div>
                   )}
@@ -811,21 +823,17 @@ export function Settings() {
                     type="button"
                     onClick={openTransfer}
                     disabled={ownershipTransferred}
-                    title={ownershipTransferred ? 'Ownership already transferred' : undefined}
+                    title={ownershipTransferred ? t('settings.danger.transferredTitle') : undefined}
                   >
                     <IcoLogout width="15" height="15" style={{ verticalAlign: '-3px', marginRight: 6 }} />
-                    Transfer
+                    {t('settings.danger.transfer')}
                   </button>
                 )}
               </div>
               <div className="set-danger-row">
                 <div className="set-danger-row__text" style={{ flex: 1 }}>
-                  <b>Delete workspace</b>
-                  <p>
-                    Downloads a backup, then permanently deletes all loom studios data stored in this
-                    browser — designs, garments, tech packs, drive files and preferences — and
-                    reloads the app to a fresh state.
-                  </p>
+                  <b>{t('settings.danger.deleteTitle')}</b>
+                  <p>{t('settings.danger.deleteDesc')}</p>
                   {deleteOpen && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                       <input
@@ -833,8 +841,8 @@ export function Settings() {
                         style={{ maxWidth: 260 }}
                         value={deleteConfirm}
                         onChange={(e) => setDeleteConfirm(e.target.value)}
-                        placeholder={`Type “${deletePhrase}” to confirm`}
-                        aria-label={`Type ${deletePhrase} to confirm deletion`}
+                        placeholder={t('settings.danger.deleteTypePlaceholder', { phrase: deletePhrase })}
+                        aria-label={t('settings.danger.deleteTypeAria', { phrase: deletePhrase })}
                       />
                       <button
                         className="set-btn-danger"
@@ -842,7 +850,7 @@ export function Settings() {
                         disabled={deleteConfirm.trim() !== deletePhrase}
                         onClick={confirmDeleteWorkspace}
                       >
-                        Delete forever
+                        {t('settings.danger.deleteForever')}
                       </button>
                       <button
                         className="s-btn s-btn--subtle"
@@ -852,7 +860,7 @@ export function Settings() {
                           setDeleteConfirm('')
                         }}
                       >
-                        Cancel
+                        {t('settings.common.cancel')}
                       </button>
                     </div>
                   )}
@@ -866,7 +874,7 @@ export function Settings() {
                       setDeleteOpen(true)
                     }}
                   >
-                    Delete workspace
+                    {t('settings.danger.deleteTitle')}
                   </button>
                 )}
               </div>
@@ -881,8 +889,8 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Brand accent</h2>
-                <p>Sets the highlight color across your workspace, exports and share pages.</p>
+                <h2>{t('settings.brand.accentTitle')}</h2>
+                <p>{t('settings.brand.accentDesc')}</p>
               </div>
               <span className="s-chip" style={{ color: accentHex }}>
                 <span
@@ -895,13 +903,13 @@ export function Settings() {
                     display: 'inline-block',
                   }}
                 />
-                {ACCENTS.find((a) => a.id === accent)?.label}
+                {accentLabel(accent)}
               </span>
             </div>
             <div className="set-card__body">
               <div className="set-field">
-                <span className="set-field__label">Accent color</span>
-                <div className="set-swatches" role="radiogroup" aria-label="Brand accent color">
+                <span className="set-field__label">{t('settings.brand.accentColor')}</span>
+                <div className="set-swatches" role="radiogroup" aria-label={t('settings.brand.accentGroupAria')}>
                   {ACCENTS.map((sw) => {
                     const isActive = sw.id === accent
                     return (
@@ -910,8 +918,8 @@ export function Settings() {
                         type="button"
                         role="radio"
                         aria-checked={isActive}
-                        aria-label={sw.label}
-                        title={sw.label}
+                        aria-label={accentLabel(sw.id)}
+                        title={accentLabel(sw.id)}
                         className={`set-swatch${isActive ? ' is-active' : ''}`}
                         style={{ background: sw.hex, color: sw.hex }}
                         onClick={() => handlePickAccent(sw.id)}
@@ -925,17 +933,17 @@ export function Settings() {
                   <button
                     type="button"
                     className="set-swatch set-swatch--custom"
-                    aria-label="Custom color"
-                    title="Custom colors are on the Atelier plan"
+                    aria-label={t('settings.brand.customColor')}
+                    title={t('settings.brand.customColorTitle')}
                     onClick={() => {
-                      toast('Custom accent colors are available on the Atelier plan.', 'accent')
+                      toast(t('settings.brand.customToast'), 'accent')
                       setActive('billing')
                     }}
                   >
                     <IcoSparkle width="15" height="15" />
                   </button>
                 </div>
-                <span className="set-hint">Lime is the loom studios default and keeps contrast AA-compliant.</span>
+                <span className="set-hint">{t('settings.brand.accentHint')}</span>
               </div>
             </div>
           </section>
@@ -944,22 +952,22 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Notifications</h2>
-                <p>Choose what loom studios emails and pushes to your team.</p>
+                <h2>{t('settings.notif.title')}</h2>
+                <p>{t('settings.notif.desc')}</p>
               </div>
               <span className="s-chip s-chip--accent">
-                <IcoBell width="12" height="12" /> Email + Push
+                <IcoBell width="12" height="12" /> {t('settings.notif.channels')}
               </span>
             </div>
             <div className="set-card__body">
               <div className="set-toggles">
-                {toggles.map((t) => (
-                  <div className="set-toggle-row" key={t.id}>
+                {toggles.map((tog) => (
+                  <div className="set-toggle-row" key={tog.id}>
                     <div className="set-toggle-text">
-                      <b>{t.title}</b>
-                      <small>{t.sub}</small>
+                      <b>{notifTitle(tog.id)}</b>
+                      <small>{notifSub(tog.id)}</small>
                     </div>
-                    <Switch on={t.on} onToggle={() => handleToggle(t.id)} label={t.title} />
+                    <Switch on={tog.on} onToggle={() => handleToggle(tog.id)} label={notifTitle(tog.id)} />
                   </div>
                 ))}
               </div>
@@ -973,11 +981,11 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Plan &amp; billing</h2>
-                <p>Your current subscription and monthly usage.</p>
+                <h2>{t('settings.billing.title')}</h2>
+                <p>{t('settings.billing.desc')}</p>
               </div>
               <button className="s-btn s-btn--subtle" type="button" onClick={billingHistory}>
-                Export plan summary
+                {t('settings.billing.exportSummary')}
               </button>
             </div>
             <div className="set-card__body">
@@ -987,17 +995,16 @@ export function Settings() {
                     <span className="set-plan__ico">
                       <IcoBolt width="17" height="17" />
                     </span>
-                    {planName} plan
-                    <span className="s-chip s-chip--accent">Current</span>
+                    {t('settings.billing.planName', { plan: planName })}
+                    <span className="s-chip s-chip--accent">{t('settings.billing.current')}</span>
                   </div>
                   <p className="set-plan__desc">
-                    Unlimited designs, AI tech packs, factory matching and {SEAT_LIMIT} seats — everything to run
-                    a small-batch label end to end.
+                    {t('settings.billing.planDesc', { n: SEAT_LIMIT })}
                   </p>
                 </div>
                 <div className="set-plan__price">
                   <b>{planName === 'Scale' ? '$199' : planName === 'Studio' ? '$79' : '$0'}</b>
-                  <span>/ month</span>
+                  <span>{t('settings.billing.perMonth')}</span>
                 </div>
               </div>
 
@@ -1008,7 +1015,7 @@ export function Settings() {
                       <span className="set-meter__label-ico">
                         <IcoCoins width="15" height="15" />
                       </span>
-                      AI coins
+                      {t('settings.billing.coins')}
                     </span>
                     <span className="set-meter__val">
                       <b>{coins.toLocaleString()}</b> / {coinCap.toLocaleString()}
@@ -1024,7 +1031,7 @@ export function Settings() {
                       <span className="set-meter__label-ico">
                         <IcoGrid width="15" height="15" />
                       </span>
-                      Storage
+                      {t('settings.billing.storage')}
                     </span>
                     <span className="set-meter__val">
                       {storage.ready ? (
@@ -1036,7 +1043,7 @@ export function Settings() {
                           <b>{storage.usedLabel}</b>
                         )
                       ) : (
-                        <b>Measuring…</b>
+                        <b>{t('settings.billing.measuring')}</b>
                       )}
                     </span>
                   </div>
@@ -1054,20 +1061,20 @@ export function Settings() {
               <div className="set-billing-foot">
                 <span className="set-billing-foot__note">
                   {planName === 'Free'
-                    ? 'Free plan — no billing set up.'
-                    : 'Billing isn’t connected yet — no card on file, no charges processed.'}
+                    ? t('settings.billing.noteFree')
+                    : t('settings.billing.noteConnected')}
                 </span>
                 <div className="set-billing-foot__actions">
                   <button className="s-btn s-btn--subtle" type="button" onClick={downloadInvoice}>
-                    <IcoUpload width="15" height="15" /> Download plan summary
+                    <IcoUpload width="15" height="15" /> {t('settings.billing.downloadSummary')}
                   </button>
                   {nextPlan(planName as Plan) ? (
                     <button className="s-btn s-btn--accent" type="button" onClick={upgrade}>
-                      <IcoStar width="16" height="16" /> Upgrade to {nextPlan(planName as Plan)}
+                      <IcoStar width="16" height="16" /> {t('settings.billing.upgradeTo', { plan: nextPlan(planName as Plan) as string })}
                     </button>
                   ) : (
                     <span className="s-chip s-chip--accent">
-                      <IcoStar width="13" height="13" /> Top plan
+                      <IcoStar width="13" height="13" /> {t('settings.billing.topPlan')}
                     </span>
                   )}
                 </div>
@@ -1081,10 +1088,8 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Team members</h2>
-                <p>
-                  {memberCount} of {SEAT_LIMIT} seats used on the {planName} plan.
-                </p>
+                <h2>{t('settings.team.title')}</h2>
+                <p>{t('settings.team.seats', { used: memberCount, total: SEAT_LIMIT, plan: planName })}</p>
               </div>
               <form style={{ display: 'flex', gap: 8 }} onSubmit={submitInvite}>
                 <input
@@ -1094,10 +1099,10 @@ export function Settings() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="teammate@brand.com"
-                  aria-label="Invite by email"
+                  aria-label={t('settings.team.inviteAria')}
                 />
                 <button className="s-btn s-btn--ghost" type="submit">
-                  <IcoCommunity width="15" height="15" /> Invite
+                  <IcoCommunity width="15" height="15" /> {t('settings.team.invite')}
                 </button>
               </form>
             </div>
@@ -1108,19 +1113,19 @@ export function Settings() {
                   <span className="set-member__av set-member__av--accent">{avatarInitials}</span>
                   <div className="set-member__info">
                     <span className="set-member__name">
-                      {name || user?.name || 'You'}
-                      <span className="s-chip s-chip--accent">You</span>
+                      {name || user?.name || t('settings.team.you')}
+                      <span className="s-chip s-chip--accent">{t('settings.team.you')}</span>
                     </span>
                     <span className="set-member__email">{email || user?.email}</span>
                   </div>
                   <div className="set-member__right">
                     {ownershipTransferred ? (
-                      <span className="set-role" title="Ownership was transferred">
-                        Admin
+                      <span className="set-role" title={t('settings.team.ownerTransferredTitle')}>
+                        {roleLabel('Admin')}
                       </span>
                     ) : (
-                      <span className="set-role set-role--owner" title="You own this workspace">
-                        Owner
+                      <span className="set-role set-role--owner" title={t('settings.team.youOwnTitle')}>
+                        {roleLabel('Owner')}
                       </span>
                     )}
                   </div>
@@ -1132,27 +1137,27 @@ export function Settings() {
                     <div className="set-member__info">
                       <span className="set-member__name">
                         {m.name}
-                        {m.owner && <span className="s-chip s-chip--accent">Owner</span>}
+                        {m.owner && <span className="s-chip s-chip--accent">{roleLabel('Owner')}</span>}
                       </span>
                       <span className="set-member__email">
-                        {m.pending ? 'Invited · pending' : m.email}
+                        {m.pending ? t('settings.team.invitedPending') : m.email}
                       </span>
                     </div>
                     <div className="set-member__right">
                       {m.owner ? (
-                        <span className="set-role set-role--owner" title="Workspace owner">
-                          Owner
+                        <span className="set-role set-role--owner" title={t('settings.team.ownerRoleTitle')}>
+                          {roleLabel('Owner')}
                         </span>
                       ) : m.pending ? (
                         <>
-                          <span className="set-role" title="Invite recorded locally — awaiting backend email delivery">
-                            Invited
+                          <span className="set-role" title={t('settings.team.invitedTitle')}>
+                            {roleLabel('Invited')}
                           </span>
                           <button
                             className="set-member__more"
                             type="button"
-                            aria-label={`Revoke invite for ${m.email}`}
-                            title={`Revoke invite for ${m.email}`}
+                            aria-label={t('settings.team.revokeAria', { email: m.email })}
+                            title={t('settings.team.revokeAria', { email: m.email })}
                             onClick={() => removeMember(m)}
                           >
                             <IcoDots width="16" height="16" />
@@ -1164,16 +1169,16 @@ export function Settings() {
                             className="set-role"
                             type="button"
                             onClick={() => cycleRole(m)}
-                            title="Click to change role"
+                            title={t('settings.team.changeRoleTitle')}
                           >
-                            {m.role}
+                            {roleLabel(m.role)}
                             <IcoChevron width="13" height="13" />
                           </button>
                           <button
                             className="set-member__more"
                             type="button"
-                            aria-label={`Remove ${m.name}`}
-                            title={`Remove ${m.name}`}
+                            aria-label={t('settings.team.removeAria', { name: m.name })}
+                            title={t('settings.team.removeAria', { name: m.name })}
                             onClick={() => removeMember(m)}
                           >
                             <IcoDots width="16" height="16" />
@@ -1193,11 +1198,11 @@ export function Settings() {
           <section className="set-card">
             <div className="set-card__head">
               <div className="set-card__head-text">
-                <h2>Integrations</h2>
-                <p>Connections to outside tools are in development and are not live yet.</p>
+                <h2>{t('settings.integ.title')}</h2>
+                <p>{t('settings.integ.desc')}</p>
               </div>
               <span className="s-chip">
-                <IcoMarketplace width="12" height="12" /> Coming soon
+                <IcoMarketplace width="12" height="12" /> {t('settings.integ.comingSoon')}
               </span>
             </div>
             <div className="set-card__body">
@@ -1206,13 +1211,13 @@ export function Settings() {
                   <div className="set-toggle-row" key={it.id}>
                     <div className="set-toggle-text">
                       <b>{it.name}</b>
-                      <small>{it.desc}</small>
+                      <small>{integDesc(it.id)}</small>
                     </div>
                     <span
                       style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}
                     >
-                      <span className="set-hint">Coming soon</span>
-                      <Switch on={false} disabled label={`${it.name} integration — coming soon`} />
+                      <span className="set-hint">{t('settings.integ.comingSoon')}</span>
+                      <Switch on={false} disabled label={t('settings.integ.switchLabel', { name: it.name })} />
                     </span>
                   </div>
                 ))}
@@ -1229,14 +1234,14 @@ export function Settings() {
             <div className="set-savebar">
               <span className="set-savebar__text">
                 <span className="set-savebar__dot" aria-hidden="true" />
-                You have unsaved changes
+                {t('settings.savebar.unsaved')}
               </span>
               <div className="set-savebar__actions">
                 <button className="s-btn s-btn--subtle" type="button" onClick={discard}>
-                  Discard
+                  {t('settings.savebar.discard')}
                 </button>
                 <button className="s-btn s-btn--accent" type="button" onClick={saveProfile}>
-                  <IcoCheck width="16" height="16" /> Save changes
+                  <IcoCheck width="16" height="16" /> {t('settings.save')}
                 </button>
               </div>
             </div>

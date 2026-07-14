@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 import type { Garment } from '../types'
 import { categoryLabel } from '../types'
 import { viewsSummary } from '../import/detect'
@@ -10,13 +11,14 @@ type Props = {
 }
 
 export function GarmentCard({ garment, admin, onOpen, onDelete }: Props) {
+  const t = useT()
   return (
     <div className="gl-card">
       <button
         className="gl-card__thumb"
         type="button"
         onClick={() => onOpen(garment)}
-        aria-label={`Open ${garment.name}`}
+        aria-label={t('garmentUi.card.openAria', { name: garment.name })}
       >
         {garment.thumbUrl ? (
           <img className="gl-card__img" src={garment.thumbUrl} alt={garment.name} loading="lazy" />
@@ -39,9 +41,9 @@ export function GarmentCard({ garment, admin, onOpen, onDelete }: Props) {
             className="gl-card__del"
             type="button"
             onClick={() => onDelete(garment)}
-            aria-label={`Delete ${garment.name}`}
+            aria-label={t('garmentUi.card.deleteAria', { name: garment.name })}
           >
-            Delete
+            {t('garmentUi.card.delete')}
           </button>
         )}
       </div>

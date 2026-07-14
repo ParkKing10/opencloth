@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import type { Readiness } from '../../export/readiness'
 import { type Proposal } from './studioModel'
 import type { AiMode } from './ThreadosAIModal'
@@ -22,6 +23,7 @@ type Props = {
 /** The top bar — just Connect App + the manufacturing-readiness pill. loom studios AI now lives in the
  *  Library rail on the left, so there is no AI button up here. */
 export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
+  const t = useT()
   const [panelOpen, setPanelOpen] = useState(false)
   const pillRef = useRef<HTMLDivElement>(null)
 
@@ -43,7 +45,7 @@ export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
           type="button"
           className="cb__connect"
           onClick={onConnectApp}
-          title="Draw on your iPad with Apple Pencil — live on this canvas"
+          title={t('dsPanels.cb.connectTitle')}
         >
           <span className="cb__connect-glow" aria-hidden />
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -51,8 +53,8 @@ export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
             <circle cx="12" cy="18.4" r="0.9" fill="currentColor" stroke="none" />
             <path d="M9.6 6.6c1.5-1.2 3.3-1.2 4.8 0M11 9c.7-.5 1.3-.5 2 0" />
           </svg>
-          Connect App
-          <span className="cb__connect-badge">NEW</span>
+          {t('dsPanels.cb.connect')}
+          <span className="cb__connect-badge">{t('dsPanels.cb.new')}</span>
         </button>
 
         <div className="cb__pill-wrap" ref={pillRef}>
@@ -61,11 +63,11 @@ export function CommandBar({ readiness, onFix, onConnectApp }: Props) {
             className={`cb__pill cb__pill--${tone}`}
             onClick={() => setPanelOpen((v) => !v)}
             aria-expanded={panelOpen}
-            title="Manufacturing readiness"
+            title={t('dsPanels.cb.readyTitle')}
           >
             <span className="cb__pill-dot" />
             {readiness.score}%
-            <span className="cb__pill-label">Ready</span>
+            <span className="cb__pill-label">{t('dsPanels.cb.ready')}</span>
           </button>
           {panelOpen && (
             <div className="cb__panel">

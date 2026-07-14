@@ -4,6 +4,7 @@
  * (browse the catalog), or Draw Garment (sketch regions).
  */
 import { useState } from 'react'
+import { useT } from '@/i18n'
 import { TemplateGallery } from './TemplateGallery'
 
 type Props = {
@@ -12,35 +13,36 @@ type Props = {
   onTemplate: (templateId: string) => void
 }
 
-const EXAMPLES = ['Oversized bomber jacket', 'Cropped hoodie', 'Wool trench coat', 'Gold chain necklace']
+const EXAMPLE_KEYS = ['labMain.exampleBomber', 'labMain.exampleHoodie', 'labMain.exampleTrench', 'labMain.exampleNecklace']
 
 export function GarmentCreateMethods({ onGenerate, onDraw, onTemplate }: Props) {
+  const t = useT()
   const [method, setMethod] = useState<'ai' | 'template' | null>('ai')
   const [prompt, setPrompt] = useState('')
 
   return (
     <div className="egc">
       <div className="egc__head">
-        <span className="egc__eyebrow">New piece</span>
-        <h2>How would you like to start?</h2>
-        <p className="egc__sub">Every method produces a fully editable piece with front + back and a real region tree.</p>
+        <span className="egc__eyebrow">{t('labMain.createEyebrow')}</span>
+        <h2>{t('labMain.createHeading')}</h2>
+        <p className="egc__sub">{t('labMain.createSub')}</p>
       </div>
 
       <div className="egc__methods egc__methods--3">
         <button type="button" className={`egc__method${method === 'ai' ? ' is-active' : ''}`} onClick={() => setMethod('ai')}>
           <span className="egc__method-glyph">✦</span>
-          <b>Create with AI</b>
-          <small>Describe it — the AI builds editable garment data, never an image.</small>
+          <b>{t('labMain.methodAiTitle')}</b>
+          <small>{t('labMain.methodAiDesc')}</small>
         </button>
         <button type="button" className={`egc__method${method === 'template' ? ' is-active' : ''}`} onClick={() => setMethod('template')}>
           <span className="egc__method-glyph">▦</span>
-          <b>Start from Template</b>
-          <small>Browse the catalog of real editable flats.</small>
+          <b>{t('labMain.methodTemplateTitle')}</b>
+          <small>{t('labMain.methodTemplateDesc')}</small>
         </button>
         <button type="button" className="egc__method" onClick={onDraw}>
           <span className="egc__method-glyph">✎</span>
-          <b>Draw</b>
-          <small>Sketch shapes that become editable regions.</small>
+          <b>{t('labMain.methodDrawTitle')}</b>
+          <small>{t('labMain.methodDrawDesc')}</small>
         </button>
       </div>
 
@@ -49,23 +51,26 @@ export function GarmentCreateMethods({ onGenerate, onDraw, onTemplate }: Props) 
           <textarea
             className="egc__prompt"
             rows={3}
-            placeholder="e.g. Oversized double-breasted wool overcoat with wide lapels"
+            placeholder={t('labMain.promptPlaceholder')}
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && prompt.trim()) onGenerate(prompt.trim())
             }}
-            aria-label="Describe your piece"
+            aria-label={t('labMain.promptAria')}
           />
           <div className="egc__examples">
-            {EXAMPLES.map((ex) => (
-              <button key={ex} type="button" className="egc__example" onClick={() => setPrompt(ex)}>
-                {ex}
-              </button>
-            ))}
+            {EXAMPLE_KEYS.map((key) => {
+              const ex = t(key)
+              return (
+                <button key={key} type="button" className="egc__example" onClick={() => setPrompt(ex)}>
+                  {ex}
+                </button>
+              )
+            })}
           </div>
           <button type="button" className="egc__generate" disabled={!prompt.trim()} onClick={() => onGenerate(prompt.trim())}>
-            Generate
+            {t('labMain.generate')}
           </button>
         </div>
       )}

@@ -14,6 +14,7 @@ import {
 } from '../brandKit'
 import { useToast } from '../../components/ui/Toast'
 import { IcoCheck, IcoPlus, IcoSparkle } from '../../components/ui/Icons'
+import { useT } from '@/i18n'
 import './brand-kit.css'
 
 const NEW_COLOR = '#D8FF3E'
@@ -78,6 +79,7 @@ function PanelSkeleton() {
 
 export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: BrandKit) => void }) {
   const toast = useToast()
+  const t = useT()
   const uid = useId()
   const [kit, setKit] = useState<BrandKit | null>(null)
   const [isDirty, setIsDirty] = useState(false)
@@ -122,27 +124,27 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
       if (result.ok) {
         setIsDirty(false)
         setJustSaved(true)
-        toast('Brand Kit saved.', 'success')
+        toast(t('drive.bk.toast.saved'), 'success')
         window.clearTimeout(savedTimer.current)
         savedTimer.current = window.setTimeout(() => setJustSaved(false), SAVED_FLASH_MS)
       } else {
-        toast(result.error ?? 'Could not save your Brand Kit.', 'info')
+        toast(result.error ?? t('drive.bk.toast.saveError'), 'info')
       }
     } catch {
-      toast('Could not save your Brand Kit.', 'info')
+      toast(t('drive.bk.toast.saveError'), 'info')
     } finally {
       setIsSaving(false)
     }
   }
 
   const showSaved = justSaved && !isDirty && !isSaving
-  const saveLabel = isSaving ? 'Saving…' : showSaved ? 'Saved' : 'Save Brand Kit'
+  const saveLabel = isSaving ? t('drive.bk.saving') : showSaved ? t('drive.bk.saved') : t('drive.bk.save')
 
   return (
-    <section className="bk" aria-label="Brand Kit">
+    <section className="bk" aria-label={t('drive.bk.aria')}>
       <header className="bk__head">
-        <h2>Brand Kit</h2>
-        <p>Defaults every new project loads.</p>
+        <h2>{t('drive.bk.title')}</h2>
+        <p>{t('drive.bk.subtitle')}</p>
       </header>
 
       <div className="bk__scroll">
@@ -151,37 +153,37 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
         ) : (
           <>
             <div className="bk-section">
-              <h3 className="bk-section__head">Brand</h3>
+              <h3 className="bk-section__head">{t('drive.bk.section.brand')}</h3>
               <TextField
                 id={`${uid}-name`}
-                label="Brand name"
+                label={t('drive.bk.field.brandName')}
                 value={kit.brandName}
-                placeholder="e.g. NOCTURNE Atelier"
+                placeholder={t('drive.bk.ph.brandName')}
                 onValue={(v) => patch({ brandName: v })}
               />
             </div>
 
             <div className="bk-section">
-              <h3 className="bk-section__head">Typography</h3>
+              <h3 className="bk-section__head">{t('drive.bk.section.typography')}</h3>
               <TextField
                 id={`${uid}-font-1`}
-                label="Primary font"
+                label={t('drive.bk.field.primaryFont')}
                 value={kit.primaryFont}
-                placeholder="e.g. Inter"
+                placeholder={t('drive.bk.ph.primaryFont')}
                 onValue={(v) => patch({ primaryFont: v })}
               />
               <TextField
                 id={`${uid}-font-2`}
-                label="Secondary font"
+                label={t('drive.bk.field.secondaryFont')}
                 value={kit.secondaryFont}
-                placeholder="e.g. Space Grotesk"
+                placeholder={t('drive.bk.ph.secondaryFont')}
                 onValue={(v) => patch({ secondaryFont: v })}
               />
             </div>
 
             <div className="bk-section">
               <h3 className="bk-section__head">
-                Colors <span className="bk-section__count">{kit.colors.length}</span>
+                {t('drive.bk.section.colors')} <span className="bk-section__count">{kit.colors.length}</span>
               </h3>
               <div className="bk-colors">
                 {kit.colors.map((color, i) => (
@@ -190,7 +192,7 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                       <input
                         type="color"
                         value={pickerValue(color)}
-                        aria-label={`Brand color ${i + 1}: ${color}`}
+                        aria-label={t('drive.bk.color.aria', { n: i + 1, color })}
                         onChange={(e: ChangeEvent<HTMLInputElement>) => {
                           const next = e.target.value
                           edit((prev) => ({
@@ -204,7 +206,7 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                       <button
                         type="button"
                         className="bk-swatch__x"
-                        aria-label={`Remove color ${color}`}
+                        aria-label={t('drive.bk.color.remove', { color })}
                         onClick={() =>
                           edit((prev) => ({
                             ...prev,
@@ -227,7 +229,7 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                 <button
                   type="button"
                   className="bk-add-color"
-                  aria-label="Add brand color"
+                  aria-label={t('drive.bk.color.add')}
                   onClick={() => edit((prev) => ({ ...prev, colors: [...prev.colors, NEW_COLOR] }))}
                 >
                   <IcoPlus width={13} height={13} />
@@ -236,45 +238,45 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
             </div>
 
             <div className="bk-section">
-              <h3 className="bk-section__head">Defaults</h3>
+              <h3 className="bk-section__head">{t('drive.bk.section.defaults')}</h3>
               <TextField
                 id={`${uid}-fabric`}
-                label="Default fabric"
+                label={t('drive.bk.field.fabric')}
                 value={kit.defaultFabric}
-                placeholder="e.g. French Terry 450 GSM"
+                placeholder={t('drive.bk.ph.fabric')}
                 onValue={(v) => patch({ defaultFabric: v })}
               />
               <TextField
                 id={`${uid}-fit`}
-                label="Default fit"
+                label={t('drive.bk.field.fit')}
                 value={kit.defaultFit}
-                placeholder="e.g. Oversized"
+                placeholder={t('drive.bk.ph.fit')}
                 onValue={(v) => patch({ defaultFit: v })}
               />
               <TextField
                 id={`${uid}-labels`}
-                label="Default labels"
+                label={t('drive.bk.field.labels')}
                 value={kit.defaultLabels}
-                placeholder="e.g. Woven neck label"
+                placeholder={t('drive.bk.ph.labels')}
                 onValue={(v) => patch({ defaultLabels: v })}
               />
             </div>
 
             <div className="bk-section">
-              <h3 className="bk-section__head">Notes</h3>
+              <h3 className="bk-section__head">{t('drive.bk.section.notes')}</h3>
               <TextField
                 id={`${uid}-packaging`}
-                label="Packaging notes"
+                label={t('drive.bk.field.packaging')}
                 value={kit.packagingNotes}
-                placeholder="Poly bag, tissue wrap, sticker…"
+                placeholder={t('drive.bk.ph.packaging')}
                 multiline
                 onValue={(v) => patch({ packagingNotes: v })}
               />
               <TextField
                 id={`${uid}-notes`}
-                label="Brand notes"
+                label={t('drive.bk.field.brandNotes')}
                 value={kit.brandNotes}
-                placeholder="Tone, references, do's and don'ts…"
+                placeholder={t('drive.bk.ph.brandNotes')}
                 multiline
                 onValue={(v) => patch({ brandNotes: v })}
               />
@@ -285,9 +287,9 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                 <span className="bk-toggle-row__text">
                   <b id={`${uid}-memory`}>
                     <IcoSparkle width={12} height={12} />
-                    Brand Memory
+                    {t('drive.bk.memory.title')}
                   </b>
-                  <small>loom studios learns your repeated choices.</small>
+                  <small>{t('drive.bk.memory.hint')}</small>
                 </span>
                 <button
                   type="button"
@@ -310,10 +312,10 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
                         </span>
                       ))}
                     </div>
-                    <p className="bk-usual">Usual spec — {preferenceSummary(prefs)}</p>
+                    <p className="bk-usual">{t('drive.bk.memory.usual', { summary: preferenceSummary(prefs) })}</p>
                   </>
                 ) : (
-                  <p className="bk-memory-empty">No patterns yet — keep designing.</p>
+                  <p className="bk-memory-empty">{t('drive.bk.memory.empty')}</p>
                 ))}
             </div>
           </>
@@ -338,7 +340,7 @@ export function BrandKitPanel({ onApplyDefaults }: { onApplyDefaults: (kit: Bran
             if (kit) onApplyDefaults(kit)
           }}
         >
-          Apply to design
+          {t('drive.bk.apply')}
         </button>
       </footer>
     </section>

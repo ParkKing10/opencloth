@@ -1,17 +1,19 @@
 import { useStore } from '../../data/store'
+import { useT } from '../../../i18n'
 
 export function AdminOverview() {
   const { data } = useStore()
+  const t = useT()
 
   const activeUsers = data.users.filter((u) => u.status === 'active').length
   const openOrders = data.orders.filter((o) => o.stage !== 'delivered').length
   const readyPacks = data.techPacks.filter((t) => t.status === 'ready').length
 
   const kpis = [
-    { label: 'Total users', value: String(data.users.length), delta: `${activeUsers} active` },
-    { label: 'Designs', value: String(data.designs.length), delta: 'across all creators' },
-    { label: 'Open orders', value: String(openOrders), delta: `${data.orders.length} total` },
-    { label: 'Tech packs ready', value: String(readyPacks), delta: 'production-ready' },
+    { label: t('adminPages.overview.kpi.totalUsers'), value: String(data.users.length), delta: t('adminPages.overview.kpi.active', { n: activeUsers }) },
+    { label: t('adminPages.overview.kpi.designs'), value: String(data.designs.length), delta: t('adminPages.overview.kpi.acrossCreators') },
+    { label: t('adminPages.overview.kpi.openOrders'), value: String(openOrders), delta: t('adminPages.overview.kpi.totalOrders', { n: data.orders.length }) },
+    { label: t('adminPages.overview.kpi.packsReady'), value: String(readyPacks), delta: t('adminPages.overview.kpi.productionReady') },
   ]
 
   const recent = [...data.users].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6)
@@ -19,9 +21,9 @@ export function AdminOverview() {
   return (
     <div>
       <header style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Platform overview</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('adminPages.overview.title')}</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: 'var(--s-text-2)' }}>
-          Everything happening across the loom studios platform.
+          {t('adminPages.overview.subtitle')}
         </p>
       </header>
 
@@ -37,15 +39,15 @@ export function AdminOverview() {
 
       <div className="adm-panel">
         <div className="adm-panel__head">
-          <h2>Recent signups</h2>
+          <h2>{t('adminPages.overview.recentSignups')}</h2>
         </div>
         <table className="adm-table">
           <thead>
             <tr>
-              <th>User</th>
-              <th>Plan</th>
-              <th>Role</th>
-              <th>Status</th>
+              <th>{t('adminPages.col.user')}</th>
+              <th>{t('adminPages.col.plan')}</th>
+              <th>{t('adminPages.col.role')}</th>
+              <th>{t('adminPages.col.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -64,11 +66,11 @@ export function AdminOverview() {
                 <td>{u.plan}</td>
                 <td>
                   <span className={`adm-badge ${u.role === 'admin' ? 'adm-badge--role' : 'adm-badge--muted'}`}>
-                    {u.role}
+                    {t(`adminPages.role.${u.role}`)}
                   </span>
                 </td>
                 <td>
-                  <span className={`adm-badge adm-badge--${u.status}`}>{u.status}</span>
+                  <span className={`adm-badge adm-badge--${u.status}`}>{t(`adminPages.status.${u.status}`)}</span>
                 </td>
               </tr>
             ))}

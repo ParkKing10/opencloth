@@ -5,12 +5,13 @@
  * configured, else the deterministic placeholder) — always an editable garment, never an image.
  */
 import { useState } from 'react'
+import { useT } from '@/i18n'
 import type { GarmentHistory } from '../../garment-model/garmentRevision'
 import { revisionLabel } from '../../garment-model/garmentRevision'
 import type { AiEditResult } from '../../garment-model/aiGarmentEditor'
 import { isLiveAi } from '../../garment-model/garmentGeneration'
 
-const SUGGESTIONS = ['Remove the buttons', 'Add 6 buttons', 'Make the sleeves wider', 'Make it cropped', 'Oversized fit', 'Make it distressed']
+const SUGGESTIONS = ['removeButtons', 'addButtons', 'widerSleeves', 'cropped', 'oversized', 'distressed'] as const
 
 type Props = {
   history: GarmentHistory
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export function AiPanel({ history, onApply, onRestore }: Props) {
+  const t = useT()
   const [prompt, setPrompt] = useState('')
   const [busy, setBusy] = useState(false)
   const [last, setLast] = useState<AiEditResult | null>(null)
@@ -39,28 +41,31 @@ export function AiPanel({ history, onApply, onRestore }: Props) {
   return (
     <div className="ai-panel">
       <div className="ai-panel__head">
-        <span className="ai-panel__eyebrow">AI Designer</span>
-        <p className="ai-panel__hint">Describe a change — the AI edits only the regions it needs and keeps everything else.</p>
+        <span className="ai-panel__eyebrow">{t('labPanels.ai.eyebrow')}</span>
+        <p className="ai-panel__hint">{t('labPanels.ai.hint')}</p>
       </div>
 
       <div className="ai-composer">
         <textarea
           className="ai-prompt"
           rows={4}
-          placeholder="e.g. Make the sleeves wider and add a chest pocket"
+          placeholder={t('labPanels.ai.placeholder')}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void run()
           }}
-          aria-label="AI edit prompt"
+          aria-label={t('labPanels.ai.promptAria')}
         />
         <div className="ai-suggest">
-          {SUGGESTIONS.map((s) => (
-            <button key={s} type="button" className="ai-chip" onClick={() => setPrompt(s)} disabled={busy}>
-              {s}
-            </button>
-          ))}
+          {SUGGESTIONS.map((s) => {
+            const label = t(`labPanels.suggest.${s}`)
+            return (
+              <button key={s} type="button" className="ai-chip" onClick={() => setPrompt(label)} disabled={busy}>
+                {label}
+              </button>
+            )
+          })}
         </div>
         <button type="button" className={`ai-generate${busy ? ' is-busy' : ''}`} onClick={() => void run()} disabled={busy || !prompt.trim()}>
           {busy ? (
@@ -70,10 +75,10 @@ export function AiPanel({ history, onApply, onRestore }: Props) {
                 <i />
                 <i />
               </span>
-              Generating edit
+              {t('labPanels.ai.generating')}
             </>
           ) : (
-            'Generate Edit'
+            t('labPanels.ai.generate')
           )}
         </button>
       </div>
@@ -92,19 +97,19 @@ export function AiPanel({ history, onApply, onRestore }: Props) {
       {history.revisions.length <= 1 && !last && (
         <div className="ai-empty">
           <span className="ai-empty__glyph" aria-hidden="true">✦</span>
-          <p>No edits yet — describe what you'd like to change and your garment updates instantly.</p>
+          <p>{t('labPanels.ai.empty')}</p>
         </div>
       )}
 
       {history.revisions.length > 1 && (
         <div className="ai-timeline">
-          <span className="ai-timeline__label">Recent edits</span>
+          <span className="ai-timeline__label">{t('labPanels.ai.recentEdits')}</span>
           <ol className="ai-timeline__list">
             {history.revisions.map((rev, i) => (
               <li key={rev.id}>
-                <button type="button" className={`ai-rev${i === history.currentIndex ? ' is-current' : ''}`} onClick={() => onRestore(i)} title="Restore this version">
+                <button type="button" className={`ai-rev${i === history.currentIndex ? ' is-current' : ''}`} onClick={() => onRestore(i)} title={t('labPanels.ai.restore')}>
                   <span className={`ai-rev__kind ai-rev__kind--${rev.source.kind}`}>
-                    {rev.source.kind === 'ai' ? 'AI' : rev.source.kind === 'manual' ? 'Edit' : 'Base'}
+                    {rev.source.kind === 'ai' ? t('labPanels.rev.ai') : rev.source.kind === 'manual' ? t('labPanels.rev.manual') : t('labPanels.rev.base')}
                   </span>
                   <span className="ai-rev__label">{revisionLabel(rev)}</span>
                 </button>
@@ -115,9 +120,7 @@ export function AiPanel({ history, onApply, onRestore }: Props) {
       )}
 
       <p className="ai-panel__note">
-        {live
-          ? 'OpenAI is connected — edits run through the real provider and are validated as editable garments.'
-          : 'Deterministic placeholder active. Connect OpenAI in Settings → AI for full AI editing. Either way, the result is always an editable garment — never an image.'}
+        {live ? t('labPanels.ai.noteLive') : t('labPanels.ai.notePlaceholder')}
       </p>
     </div>
   )

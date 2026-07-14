@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '@/i18n'
 import type { Collection } from '../../data/types'
 
 /**
@@ -33,6 +34,7 @@ export function SaveDesignDialog({
   onClose,
   onSave,
 }: Props) {
+  const t = useT()
   const [name, setName] = useState(initialName)
   const [collectionId, setCollectionId] = useState<string | undefined>(currentCollectionId)
   const [creating, setCreating] = useState(false)
@@ -59,44 +61,44 @@ export function SaveDesignDialog({
   }
 
   return (
-    <div className="ds-save" role="dialog" aria-modal="true" aria-label="Save design" onClick={onClose}>
+    <div className="ds-save" role="dialog" aria-modal="true" aria-label={t('dsDialogs.save.title')} onClick={onClose}>
       <div className="ds-save__panel" onClick={(e) => e.stopPropagation()}>
         <header className="ds-save__head">
-          <h2>Save design</h2>
-          <button className="ds-save__x" type="button" aria-label="Close" onClick={onClose}>
+          <h2>{t('dsDialogs.save.title')}</h2>
+          <button className="ds-save__x" type="button" aria-label={t('dsDialogs.save.close')} onClick={onClose}>
             ×
           </button>
         </header>
 
         <label className="ds-save__field">
-          <span className="ds-save__label">Name</span>
+          <span className="ds-save__label">{t('dsDialogs.save.name')}</span>
           <input
             className="ds-save__input"
             autoFocus
             value={name}
-            placeholder="Design name"
-            aria-label="Design name"
+            placeholder={t('dsDialogs.save.designNamePlaceholder')}
+            aria-label={t('dsDialogs.save.designNamePlaceholder')}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && confirm()}
           />
         </label>
 
         <div className="ds-save__field">
-          <span className="ds-save__label">Collection</span>
+          <span className="ds-save__label">{t('dsDialogs.save.collection')}</span>
           {creating ? (
             <div className="ds-save__row">
               <input
                 className="ds-save__input"
                 autoFocus
                 value={newCollection}
-                placeholder="New collection name"
-                aria-label="New collection name"
+                placeholder={t('dsDialogs.save.newCollectionName')}
+                aria-label={t('dsDialogs.save.newCollectionName')}
                 onChange={(e) => setNewCollection(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && confirm()}
               />
               {collections.length > 0 && (
                 <button type="button" className="ds-save__linkbtn" onClick={() => setCreating(false)}>
-                  Pick existing
+                  {t('dsDialogs.save.pickExisting')}
                 </button>
               )}
             </div>
@@ -105,10 +107,10 @@ export function SaveDesignDialog({
               <select
                 className="ds-save__input"
                 value={collectionId ?? ''}
-                aria-label="Collection"
+                aria-label={t('dsDialogs.save.collection')}
                 onChange={(e) => setCollectionId(e.target.value || undefined)}
               >
-                <option value="">No collection</option>
+                <option value="">{t('dsDialogs.save.noCollection')}</option>
                 {collections.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -116,7 +118,7 @@ export function SaveDesignDialog({
                 ))}
               </select>
               <button type="button" className="ds-save__linkbtn" onClick={() => { setCreating(true); setNewCollection('') }}>
-                + New collection
+                {t('dsDialogs.save.newCollection')}
               </button>
             </div>
           )}
@@ -124,10 +126,10 @@ export function SaveDesignDialog({
 
         <footer className="ds-save__foot">
           <button type="button" className="s-btn" onClick={onClose}>
-            Cancel
+            {t('dsDialogs.save.cancel')}
           </button>
           <button type="button" className="s-btn s-btn--accent" disabled={!canSave} onClick={confirm}>
-            Save
+            {t('dsDialogs.save.save')}
           </button>
         </footer>
       </div>

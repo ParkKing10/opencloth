@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useT } from '../../../i18n'
 import { useToast } from '../../components/ui/Toast'
 import { useGarments } from '../../garments/useGarments'
 import { GarmentCatalog } from '../../garments/ui/GarmentCatalog'
@@ -10,6 +11,7 @@ import '../../garments/garments.css'
 
 export function AdminGarments() {
   const { garments, loading, refresh } = useGarments()
+  const t = useT()
   const toast = useToast()
   const [importing, setImporting] = useState(false)
   const [opened, setOpened] = useState<Garment | null>(null)
@@ -22,13 +24,13 @@ export function AdminGarments() {
   async function deleteAll() {
     const n = garments.length
     if (n === 0 || wiping) return
-    if (!window.confirm(`Delete ALL ${n} uploaded garment${n === 1 ? '' : 's'}? This permanently removes them and their files. This cannot be undone.`)) return
-    if (!window.confirm(`Really delete all ${n}? Type-check: this wipes the whole uploaded catalog.`)) return
+    if (!window.confirm(n === 1 ? t('adminPages.garments.confirmAllOne', { n }) : t('adminPages.garments.confirmAllMany', { n }))) return
+    if (!window.confirm(t('adminPages.garments.confirmAllReally', { n }))) return
     setWiping(true)
     const r = await deleteAllUploadedGarments()
     setWiping(false)
     if (r.ok) {
-      toast(`Deleted ${r.value.deleted} garment${r.value.deleted === 1 ? '' : 's'}. Upload your own to rebuild the catalog.`, 'success')
+      toast(r.value.deleted === 1 ? t('adminPages.garments.deletedAllOne', { n: r.value.deleted }) : t('adminPages.garments.deletedAllMany', { n: r.value.deleted }), 'success')
       void refresh()
     } else {
       toast(r.error, 'default')
@@ -36,10 +38,10 @@ export function AdminGarments() {
   }
 
   async function onDelete(g: Garment) {
-    if (!window.confirm(`Delete "${g.name}"? This permanently removes its files.`)) return
+    if (!window.confirm(t('adminPages.garments.confirmDelete', { name: g.name }))) return
     const r = await deleteGarment(g.id)
     if (r.ok) {
-      toast(`Deleted ${g.name}.`, 'default')
+      toast(t('adminPages.garments.deletedOne', { name: g.name }), 'default')
       void refresh()
     } else {
       toast(r.error, 'default')
@@ -60,18 +62,22 @@ export function AdminGarments() {
     }
     setRegen(null)
     await refresh()
-    if (ok === total) toast(`Regenerated ${ok} preview${ok === 1 ? '' : 's'}.`, 'success')
-    else if (ok === 0) toast(firstError || 'Could not regenerate previews.', 'default')
-    else toast(`Regenerated ${ok} of ${total} — ${firstError}`, 'default')
+    if (ok === total) toast(ok === 1 ? t('adminPages.garments.regeneratedOne', { n: ok }) : t('adminPages.garments.regeneratedMany', { n: ok }), 'success')
+    else if (ok === 0) toast(firstError || t('adminPages.garments.regenerateFailed'), 'default')
+    else toast(t('adminPages.garments.regeneratedPartial', { ok, total, error: firstError }), 'default')
   }
 
   return (
     <div>
       <header className="gl-page-head">
         <div>
-          <h1>Garment Library</h1>
+          <h1>{t('adminPages.garments.title')}</h1>
           <p>
-            {loading ? 'Loading…' : `${garments.length} garment${garments.length === 1 ? '' : 's'} in the catalog.`}
+            {loading
+              ? t('common.loading')
+              : garments.length === 1
+                ? t('adminPages.garments.countOne', { n: garments.length })
+                : t('adminPages.garments.countMany', { n: garments.length })}
           </p>
         </div>
         <div className="gl-page-head__actions">
@@ -80,21 +86,21 @@ export function AdminGarments() {
             type="button"
             onClick={deleteAll}
             disabled={wiping || loading || garments.length === 0}
-            title="Permanently delete every uploaded garment and its files"
+            title={t('adminPages.garments.deleteAllTitle')}
           >
-            {wiping ? 'Deleting…' : 'Delete all'}
+            {wiping ? t('adminPages.garments.deleting') : t('common.deleteAll')}
           </button>
           <button
             className="s-btn"
             type="button"
             onClick={regenerateAll}
             disabled={!!regen || loading || garments.length === 0}
-            title="Rebuild every thumbnail using the current preview rules"
+            title={t('adminPages.garments.regenerateTitle')}
           >
-            {regen ? `Regenerating ${regen.done}/${regen.total}…` : 'Regenerate previews'}
+            {regen ? t('adminPages.garments.regenerating', { done: regen.done, total: regen.total }) : t('adminPages.garments.regeneratePreviews')}
           </button>
           <button className="s-btn s-btn--accent" type="button" onClick={() => setImporting(true)}>
-            Upload garment pack
+            {t('adminPages.garments.uploadPack')}
           </button>
         </div>
       </header>

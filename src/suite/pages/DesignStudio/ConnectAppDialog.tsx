@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import './connect.css'
 
 /**
@@ -9,6 +10,7 @@ import './connect.css'
  * strokes land live on this canvas. No dead UI — the button opens this real, explanatory panel.
  */
 export function ConnectAppDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT()
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -21,10 +23,10 @@ export function ConnectAppDialog({ open, onClose }: { open: boolean; onClose: ()
   if (!open) return null
 
   const steps = [
-    { n: 1, t: 'Open loom studios on iPad', d: 'Install the app and sign in with this same account.' },
-    { n: 2, t: 'Pair with this studio', d: 'A one-time code links the tablet to the desktop session.' },
-    { n: 3, t: 'Draw with Apple Pencil', d: 'Pressure and tilt, on the surface that feels natural.' },
-    { n: 4, t: 'It appears live here', d: 'Every stroke lands on this canvas as its own layer.' },
+    { n: 1, t: t('dsDialogs.cn.step1.t'), d: t('dsDialogs.cn.step1.d') },
+    { n: 2, t: t('dsDialogs.cn.step2.t'), d: t('dsDialogs.cn.step2.d') },
+    { n: 3, t: t('dsDialogs.cn.step3.t'), d: t('dsDialogs.cn.step3.d') },
+    { n: 4, t: t('dsDialogs.cn.step4.t'), d: t('dsDialogs.cn.step4.d') },
   ]
 
   return createPortal(
@@ -33,21 +35,18 @@ export function ConnectAppDialog({ open, onClose }: { open: boolean; onClose: ()
       <div className="cn-panel" role="dialog" aria-modal="true" aria-labelledby="cn-title">
         <div className="cn-head">
           <div className="cn-eyebrow">
-            <span>loom studios for iPad</span>
-            <span className="cn-soon">Coming soon</span>
+            <span>{t('dsDialogs.cn.forIpad')}</span>
+            <span className="cn-soon">{t('dsDialogs.cn.comingSoon')}</span>
           </div>
-          <button type="button" className="cn-x" aria-label="Close" onClick={onClose}>
+          <button type="button" className="cn-x" aria-label={t('dsDialogs.cn.close')} onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
 
-        <h1 id="cn-title" className="cn-title">Your iPad becomes the drawing surface</h1>
-        <p className="cn-sub">
-          The desktop stays your command center — layers, vectors, garment, export. Pick up the tablet
-          and draw with Apple Pencil; the strokes show up here, live.
-        </p>
+        <h1 id="cn-title" className="cn-title">{t('dsDialogs.cn.heading')}</h1>
+        <p className="cn-sub">{t('dsDialogs.cn.sub')}</p>
 
         <div className="cn-stage" aria-hidden="true">
           <svg viewBox="0 0 420 150" className="cn-illo">
@@ -85,8 +84,8 @@ export function ConnectAppDialog({ open, onClose }: { open: boolean; onClose: ()
         </ol>
 
         <div className="cn-foot">
-          <p className="cn-note">Not available yet — we’re building it. Painting tools arrive with the app.</p>
-          <button type="button" className="cn-cta" onClick={onClose}>Got it</button>
+          <p className="cn-note">{t('dsDialogs.cn.note')}</p>
+          <button type="button" className="cn-cta" onClick={onClose}>{t('dsDialogs.cn.gotIt')}</button>
         </div>
       </div>
     </div>,

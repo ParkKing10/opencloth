@@ -1,5 +1,19 @@
 import type { DragEvent, ReactElement, ReactNode, SVGProps } from 'react'
+import { useT } from '@/i18n'
 import './library-panels.css'
+
+// Maps each starter graphic's stable English name (its identifier passed to onAdd/drag) to its
+// translation key, so the visible label localises without changing the identifier.
+const GRAPHIC_LABEL_KEY: Record<string, string> = {
+  'Box Logo': 'dsPanels.graphic.boxLogo',
+  Star: 'dsPanels.graphic.star',
+  Flame: 'dsPanels.graphic.flame',
+  Smiley: 'dsPanels.graphic.smiley',
+  Barcode: 'dsPanels.graphic.barcode',
+  Lightning: 'dsPanels.graphic.lightning',
+  Globe: 'dsPanels.graphic.globe',
+  'Arch Text': 'dsPanels.graphic.archText',
+}
 
 const GRAPHIC_DRAG_MIME = 'application/x-threados-graphic'
 
@@ -127,11 +141,12 @@ function handleDragStart(event: DragEvent<HTMLButtonElement>, name: string): voi
 }
 
 export function GraphicsPanel({ onAdd }: { onAdd: (name: string) => void }) {
+  const t = useT()
   return (
-    <section className="lib-panel" aria-label="Graphics">
+    <section className="lib-panel" aria-label={t('dsPanels.gr.aria')}>
       <header className="lib-head">
-        <h2>Graphics</h2>
-        <p className="lib-head__hint">Starter marks — drop them on your piece</p>
+        <h2>{t('dsPanels.gr.title')}</h2>
+        <p className="lib-head__hint">{t('dsPanels.gr.hint')}</p>
       </header>
 
       <div className="lib-scroll">
@@ -142,18 +157,18 @@ export function GraphicsPanel({ onAdd }: { onAdd: (name: string) => void }) {
               key={graphic.name}
               className="lib-gcard"
               draggable={true}
-              aria-label={`Add ${graphic.name} to design`}
+              aria-label={t('dsPanels.addToDesign', { name: t(GRAPHIC_LABEL_KEY[graphic.name]) })}
               onClick={() => onAdd(graphic.name)}
               onDragStart={(event) => handleDragStart(event, graphic.name)}
             >
               <span className="lib-gcard__mark">{graphic.mark}</span>
-              <span className="lib-gcard__name">{graphic.name}</span>
+              <span className="lib-gcard__name">{t(GRAPHIC_LABEL_KEY[graphic.name])}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <footer className="lib-foot">Your own uploads live in Assets.</footer>
+      <footer className="lib-foot">{t('dsPanels.gr.foot')}</footer>
     </section>
   )
 }

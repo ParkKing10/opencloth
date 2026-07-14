@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useT } from '@/i18n'
 import type { ProductSpecs, SpecColor } from './designDoc'
 import type { StudioMode } from './CommandBar'
 import { IcoChevron } from '../../components/ui/Icons'
@@ -13,8 +14,24 @@ type Props = {
 
 // Real, common option names offered as quick picks. The user selects or types their own —
 // nothing here is inferred from the garment image, and nothing is applied to it as "material".
-const MATERIALS = ['Cotton', 'Heavy Cotton', 'French Terry', 'Polyester', 'Fleece', 'Canvas', 'Denim', 'Leather']
-const FITS = ['Oversized', 'Regular', 'Slim', 'Boxy', 'Relaxed']
+// The stored VALUE stays as the English identifier; only the chip LABEL is localized.
+const MATERIALS: { value: string; labelKey: string }[] = [
+  { value: 'Cotton', labelKey: 'dsInspectors.mat.cotton' },
+  { value: 'Heavy Cotton', labelKey: 'dsInspectors.mat.heavyCotton' },
+  { value: 'French Terry', labelKey: 'dsInspectors.mat.frenchTerry' },
+  { value: 'Polyester', labelKey: 'dsInspectors.mat.polyester' },
+  { value: 'Fleece', labelKey: 'dsInspectors.mat.fleece' },
+  { value: 'Canvas', labelKey: 'dsInspectors.mat.canvas' },
+  { value: 'Denim', labelKey: 'dsInspectors.mat.denim' },
+  { value: 'Leather', labelKey: 'dsInspectors.mat.leather' },
+]
+const FITS: { value: string; labelKey: string }[] = [
+  { value: 'Oversized', labelKey: 'dsInspectors.fit.oversized' },
+  { value: 'Regular', labelKey: 'dsInspectors.fit.regular' },
+  { value: 'Slim', labelKey: 'dsInspectors.fit.slim' },
+  { value: 'Boxy', labelKey: 'dsInspectors.fit.boxy' },
+  { value: 'Relaxed', labelKey: 'dsInspectors.fit.relaxed' },
+]
 
 /**
  * Product Specs — user-provided, empty by default. These describe the product for later
@@ -22,10 +39,11 @@ const FITS = ['Oversized', 'Regular', 'Slim', 'Boxy', 'Relaxed']
  * never blocked by missing specs. Everything here persists with the design document.
  */
 export function ProductSpecsEditor({ specs, onSpec, mode = 'beginner' }: Props) {
+  const t = useT()
   const colors = specs.colors ?? []
   const isPro = mode === 'pro'
 
-  const addColor = () => onSpec({ colors: [...colors, { name: 'New color', hex: '#1A1A20' }] })
+  const addColor = () => onSpec({ colors: [...colors, { name: t('dsInspectors.ps.newColor'), hex: '#1A1A20' }] })
   const patchColor = (i: number, patch: Partial<SpecColor>) =>
     onSpec({ colors: colors.map((c, idx) => (idx === i ? { ...c, ...patch } : c)) })
   const removeColor = (i: number) => onSpec({ colors: colors.filter((_, idx) => idx !== i) })
@@ -38,28 +56,28 @@ export function ProductSpecsEditor({ specs, onSpec, mode = 'beginner' }: Props) 
 
   const colorsField = (
     <div className="ps__field">
-      <span className="ps__label">Colors</span>
-      {colors.length === 0 && <span className="ps__empty">Not specified yet</span>}
+      <span className="ps__label">{t('dsInspectors.ps.colors')}</span>
+      {colors.length === 0 && <span className="ps__empty">{t('dsInspectors.ps.notSpecified')}</span>}
       <div className="ps__colors">
         {colors.map((c, i) => (
           <div className="ps__color" key={i}>
             <label className="ps__swatch" style={{ background: c.hex }}>
-              <input type="color" value={c.hex} onChange={(e) => patchColor(i, { hex: e.target.value })} aria-label="Color value" />
+              <input type="color" value={c.hex} onChange={(e) => patchColor(i, { hex: e.target.value })} aria-label={t('dsInspectors.ps.colorValue')} />
             </label>
             <input
               className="ps__color-name"
               value={c.name}
               onChange={(e) => patchColor(i, { name: e.target.value })}
-              aria-label="Color name"
+              aria-label={t('dsInspectors.ps.colorName')}
             />
-            <button type="button" className="ps__color-x" aria-label="Remove color" onClick={() => removeColor(i)}>
+            <button type="button" className="ps__color-x" aria-label={t('dsInspectors.ps.removeColor')} onClick={() => removeColor(i)}>
               ×
             </button>
           </div>
         ))}
       </div>
       <button type="button" className="ps__add" onClick={addColor}>
-        + Add colorway
+        {t('dsInspectors.ps.addColorway')}
       </button>
     </div>
   )
@@ -68,25 +86,25 @@ export function ProductSpecsEditor({ specs, onSpec, mode = 'beginner' }: Props) 
   // on demand so the panel stays focused on the visual essentials.
   const production = (
     <>
-      <TextField label="Weight" value={specs.weight} placeholder="e.g. 320 GSM" onChange={(v) => onSpec({ weight: v })} />
+      <TextField label={t('dsInspectors.prop.weightFabric')} value={specs.weight} placeholder={t('dsInspectors.ps.weightPh')} onChange={(v) => onSpec({ weight: v })} />
       <TextField
-        label="Composition"
+        label={t('dsInspectors.prop.composition')}
         value={specs.composition}
-        placeholder="e.g. 100% Cotton"
+        placeholder={t('dsInspectors.ps.compositionPh')}
         onChange={(v) => onSpec({ composition: v })}
       />
       <TextField
-        label="Variant"
+        label={t('dsInspectors.ps.variant')}
         value={specs.variant}
-        placeholder="e.g. Zip / Crop / Standard"
+        placeholder={t('dsInspectors.ps.variantPh')}
         onChange={(v) => onSpec({ variant: v })}
       />
       <div className="ps__field">
-        <span className="ps__label">Notes</span>
+        <span className="ps__label">{t('dsInspectors.ps.notes')}</span>
         <textarea
           className="ps__notes"
           value={specs.notes ?? ''}
-          placeholder="Production notes, wash, trims…"
+          placeholder={t('dsInspectors.ps.notesPh')}
           rows={2}
           onChange={(e) => onSpec({ notes: e.target.value })}
         />
@@ -97,22 +115,22 @@ export function ProductSpecsEditor({ specs, onSpec, mode = 'beginner' }: Props) 
   return (
     <section className="ps">
       <div className="ps__head">
-        <span className="ps__eyebrow">Product Specs</span>
-        <span className="ps__hint">{isPro ? 'Full production detail' : 'Optional — needed before export'}</span>
+        <span className="ps__eyebrow">{t('dsInspectors.ps.title')}</span>
+        <span className="ps__hint">{isPro ? t('dsInspectors.ps.hintPro') : t('dsInspectors.ps.hintBasic')}</span>
       </div>
 
       <PickField
-        label="Material"
+        label={t('dsInspectors.prop.material')}
         value={specs.material}
         suggestions={MATERIALS}
-        placeholder="Not specified yet"
+        placeholder={t('dsInspectors.ps.notSpecified')}
         onChange={(v) => onSpec({ material: v })}
       />
       <PickField
-        label="Fit"
+        label={t('dsInspectors.prop.fit')}
         value={specs.fit}
         suggestions={FITS}
-        placeholder="Not specified yet"
+        placeholder={t('dsInspectors.ps.notSpecified')}
         onChange={(v) => onSpec({ fit: v })}
       />
       {colorsField}
@@ -120,7 +138,7 @@ export function ProductSpecsEditor({ specs, onSpec, mode = 'beginner' }: Props) 
       {isPro ? (
         production
       ) : (
-        <Disclosure label="Production details" badge={productionFilled || undefined}>
+        <Disclosure label={t('dsInspectors.ps.productionDetails')} badge={productionFilled || undefined}>
           {production}
         </Disclosure>
       )}
@@ -158,24 +176,26 @@ function PickField({
 }: {
   label: string
   value?: string
-  suggestions: string[]
+  suggestions: { value: string; labelKey: string }[]
   placeholder: string
   onChange: (v: string) => void
 }) {
+  const t = useT()
   const [custom, setCustom] = useState(false)
-  const showCustom = custom || (!!value && !suggestions.includes(value))
+  const isSuggested = (v?: string) => suggestions.some((s) => s.value === v)
+  const showCustom = custom || (!!value && !isSuggested(value))
   return (
     <div className="ps__field">
       <span className="ps__label">{label}</span>
       <div className="ps__chips">
         {suggestions.map((s) => (
           <button
-            key={s}
+            key={s.value}
             type="button"
-            className={`ps__chip${value === s ? ' is-active' : ''}`}
-            onClick={() => onChange(value === s ? '' : s)}
+            className={`ps__chip${value === s.value ? ' is-active' : ''}`}
+            onClick={() => onChange(value === s.value ? '' : s.value)}
           >
-            {s}
+            {t(s.labelKey)}
           </button>
         ))}
         <button
@@ -183,16 +203,16 @@ function PickField({
           className={`ps__chip ps__chip--other${showCustom ? ' is-active' : ''}`}
           onClick={() => setCustom((c) => !c)}
         >
-          Custom
+          {t('dsInspectors.ps.custom')}
         </button>
       </div>
       {showCustom && (
         <input
           className="ps__input"
-          value={suggestions.includes(value ?? '') ? '' : value ?? ''}
+          value={isSuggested(value ?? '') ? '' : value ?? ''}
           placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} (custom)`}
+          aria-label={t('dsInspectors.ps.customAria', { label })}
         />
       )}
     </div>

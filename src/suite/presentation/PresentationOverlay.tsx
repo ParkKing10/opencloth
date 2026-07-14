@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { usePresentation } from './PresentationContext'
 import { emitPresentationCue } from './presentationBus'
 import { prefersReducedMotion } from './presentation'
@@ -41,6 +42,7 @@ const INITIAL: Tx = {
 }
 
 export function PresentationOverlay() {
+  const t = useT()
   const { active } = usePresentation()
 
   const [playing, setPlaying] = useState(false)
@@ -207,7 +209,7 @@ export function PresentationOverlay() {
               {tx.endmark && (
                 <div className="pm-tx__endmark">
                   <div className="pm-tx__brand">loom studios</div>
-                  <div className="pm-tx__tag">Just describe it.</div>
+                  <div className="pm-tx__tag">{t('presentation.tagline')}</div>
                 </div>
               )}
             </div>
@@ -220,7 +222,7 @@ export function PresentationOverlay() {
                   <span className={`pm-prompt__caret${tx.caret ? ' is-on' : ''}`} />
                 </div>
                 <button className={`pm-prompt__go${tx.armed ? ' is-armed' : ''}`} type="button">
-                  {tx.generating ? 'Generating…' : 'Generate'}
+                  {tx.generating ? t('presentation.generating') : t('presentation.generate')}
                 </button>
               </div>
             </div>
@@ -238,9 +240,9 @@ export function PresentationOverlay() {
 
       {!playing && !finished && (
         <div className="pm-launch">
-          <span className="pm-launch__badge">Presentation Mode</span>
+          <span className="pm-launch__badge">{t('presentation.badge')}</span>
           <button className="pm-launch__btn" type="button" onClick={start}>
-            <span className="pm-launch__play">▶</span> Start Presentation
+            <span className="pm-launch__play">▶</span> {t('presentation.start')}
           </button>
         </div>
       )}
@@ -253,19 +255,19 @@ export function PresentationOverlay() {
             ))}
           </div>
           <button className="pm-hud__exit" type="button" onClick={stop}>
-            Exit
+            {t('presentation.exit')}
           </button>
         </div>
       )}
 
       {finished && (
         <div className="pm-launch">
-          <span className="pm-launch__badge">Replay the spot</span>
+          <span className="pm-launch__badge">{t('presentation.replayBadge')}</span>
           <button className="pm-launch__btn" type="button" onClick={start}>
-            <span className="pm-launch__play">↻</span> Replay
+            <span className="pm-launch__play">↻</span> {t('presentation.replay')}
           </button>
           <button className="pm-launch__ghost" type="button" onClick={() => setFinished(false)}>
-            Close
+            {t('presentation.close')}
           </button>
         </div>
       )}

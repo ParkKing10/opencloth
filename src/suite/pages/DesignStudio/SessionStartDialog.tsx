@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import './wizard.css'
 
 /**
@@ -19,6 +20,7 @@ export function SessionStartDialog({
   onContinue: () => void
   onNew: () => void
 }) {
+  const t = useT()
   // Enter continues the open design (the safe default); N starts a new one.
   useEffect(() => {
     if (!open) return
@@ -36,20 +38,20 @@ export function SessionStartDialog({
     <div className="suite">
       <div className="wz-overlay ss-overlay" role="dialog" aria-modal="true" aria-labelledby="ss-title">
         <div className="ss-shell">
-          <span className="wz-eyebrow">Design Studio</span>
-          <h1 id="ss-title" className="ss-title">Welcome back</h1>
-          <p className="ss-sub">You have a design open. Pick up where you left off, or start a new file.</p>
+          <span className="wz-eyebrow">{t('dsDialogs.ss.eyebrow')}</span>
+          <h1 id="ss-title" className="ss-title">{t('dsDialogs.ss.welcomeBack')}</h1>
+          <p className="ss-sub">{t('dsDialogs.ss.sub')}</p>
 
           <div className="ss-choices">
             <button type="button" className="ss-choice ss-choice--primary" onClick={onContinue} autoFocus>
-              <span className="ss-choice__eyebrow">Continue</span>
+              <span className="ss-choice__eyebrow">{t('dsDialogs.ss.continue')}</span>
               <span className="ss-choice__title">{lastName}</span>
-              <span className="ss-choice__hint">Reopen your last design · Enter</span>
+              <span className="ss-choice__hint">{t('dsDialogs.ss.reopenHint')}</span>
             </button>
             <button type="button" className="ss-choice" onClick={onNew}>
-              <span className="ss-choice__eyebrow">New file</span>
-              <span className="ss-choice__title">Start a new design</span>
-              <span className="ss-choice__hint">Choose a fresh garment · N</span>
+              <span className="ss-choice__eyebrow">{t('dsDialogs.ss.newFile')}</span>
+              <span className="ss-choice__title">{t('dsDialogs.ss.startNew')}</span>
+              <span className="ss-choice__hint">{t('dsDialogs.ss.freshHint')}</span>
             </button>
           </div>
         </div>

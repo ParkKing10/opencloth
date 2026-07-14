@@ -9,6 +9,7 @@
 import { useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
+import { useT } from '@/i18n'
 import type { EditableGarment } from '../../garment-model/editableGarment'
 import { GARMENT_TEMPLATES } from '../../garment-model/garmentTemplates'
 import { buildFromPrompt, buildFromTemplate, buildFromUpload } from '../../garment-model/garmentFactory'
@@ -23,11 +24,12 @@ import './garments.css'
 type Method = 'ai' | 'upload' | 'blank'
 type Built = { garment: EditableGarment; name: string; category: string }
 
-const AI_EXAMPLES = ['Oversized hoodie', 'Luxury bomber', 'Double breasted blazer', 'Streetwear cargos']
+const AI_EXAMPLES = ['oversizedHoodie', 'luxuryBomber', 'doubleBreastedBlazer', 'streetwearCargos']
 
 export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => void; onCreated: (s: GarmentSummary) => void }) {
   const { user } = useAuth()
   const toast = useToast()
+  const t = useT()
 
   const [step, setStep] = useState(1)
   const [method, setMethod] = useState<Method>('ai')
@@ -92,19 +94,19 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
     if (!user?.id || !built) return
     const origin: GarmentOrigin = method === 'blank' ? 'blank' : method
     const summary = createGarment(user.id, built.garment, { name, category: built.category, origin })
-    toast('Garment created — added to My Garments.', 'success')
+    toast(t('garments.wizard.createdToast'), 'success')
     onCreated(summary)
   }
 
   return (
-    <div className="gw" role="dialog" aria-modal="true" aria-label="Create garment">
+    <div className="gw" role="dialog" aria-modal="true" aria-label={t('garments.wizard.dialogAria')}>
       <div className="gw__panel">
         <header className="gw__head">
           <div>
-            <span className="gw__eyebrow">New garment</span>
-            <h2>{step === 1 ? 'How would you like to start?' : step === 2 ? stepTwoTitle(method) : 'Review & create'}</h2>
+            <span className="gw__eyebrow">{t('garments.wizard.eyebrow')}</span>
+            <h2>{step === 1 ? t('garments.wizard.step1Title') : step === 2 ? stepTwoTitle(method, t) : t('garments.wizard.step3Title')}</h2>
           </div>
-          <button type="button" className="gw__x" onClick={onClose} aria-label="Close">
+          <button type="button" className="gw__x" onClick={onClose} aria-label={t('garments.wizard.closeAria')}>
             ×
           </button>
         </header>
@@ -120,9 +122,9 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
             <div className="gw__methods">
               {(
                 [
-                  { id: 'ai', title: 'AI Garment', desc: 'Describe it — start from the closest editable garment.' },
-                  { id: 'upload', title: 'Upload Garment Pack', desc: 'Bring a ZIP / SVG / AI / PNG / PDF.' },
-                  { id: 'blank', title: 'Blank Garment', desc: 'Pick a clean template to build from.' },
+                  { id: 'ai', title: t('garments.wizard.methodAiTitle'), desc: t('garments.wizard.methodAiDesc') },
+                  { id: 'upload', title: t('garments.wizard.methodUploadTitle'), desc: t('garments.wizard.methodUploadDesc') },
+                  { id: 'blank', title: t('garments.wizard.methodBlankTitle'), desc: t('garments.wizard.methodBlankDesc') },
                 ] as { id: Method; title: string; desc: string }[]
               ).map((m) => (
                 <button key={m.id} type="button" className={`gw-method${method === m.id ? ' is-active' : ''}`} onClick={() => setMethod(m.id)}>
@@ -138,19 +140,17 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
 
           {step === 2 && method === 'ai' && (
             <div className="gw__ai">
-              <textarea className="gw-prompt" rows={3} placeholder="e.g. Oversized cropped bomber with two chest pockets" value={prompt} onChange={(e) => setPrompt(e.target.value)} aria-label="Describe your garment" />
+              <textarea className="gw-prompt" rows={3} placeholder={t('garments.wizard.aiPlaceholder')} value={prompt} onChange={(e) => setPrompt(e.target.value)} aria-label={t('garments.wizard.aiAria')} />
               <div className="gw-examples">
                 {AI_EXAMPLES.map((ex) => (
-                  <button key={ex} type="button" className="gw-example" onClick={() => setPrompt(ex)}>
-                    {ex}
+                  <button key={ex} type="button" className="gw-example" onClick={() => setPrompt(t(`garments.wizard.example.${ex}`))}>
+                    {t(`garments.wizard.example.${ex}`)}
                   </button>
                 ))}
               </div>
               <p className="gw-note">
-                loom studios starts you from the closest real template, named from your prompt — every region stays editable.
-                {hasApiKey()
-                  ? ' OpenAI is connected for garment editing; prompt-to-garment generation is a future milestone.'
-                  : ' Prompt-to-garment generation arrives with the AI worker (a future milestone).'}
+                {t('garments.wizard.aiNote')}
+                {hasApiKey() ? t('garments.wizard.aiNoteConnected') : t('garments.wizard.aiNotePending')}
               </p>
             </div>
           )}
@@ -159,13 +159,11 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
             <div className="gw__upload">
               <input ref={fileRef} type="file" accept=".zip,.svg,.ai,.png,.pdf" hidden onChange={handleFile} />
               <button type="button" className="gw-drop" onClick={() => fileRef.current?.click()}>
-                <b>{uploadName || 'Choose a file'}</b>
+                <b>{uploadName || t('garments.wizard.uploadChoose')}</b>
                 <small>ZIP · SVG · AI · PNG · PDF</small>
               </button>
               <p className="gw-note">
-                <b>SVG files are analyzed automatically</b> — loom studios reads the geometry and builds editable regions
-                (body, sleeves, collar, buttons…) with a confidence score each. Direct <b>.ai / .pdf</b> vector
-                extraction and ZIP packs are coming; those start from the closest editable template for now.
+                <b>{t('garments.wizard.uploadNoteBold1')}</b>{t('garments.wizard.uploadNoteMid')}<b>.ai / .pdf</b>{t('garments.wizard.uploadNoteEnd')}
               </p>
             </div>
           )}
@@ -188,30 +186,30 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
               </div>
               <div className="gw-review__fields">
                 <label className="gw-field">
-                  <span>Name</span>
+                  <span>{t('garments.wizard.reviewName')}</span>
                   <input value={name} onChange={(e) => setName(e.target.value)} />
                 </label>
                 <div className="gw-review__meta">
                   <div>
-                    <span>Category</span>
+                    <span>{t('garments.wizard.reviewCategory')}</span>
                     <b>{built.category}</b>
                   </div>
                   <div>
-                    <span>Regions</span>
+                    <span>{t('garments.wizard.reviewRegions')}</span>
                     <b>{Object.keys(built.garment.regions).length}</b>
                   </div>
                   <div>
-                    <span>Source</span>
-                    <b style={{ textTransform: 'capitalize' }}>{method}</b>
+                    <span>{t('garments.wizard.reviewSource')}</span>
+                    <b style={{ textTransform: 'capitalize' }}>{t(`garments.wizard.source.${method}`)}</b>
                   </div>
                 </div>
                 {report && report.regionCount > 0 && (
                   <p className="gw-note" style={{ marginTop: 4 }}>
-                    Analysis: <b>{report.regionCount} regions detected</b>
+                    {t('garments.wizard.reviewAnalysisLabel')}<b>{t('garments.wizard.reviewRegionsDetected', { n: report.regionCount })}</b>
                     {Object.entries(report.types).length > 0 && (
-                      <> ({Object.entries(report.types).map(([t, n]) => `${n} ${t}`).join(' · ')})</>
+                      <> ({Object.entries(report.types).map(([ty, n]) => `${n} ${ty}`).join(' · ')})</>
                     )}
-                    {report.lowConfidence > 0 && <> · {report.lowConfidence} low-confidence, editable in the Studio</>}
+                    {report.lowConfidence > 0 && <>{t('garments.wizard.reviewLowConfidence', { n: report.lowConfidence })}</>}
                     .
                   </p>
                 )}
@@ -222,15 +220,15 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
 
         <footer className="gw__foot">
           <button type="button" className="s-btn s-btn--subtle" onClick={() => (step === 1 ? onClose() : setStep(step - 1))}>
-            {step === 1 ? 'Cancel' : 'Back'}
+            {step === 1 ? t('garments.wizard.cancel') : t('garments.wizard.back')}
           </button>
           {step < 3 ? (
             <button type="button" className="s-btn s-btn--accent" disabled={!canAdvance || analyzing} onClick={() => (step === 2 ? void goReview() : setStep(2))}>
-              {analyzing ? 'Analyzing…' : 'Continue'}
+              {analyzing ? t('garments.wizard.analyzing') : t('garments.wizard.continue')}
             </button>
           ) : (
             <button type="button" className="s-btn s-btn--accent" onClick={finish} disabled={!name.trim()}>
-              Create garment
+              {t('garments.wizard.createBtn')}
             </button>
           )}
         </footer>
@@ -239,8 +237,8 @@ export function CreateGarmentWizard({ onClose, onCreated }: { onClose: () => voi
   )
 }
 
-function stepTwoTitle(method: Method): string {
-  if (method === 'ai') return 'Describe your garment'
-  if (method === 'upload') return 'Upload a garment pack'
-  return 'Choose a template'
+function stepTwoTitle(method: Method, t: ReturnType<typeof useT>): string {
+  if (method === 'ai') return t('garments.wizard.step2Ai')
+  if (method === 'upload') return t('garments.wizard.step2Upload')
+  return t('garments.wizard.step2Blank')
 }

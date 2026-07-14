@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import './guided-overlay.css'
 
 export type GuidedStep = {
@@ -34,11 +35,12 @@ export function GuidedOverlay({
   title,
   lede,
   steps,
-  continueLabel = 'Continue',
-  skipLabel = 'Not now',
+  continueLabel,
+  skipLabel,
   onContinue,
   onSkip,
 }: Props) {
+  const t = useT()
   const [dontShow, setDontShow] = useState(false)
   const continueRef = useRef<HTMLButtonElement>(null)
 
@@ -80,14 +82,14 @@ export function GuidedOverlay({
         <div className="go-foot">
           <label className="go-check">
             <input type="checkbox" checked={dontShow} onChange={(e) => setDontShow(e.target.checked)} />
-            <span>Don’t show this again</span>
+            <span>{t('sharedUi.dontShowAgain')}</span>
           </label>
           <div className="go-actions">
             <button type="button" className="go-btn go-btn--ghost" onClick={() => onSkip(dontShow)}>
-              {skipLabel}
+              {skipLabel ?? t('sharedUi.notNow')}
             </button>
             <button ref={continueRef} type="button" className="go-btn go-btn--accent" onClick={() => onContinue(dontShow)}>
-              {continueLabel}
+              {continueLabel ?? t('sharedUi.continue')}
             </button>
           </div>
         </div>

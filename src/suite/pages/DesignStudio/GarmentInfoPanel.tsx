@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 import { categoryLabel, type GarmentCategoryId, type GarmentRepresentation, type GarmentViews } from '../../garments/types'
 import { viewsSummary } from '../../garments/import/detect'
 
@@ -26,6 +27,7 @@ const EDITABLE_FORMATS = new Set(['ai', 'svg', 'pdf', 'eps', 'dxf'])
  * user adds a layer (then the object/context inspector takes over).
  */
 export function GarmentInfoPanel({ name, brand, category, views, representations, hasRegionTree, onEditRegions }: Props) {
+  const t = useT()
   // Real representations only — skip the auto-generated thumbnail.
   const realReps = representations.filter((r) => r.kind !== 'thumbnail')
   const formats = Array.from(new Set(realReps.map((r) => r.format.toUpperCase()))).sort()
@@ -34,7 +36,7 @@ export function GarmentInfoPanel({ name, brand, category, views, representations
   return (
     <div className="gi2">
       <div className="gi2__id">
-        <span className="gi2__eyebrow">Garment</span>
+        <span className="gi2__eyebrow">{t('dsInspectors.prop.garment')}</span>
         <b className="gi2__name" title={name}>
           {name}
         </b>
@@ -44,11 +46,11 @@ export function GarmentInfoPanel({ name, brand, category, views, representations
         </div>
       </div>
 
-      <Row label="Available views">
+      <Row label={t('dsInspectors.gi.availableViews')}>
         <span className="gi2__value">{viewsSummary(views)}</span>
       </Row>
 
-      <Row label="Representations">
+      <Row label={t('dsInspectors.gi.representations')}>
         {formats.length > 0 ? (
           <span className="gi2__chips">
             {formats.map((f) => (
@@ -62,28 +64,25 @@ export function GarmentInfoPanel({ name, brand, category, views, representations
         )}
       </Row>
 
-      <Row label="Editable source">
+      <Row label={t('dsInspectors.gi.editableSource')}>
         <span className={`gi2__status${hasEditableSource || onEditRegions || hasRegionTree ? ' is-yes' : ''}`}>
           {onEditRegions || hasRegionTree
-            ? 'Yes — editable region tree'
+            ? t('dsInspectors.gi.statusRegionTree')
             : hasEditableSource
-              ? 'Yes — vector source available'
-              : 'No — preview only'}
+              ? t('dsInspectors.gi.statusVector')
+              : t('dsInspectors.gi.statusPreview')}
         </span>
       </Row>
 
       {onEditRegions ? (
         <>
           <button type="button" className="gi2__edit" onClick={onEditRegions}>
-            Open in Garment Editor →
+            {t('dsInspectors.gi.openEditor')}
           </button>
-          <p className="gi2__hint">
-            The Studio adds graphics &amp; prints on top. To control every region (body, sleeves, collar,
-            buttons…) with front + back views, open the Garment Editor.
-          </p>
+          <p className="gi2__hint">{t('dsInspectors.gi.hintRegions')}</p>
         </>
       ) : (
-        <p className="gi2__hint">Add text or graphics from the toolbar to start designing on this blank.</p>
+        <p className="gi2__hint">{t('dsInspectors.gi.hintBlank')}</p>
       )}
     </div>
   )

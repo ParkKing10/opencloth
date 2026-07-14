@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useT } from '@/i18n'
 import './command-palette.css'
 
 export type Command = {
@@ -39,6 +40,7 @@ function fuzzyScore(query: string, text: string): number | null {
 }
 
 export function CommandPalette({ open, commands, onClose }: Props) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -96,7 +98,7 @@ export function CommandPalette({ open, commands, onClose }: Props) {
 
   return createPortal(
     <div className="cmdp__scrim" onMouseDown={onClose}>
-      <div className="cmdp" role="dialog" aria-modal="true" aria-label="Command palette" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="cmdp" role="dialog" aria-modal="true" aria-label={t('dsAi.cmdp.ariaLabel')} onMouseDown={(e) => e.stopPropagation()}>
         <div className="cmdp__search">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
             <circle cx="11" cy="11" r="7" />
@@ -105,19 +107,19 @@ export function CommandPalette({ open, commands, onClose }: Props) {
           <input
             ref={inputRef}
             className="cmdp__input"
-            placeholder="Search actions…"
+            placeholder={t('dsAi.cmdp.searchPlaceholder')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
             }}
             onKeyDown={onKeyDown}
-            aria-label="Search actions"
+            aria-label={t('dsAi.cmdp.searchAria')}
           />
           <kbd className="cmdp__esc">Esc</kbd>
         </div>
         <div className="cmdp__list" ref={listRef} role="listbox">
-          {results.length === 0 && <div className="cmdp__empty">No matching action.</div>}
+          {results.length === 0 && <div className="cmdp__empty">{t('dsAi.cmdp.noMatch')}</div>}
           {results.map((c, i) => (
             <button
               key={c.id}

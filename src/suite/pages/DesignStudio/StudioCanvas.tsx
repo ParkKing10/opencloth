@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
+import { useT } from '@/i18n'
 import { IcoChevron } from '../../components/ui/Icons'
 import { GARMENT_GLYPHS, type GarmentKind } from '../../components/ui/Garments'
 import { useToast } from '../../components/ui/Toast'
@@ -214,6 +215,7 @@ export function StudioCanvas({
   onAlign,
   onDistribute,
 }: Props) {
+  const t = useT()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const toast = useToast()
   // 3D is a REAL capability, not a default. Without a real 3D file the toggle never shows.
@@ -344,7 +346,7 @@ export function StudioCanvas({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return
-      const def = TOOL_GROUPS.flatMap((g) => g.tools).find((t) => t.key === e.key.toLowerCase())
+      const def = TOOL_GROUPS.flatMap((g) => g.tools).find((td) => td.key === e.key.toLowerCase())
       if (!def) return
       e.preventDefault()
       if (def.action === 'text') onAddText?.()
@@ -383,13 +385,13 @@ export function StudioCanvas({
   }, [garmentName, garmentViews])
 
   function renameDesign() {
-    const next = window.prompt('Rename this design', designName)
+    const next = window.prompt(t('dsCanvas.rename.prompt'), designName)
     if (next == null) return
     const trimmed = next.trim()
     if (!trimmed || trimmed === designName) return
     if (onRenameDesign) onRenameDesign(trimmed)
     else setLocalName(trimmed)
-    toast(`Renamed to “${trimmed}”.`, 'success')
+    toast(t('dsCanvas.rename.done', { name: trimmed }), 'success')
   }
 
   // Snap back to 100% while keeping the viewport-centre point stable.
@@ -398,7 +400,7 @@ export function StudioCanvas({
     if (z === 1) return
     const p = panRef.current
     applyView(1, { x: p.x / z, y: p.y / z })
-    toast('Zoom reset to 100%.')
+    toast(t('dsCanvas.zoom.done'))
   }
 
   function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
@@ -547,34 +549,34 @@ export function StudioCanvas({
   }
 
   /** Click a palette tool: soon → explain, actions → insert, canvas tools → arm. Never dead UI. */
-  function onToolClick(t: ToolDef) {
-    if (t.soon) {
-      toast(t.note ?? 'This tool is coming soon.', 'info')
+  function onToolClick(def: ToolDef) {
+    if (def.soon) {
+      toast(def.note ? t(`dsCanvas.tool.${def.id}.note`) : t('dsCanvas.tool.comingSoon'), 'info')
       return
     }
-    if (t.action === 'text') {
+    if (def.action === 'text') {
       onAddText?.()
       return
     }
-    if (t.action === 'image') {
+    if (def.action === 'image') {
       fileInputRef.current?.click()
       return
     }
-    if (CANVAS_TOOLS.has(t.id)) setTool(t.id)
+    if (CANVAS_TOOLS.has(def.id)) setTool(def.id)
   }
 
   // Double-clicking empty canvas (not the garment) fits the view.
   function handleDoubleClick(e: ReactMouseEvent<HTMLDivElement>) {
     if (worldRef.current && worldRef.current.contains(e.target as Node)) return
     applyView(1, { x: 0, y: 0 })
-    toast('Fit to view.')
+    toast(t('dsCanvas.fitView'))
   }
 
   return (
     <main className="ds-canvas">
       {/* Title bar */}
       <div className="ds-canvas__bar">
-        <button className="ds-name" type="button" title="Rename this design" onClick={renameDesign}>
+        <button className="ds-name" type="button" title={t('dsCanvas.rename.title')} onClick={renameDesign}>
           {designName} <IcoChevron width="15" height="15" />
         </button>
         <span className="ds-saved">
@@ -585,7 +587,7 @@ export function StudioCanvas({
                 saveState === 'saving' ? 'var(--s-warn)' : saveState === 'unsaved' ? 'var(--s-text-4)' : 'var(--s-good)',
             }}
           />{' '}
-          {saveState === 'saving' ? 'Saving…' : saveState === 'unsaved' ? 'Edited' : 'Saved'}
+          {saveState === 'saving' ? t('dsCanvas.save.saving') : saveState === 'unsaved' ? t('dsCanvas.save.edited') : t('dsCanvas.save.saved')}
         </span>
         <div className="ds-bar-right">
           {/* The current view/page now lives in the bottom Pages strip, so no top-right view chip. */}
@@ -596,20 +598,20 @@ export function StudioCanvas({
               type="button"
               className={`ds-ov__btn${overlays.safe || overlays.bleed || overlays.print ? ' is-on' : ''}`}
               aria-expanded={overlaysOpen}
-              title="Show print guides"
+              title={t('dsCanvas.guides.show')}
               onClick={() => setOverlaysOpen((v) => !v)}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
                 <rect x="4" y="4" width="16" height="16" rx="1.5" strokeDasharray="3 2.5" />
               </svg>
-              Guides
+              {t('dsCanvas.guides.label')}
             </button>
             {overlaysOpen && (
-              <div className="ds-ov__pop" role="dialog" aria-label="Print guides">
+              <div className="ds-ov__pop" role="dialog" aria-label={t('dsCanvas.guides.aria')}>
                 {(['print', 'safe', 'bleed'] as const).map((k) => (
                   <label className="ds-ov__row" key={k}>
                     <input type="checkbox" checked={overlays[k]} onChange={() => toggleOverlay(k)} />
-                    <span>{k === 'print' ? 'Print area' : k === 'safe' ? 'Safe area' : 'Bleed'}</span>
+                    <span>{k === 'print' ? t('dsCanvas.overlay.print') : k === 'safe' ? t('dsCanvas.overlay.safe') : t('dsCanvas.overlay.bleed')}</span>
                   </label>
                 ))}
               </div>
@@ -631,24 +633,26 @@ export function StudioCanvas({
 
       {/* Stage */}
       <div className="ds-stage">
-        <div className="ds-toolrail" role="toolbar" aria-label="Studio tools" aria-orientation="vertical">
+        <div className="ds-toolrail" role="toolbar" aria-label={t('dsCanvas.toolrail.aria')} aria-orientation="vertical">
           {TOOL_GROUPS.map((group, gi) => (
-            <div className="ds-toolrail__group" key={group.name} role="group" aria-label={group.name}>
+            <div className="ds-toolrail__group" key={group.name} role="group" aria-label={t(`dsCanvas.group.${group.name.toLowerCase()}`)}>
               {gi > 0 && <span className="ds-toolrail__sep" aria-hidden />}
-              {group.tools.map((t) => {
-                const active = CANVAS_TOOLS.has(t.id) && tool === t.id
+              {group.tools.map((def) => {
+                const active = CANVAS_TOOLS.has(def.id) && tool === def.id
+                const label = t(`dsCanvas.tool.${def.id}.label`)
+                const hint = t(`dsCanvas.tool.${def.id}.hint`)
                 return (
                   <button
-                    key={t.id}
+                    key={def.id}
                     type="button"
-                    className={`ds-tool${active ? ' is-active' : ''}${t.soon ? ' is-soon' : ''}`}
-                    aria-label={t.soon ? `${t.label} (coming soon)` : t.label}
+                    className={`ds-tool${active ? ' is-active' : ''}${def.soon ? ' is-soon' : ''}`}
+                    aria-label={def.soon ? t('dsCanvas.tool.comingSoonLabel', { label }) : label}
                     aria-pressed={active}
-                    title={t.soon ? `${t.hint} · Coming soon` : t.hint}
-                    onClick={() => onToolClick(t)}
+                    title={def.soon ? t('dsCanvas.tool.comingSoonHint', { hint }) : hint}
+                    onClick={() => onToolClick(def)}
                   >
-                    <ToolGlyph tool={t.id} />
-                    {t.soon && <span className="ds-tool__soon" aria-hidden />}
+                    <ToolGlyph tool={def.id} />
+                    {def.soon && <span className="ds-tool__soon" aria-hidden />}
                   </button>
                 )
               })}
@@ -698,19 +702,19 @@ export function StudioCanvas({
             />
           )}
           {objectSelectionCount >= 2 && onAlign && (
-            <div className="cv-align" role="toolbar" aria-label="Align & distribute">
-              {ALIGN_TOOLS.map((t) => (
-                <button key={t.edge} type="button" title={t.label} aria-label={t.label} onClick={() => onAlign(t.edge)}>
-                  <AlignGlyph edge={t.edge} />
+            <div className="cv-align" role="toolbar" aria-label={t('dsCanvas.align.aria')}>
+              {ALIGN_TOOLS.map((a) => (
+                <button key={a.edge} type="button" title={t(`dsCanvas.align.${a.edge}`)} aria-label={t(`dsCanvas.align.${a.edge}`)} onClick={() => onAlign(a.edge)}>
+                  <AlignGlyph edge={a.edge} />
                 </button>
               ))}
               {objectSelectionCount >= 3 && onDistribute && (
                 <>
                   <span className="cv-align__sep" />
-                  <button type="button" title="Distribute horizontally" aria-label="Distribute horizontally" onClick={() => onDistribute('h')}>
+                  <button type="button" title={t('dsCanvas.distribute.h')} aria-label={t('dsCanvas.distribute.h')} onClick={() => onDistribute('h')}>
                     <AlignGlyph edge="dist-h" />
                   </button>
-                  <button type="button" title="Distribute vertically" aria-label="Distribute vertically" onClick={() => onDistribute('v')}>
+                  <button type="button" title={t('dsCanvas.distribute.v')} aria-label={t('dsCanvas.distribute.v')} onClick={() => onDistribute('v')}>
                     <AlignGlyph edge="dist-v" />
                   </button>
                 </>
@@ -724,15 +728,15 @@ export function StudioCanvas({
           >
             <div className="ds-garment-3d" ref={stageRef}>
               {showLabel && neckLabel ? (
-                <img className="ds-garment-photo ds-necklabel-view" src={neckLabel} alt={`${garmentName} — neck label`} draggable={false} />
+                <img className="ds-garment-photo ds-necklabel-view" src={neckLabel} alt={t('dsCanvas.alt.neckLabelOf', { name: garmentName })} draggable={false} />
               ) : garmentOverride ? (
                 // An AI garment applied to THIS page — shows on whichever page you applied it to.
-                <img className="ds-garment-photo" src={garmentOverride} alt={`${garmentName} — AI garment`} draggable={false} />
+                <img className="ds-garment-photo" src={garmentOverride} alt={t('dsCanvas.alt.aiGarmentOf', { name: garmentName })} draggable={false} />
               ) : isBasePage && (garmentSvgByView?.[activeView] || garmentSvg) ? (
                 <div
                   className="ds-garment-vector"
                   role="img"
-                  aria-label={`${garmentName}${garmentSvgByView?.[activeView] ? ` — ${activeView}` : ''}`}
+                  aria-label={garmentSvgByView?.[activeView] ? t('dsCanvas.alt.garmentView', { name: garmentName, view: activeView }) : garmentName}
                   dangerouslySetInnerHTML={{ __html: garmentSvgByView?.[activeView] ?? (garmentSvg as string) }}
                 />
               ) : isBasePage && garmentImage ? (
@@ -741,7 +745,7 @@ export function StudioCanvas({
                 <Glyph width="340" height="340" />
               ) : (
                 // A blank page with no garment of its own.
-                <div className="ds-garment-blank" role="img" aria-label="Blank page" />
+                <div className="ds-garment-blank" role="img" aria-label={t('dsCanvas.blankPage')} />
               )}
               {isBasePage && !garmentOverride && regionGarment && onSelectRegion && onMoveRegion && (
                 <StudioRegionLayer
@@ -770,8 +774,8 @@ export function StudioCanvas({
           <button
             type="button"
             className="cv-zoom-chip"
-            title="Reset zoom to 100%"
-            aria-label={`Zoom ${Math.round(zoom * 100)} percent — click to reset to 100%`}
+            title={t('dsCanvas.zoom.reset')}
+            aria-label={t('dsCanvas.zoom.aria', { pct: Math.round(zoom * 100) })}
             onClick={resetZoom}
           >
             {Math.round(zoom * 100)}%
@@ -783,21 +787,21 @@ export function StudioCanvas({
           Neck Label is always the last page. (Replaces the old "Garment Views" strip + top versions bar.) */}
       {(hasMultipleViews || !!onAddPage) &&
         (stripHidden ? (
-          <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title="Show pages">
-            <span>Pages</span>
+          <button className="cv-strip-bar" type="button" onClick={toggleStrip} aria-expanded={false} title={t('dsCanvas.pages.show')}>
+            <span>{t('dsCanvas.pages.title')}</span>
             <IcoChevron width="14" height="14" style={{ transform: 'rotate(180deg)' }} />
           </button>
         ) : (
           <div className="ds-techpack">
             <div className="ds-techpack__tabs">
-              <span className="ds-tp-title">Pages</span>
+              <span className="ds-tp-title">{t('dsCanvas.pages.title')}</span>
               <button
                 className="cv-strip-hide"
                 type="button"
                 onClick={toggleStrip}
                 aria-expanded
-                aria-label="Hide pages"
-                title="Hide panel — more room for the canvas"
+                aria-label={t('dsCanvas.pages.hide')}
+                title={t('dsCanvas.pages.hidePanel')}
               >
                 <IcoChevron width="14" height="14" />
               </button>
@@ -808,7 +812,7 @@ export function StudioCanvas({
               <button
                 className={`ds-flat${isBasePage && !showLabel ? ' is-active' : ''}`}
                 type="button"
-                title="Page 1 · Garment"
+                title={t('dsCanvas.pages.page1Garment')}
                 onClick={() => { if (pages && pages[0]) onSwitchPage?.(pages[0].id); setShowLabel(false) }}
               >
                 <div className="ds-flat__art">
@@ -825,7 +829,7 @@ export function StudioCanvas({
                     <Glyph width="66" height="66" />
                   )}
                 </div>
-                <span>Page 1</span>
+                <span>{t('dsCanvas.pages.page1')}</span>
               </button>
               {/* Every other page starts blank, but can carry its own AI garment (p.thumb). */}
               {(pages ?? []).slice(1).map((p, j) => (
@@ -833,17 +837,17 @@ export function StudioCanvas({
                   className={`ds-flat${activePageId === p.id && !showLabel ? ' is-active' : ''}`}
                   type="button"
                   key={p.id}
-                  title={`Page ${j + 2}${p.thumb ? '' : ' · Blank'}`}
+                  title={p.thumb ? t('dsCanvas.pages.pageN', { n: j + 2 }) : t('dsCanvas.pages.pageNBlank', { n: j + 2 })}
                   onClick={() => { onSwitchPage?.(p.id); setShowLabel(false) }}
                 >
                   <div className={`ds-flat__art${p.thumb ? '' : ' ds-flat__art--blank'}`}>
-                    {p.thumb && <img className="ds-flat__img" src={p.thumb} alt={`Page ${j + 2}`} draggable={false} />}
+                    {p.thumb && <img className="ds-flat__img" src={p.thumb} alt={t('dsCanvas.pages.pageN', { n: j + 2 })} draggable={false} />}
                     {onDeletePage && (
                       <span
                         className="ds-flat__edit"
                         role="button"
                         tabIndex={0}
-                        title="Delete page"
+                        title={t('dsCanvas.pages.delete')}
                         onClick={(e) => { e.stopPropagation(); onDeletePage(p.id) }}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onDeletePage(p.id) } }}
                       >
@@ -851,14 +855,14 @@ export function StudioCanvas({
                       </span>
                     )}
                   </div>
-                  <span>Page {j + 2}</span>
+                  <span>{t('dsCanvas.pages.pageN', { n: j + 2 })}</span>
                 </button>
               ))}
               {/* Add a new blank page */}
               {onAddPage && (
-                <button className="ds-flat ds-flat--label" type="button" title="Add a blank page" onClick={onAddPage}>
+                <button className="ds-flat ds-flat--label" type="button" title={t('dsCanvas.pages.addBlank')} onClick={onAddPage}>
                   <div className="ds-flat__art"><span className="ds-flat__add" aria-hidden="true">+</span></div>
-                  <span>New Page</span>
+                  <span>{t('dsCanvas.pages.newPage')}</span>
                 </button>
               )}
               {/* Neck Label — always the last page */}
@@ -866,12 +870,12 @@ export function StudioCanvas({
                 <button
                   className={`ds-flat ds-flat--label${neckLabel ? ' has-label' : ''}${showLabel ? ' is-active' : ''}`}
                   type="button"
-                  title={neckLabel ? 'View the neck label' : 'Create a neck label with AI'}
+                  title={neckLabel ? t('dsCanvas.neck.view') : t('dsCanvas.neck.create')}
                   onClick={() => (neckLabel ? setShowLabel(true) : onNeckLabel())}
                 >
                   <div className="ds-flat__art">
                     {neckLabel ? (
-                      <img className="ds-flat__img" src={neckLabel} alt="Neck label" draggable={false} />
+                      <img className="ds-flat__img" src={neckLabel} alt={t('dsCanvas.neck.alt')} draggable={false} />
                     ) : (
                       <span className="ds-flat__add" aria-hidden="true">+</span>
                     )}
@@ -880,7 +884,7 @@ export function StudioCanvas({
                         className="ds-flat__edit"
                         role="button"
                         tabIndex={0}
-                        title="Regenerate the neck label"
+                        title={t('dsCanvas.neck.regen')}
                         onClick={(e) => { e.stopPropagation(); onNeckLabel() }}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onNeckLabel() } }}
                       >
@@ -888,7 +892,7 @@ export function StudioCanvas({
                       </span>
                     )}
                   </div>
-                  <span>Neck Label</span>
+                  <span>{t('dsCanvas.neck.label')}</span>
                 </button>
               )}
             </div>

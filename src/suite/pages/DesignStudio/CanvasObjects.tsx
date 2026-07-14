@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { useT } from '@/i18n'
 import type { Layer } from './LayersPanel'
 import { GRAPHIC_MARKS, type CanvasObject } from './objectModel'
 import './canvas-objects.css'
@@ -29,6 +30,7 @@ type Drag =
 
 /** The editable object surface that sits over the garment's print area. */
 export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, onCommit, onEditText, overlays }: Props) {
+  const t = useT()
   const boxRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<Drag | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -176,14 +178,14 @@ export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, 
   return (
     <div className="co-box" ref={boxRef} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
       {/* Print-zone overlays (optional, hidden by default). Bleed sits outside, safe inside. */}
-      {overlays?.bleed && <span className="co-zone co-zone--bleed" aria-hidden><span className="co-zone__tag">Bleed</span></span>}
-      {overlays?.print && <span className="co-zone co-zone--print" aria-hidden><span className="co-zone__tag">Print area</span></span>}
-      {overlays?.safe && <span className="co-zone co-zone--safe" aria-hidden><span className="co-zone__tag">Safe area</span></span>}
+      {overlays?.bleed && <span className="co-zone co-zone--bleed" aria-hidden><span className="co-zone__tag">{t('dsCanvas.overlay.bleed')}</span></span>}
+      {overlays?.print && <span className="co-zone co-zone--print" aria-hidden><span className="co-zone__tag">{t('dsCanvas.overlay.print')}</span></span>}
+      {overlays?.safe && <span className="co-zone co-zone--safe" aria-hidden><span className="co-zone__tag">{t('dsCanvas.overlay.safe')}</span></span>}
       {/* Only warn about the print area when the user has actually turned that guide on —
           otherwise it's just noise (we have no real per-garment print zone to warn against). */}
       {overlays?.print && anyOutside && (
         <span className="co-warn" role="status">
-          {outside.length} object{outside.length === 1 ? '' : 's'} outside the print area
+          {outside.length === 1 ? t('dsCanvas.co.outsideOne') : t('dsCanvas.co.outsideMany', { n: outside.length })}
         </span>
       )}
       {snap.x != null && <span className="co-guide co-guide--v" style={{ left: `${snap.x * 100}%` }} aria-hidden />}
@@ -209,7 +211,7 @@ export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, 
             onPointerDown={(e) => onPointerDownBody(e, l)}
             onDoubleClick={() => o.type === 'text' && !l.locked && setEditing(l.id)}
           >
-            <ObjectContent obj={o} editing={editing === l.id} onText={(t) => { onEditText(l.id, t); onCommit() }} onDone={() => setEditing(null)} />
+            <ObjectContent obj={o} editing={editing === l.id} onText={(txt) => { onEditText(l.id, txt); onCommit() }} onDone={() => setEditing(null)} />
 
             {selected && editing !== l.id && <span className="co-frame" aria-hidden />}
             {showHandles && !l.locked && editing !== l.id && (
@@ -217,7 +219,7 @@ export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, 
                 <button
                   className="co-handle co-handle--rotate"
                   type="button"
-                  aria-label="Rotate"
+                  aria-label={t('dsCanvas.co.rotate')}
                   onPointerDown={(e) => onPointerDownHandle(e, l, 'rotate')}
                 >
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
@@ -230,7 +232,7 @@ export function CanvasObjects({ objects, hidden, selectedIds, onSelect, onLive, 
                     key={c}
                     className={`co-handle co-handle--${c}`}
                     type="button"
-                    aria-label={`Resize ${c}`}
+                    aria-label={t('dsCanvas.co.resizeCorner', { corner: c })}
                     onPointerDown={(e) => onPointerDownHandle(e, l, 'resize')}
                   />
                 ))}
@@ -254,6 +256,7 @@ function ObjectContent({
   onText: (t: string) => void
   onDone: () => void
 }) {
+  const t = useT()
   // Blend the artwork onto the garment (scoped to content so the selection frame stays crisp).
   const bm = obj.blendMode && obj.blendMode !== 'normal' ? obj.blendMode : undefined
   if (obj.type === 'text') {
@@ -294,7 +297,7 @@ function ObjectContent({
           mixBlendMode: bm,
         }}
       >
-        {obj.text || 'Text'}
+        {obj.text || t('dsCanvas.co.textFallback')}
       </span>
     )
   }

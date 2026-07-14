@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { categoryLabel } from '../types'
 import type { DetectedGarment, GarmentCategory, GarmentCategoryId, ImportProgress } from '../types'
@@ -19,6 +20,7 @@ type Props = {
 }
 
 export function ImportDialog({ open, onClose, onPublished }: Props) {
+  const t = useT()
   const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>('category')
@@ -68,7 +70,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
 
   async function handleFile(file: File) {
     if (!archiveKind(file.name)) {
-      setError('Unsupported file — upload a .zip or .rar garment pack.')
+      setError(t('garmentUi.import.errUnsupported'))
       return
     }
     revokeAll(detected)
@@ -82,7 +84,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
       setDetected(chosenCategory ? result.map((d) => ({ ...d, category: chosenCategory })) : result)
       setPhase('review')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Import failed.')
+      setError(err instanceof Error ? err.message : t('garmentUi.import.errFailed'))
       setPhase('idle')
     }
   }
@@ -131,12 +133,19 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
     })
     if (outcome.published.length) {
       toast(
-        `Published ${outcome.published.length} garment${outcome.published.length === 1 ? '' : 's'}.`,
+        outcome.published.length === 1
+          ? t('garmentUi.import.publishedOne')
+          : t('garmentUi.import.publishedMany', { n: outcome.published.length }),
         'success',
       )
     }
     if (outcome.failed.length) {
-      toast(`${outcome.failed.length} garment${outcome.failed.length === 1 ? '' : 's'} failed to publish.`, 'default')
+      toast(
+        outcome.failed.length === 1
+          ? t('garmentUi.import.failedOne')
+          : t('garmentUi.import.failedMany', { n: outcome.failed.length }),
+        'default',
+      )
     }
     onPublished()
     close()
@@ -147,14 +156,14 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
       <div className="gl-imp" onClick={(e) => e.stopPropagation()}>
         <header className="gl-imp__head">
           <div>
-            <h2>Import garment pack</h2>
+            <h2>{t('garmentUi.import.title')}</h2>
             <p>
               {phase === 'category'
-                ? 'First, choose the category this whole pack lands in — pick one or create your own.'
-                : 'Drop one .zip or .rar — loom studios extracts, groups and previews every garment automatically.'}
+                ? t('garmentUi.import.introCategory')
+                : t('garmentUi.import.introDrop')}
             </p>
           </div>
-          <button className="gl-modal__close" type="button" onClick={close} aria-label="Close">
+          <button className="gl-modal__close" type="button" onClick={close} aria-label={t('garmentUi.close')}>
             ×
           </button>
         </header>
@@ -172,14 +181,14 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
               <input
                 className="gl-imp__cat-input"
                 type="text"
-                placeholder="Create a new category… (e.g. Streetwear)"
+                placeholder={t('garmentUi.import.newCatPlaceholder')}
                 value={newCat}
                 onChange={(e) => setNewCat(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') void createAndPick() }}
-                aria-label="New category name"
+                aria-label={t('garmentUi.import.newCatAria')}
               />
               <button className="s-btn s-btn--accent" type="button" onClick={() => void createAndPick()} disabled={!newCat.trim() || creatingCat}>
-                {creatingCat ? 'Creating…' : 'Create & use'}
+                {creatingCat ? t('garmentUi.import.creating') : t('garmentUi.import.createUse')}
               </button>
             </div>
           </div>
@@ -211,21 +220,21 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                 <div className="gl-imp__bar">
                   <span style={{ width: `${Math.round((progress?.pct ?? 0) * 100)}%` }} />
                 </div>
-                <p>{progress?.message ?? 'Processing…'}</p>
+                <p>{progress?.message ?? t('garmentUi.import.processing')}</p>
               </div>
             ) : (
               <>
                 <div className="gl-imp__chosen">
-                  <span>Category: <strong>{chosenCategory ? categoryLabel(chosenCategory) : '—'}</strong></span>
-                  <button type="button" className="gl-imp__change" onClick={() => setPhase('category')}>Change</button>
+                  <span>{t('garmentUi.import.categoryLabel')} <strong>{chosenCategory ? categoryLabel(chosenCategory) : '—'}</strong></span>
+                  <button type="button" className="gl-imp__change" onClick={() => setPhase('category')}>{t('garmentUi.import.change')}</button>
                 </div>
                 <div className="gl-imp__drop-icon">⤓</div>
-                <strong>Drop the garment folder here</strong>
-                <span>every garment in it goes into “{chosenCategory ? categoryLabel(chosenCategory) : '—'}”</span>
+                <strong>{t('garmentUi.import.dropTitle')}</strong>
+                <span>{t('garmentUi.import.dropSub', { cat: chosenCategory ? categoryLabel(chosenCategory) : '—' })}</span>
                 <button className="s-btn s-btn--accent" type="button" onClick={() => inputRef.current?.click()}>
-                  Choose archive
+                  {t('garmentUi.import.chooseArchive')}
                 </button>
-                <small>.zip or .rar · AI, SVG, PNG, PDF, DXF, JPG, TTF supported</small>
+                <small>{t('garmentUi.import.formats')}</small>
                 {error && <p className="gl-imp__error">{error}</p>}
               </>
             )}
@@ -236,9 +245,10 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
           <>
             <div className="gl-imp__reviewbar">
               <span>
-                Detected <strong>{detected.length}</strong> garment{detected.length === 1 ? '' : 's'} · {includedCount} selected
+                {t('garmentUi.import.detectedPre')} <strong>{detected.length}</strong>{' '}
+                {detected.length === 1 ? t('garmentUi.import.garmentOne') : t('garmentUi.import.garmentMany')} · {t('garmentUi.import.selected', { n: includedCount })}
                 {noLayersCount > 0 && (
-                  <span className="gl-imp__blocked"> · {noLayersCount} blocked (no layers)</span>
+                  <span className="gl-imp__blocked"> · {t('garmentUi.import.blocked', { n: noLayersCount })}</span>
                 )}
               </span>
               <span className="gl-imp__src">{sourceName}</span>
@@ -246,7 +256,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
             <div className="gl-imp__review">
               {detected.map((d) => (
                 <div key={d.tempId} className={`gl-imp__item${d.include ? '' : ' is-off'}${d.regionCount === 0 ? ' gl-imp__item--nolayers' : ''}`}>
-                  <label className="gl-imp__check" title={d.regionCount === 0 ? 'No editable layers — this garment cannot be published' : 'Include in publish'}>
+                  <label className="gl-imp__check" title={d.regionCount === 0 ? t('garmentUi.import.noLayersTitle') : t('garmentUi.import.includeTitle')}>
                     <input
                       type="checkbox"
                       checked={d.include}
@@ -262,14 +272,14 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                       className="gl-imp__name"
                       value={d.name}
                       onChange={(e) => updateItem(d.tempId, { name: e.target.value })}
-                      aria-label="Garment name"
+                      aria-label={t('garmentUi.import.nameAria')}
                     />
                     <div className="gl-imp__row">
                       <select
                         className="gl-imp__cat"
                         value={d.category}
                         onChange={(e) => updateItem(d.tempId, { category: e.target.value as GarmentCategoryId })}
-                        aria-label="Category"
+                        aria-label={t('garmentUi.import.categoryAria')}
                       >
                         {categories.map((c) => (
                           <option key={c.id} value={c.id}>
@@ -277,7 +287,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                           </option>
                         ))}
                       </select>
-                      <label className="gl-imp__price" title="Coin price in the Garment Shop (0 = free)">
+                      <label className="gl-imp__price" title={t('garmentUi.import.priceTitle')}>
                         <IcoCoins width="13" height="13" />
                         <input
                           type="number"
@@ -285,21 +295,21 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                           step={5}
                           value={d.price}
                           onChange={(e) => updateItem(d.tempId, { price: Math.max(0, Math.round(Number(e.target.value) || 0)) })}
-                          aria-label="Coin price"
+                          aria-label={t('garmentUi.import.priceAria')}
                         />
                       </label>
                       <span
                         className={`gl-imp__health gl-imp__health--${d.health.status}`}
-                        title={d.health.issues.join(' · ') || 'Ready to publish'}
+                        title={d.health.issues.join(' · ') || t('garmentUi.import.readyToPublish')}
                       >
                         {d.health.status}
                       </span>
                     </div>
                     <div className="gl-imp__row gl-imp__meta">
-                      <span>{d.files.length} files</span>
+                      <span>{t('garmentUi.import.filesCount', { n: d.files.length })}</span>
                       <span className="gl-imp__views">{viewsSummary(d.views)}</span>
                       <span className={`gl-imp__layers${d.regionCount === 0 ? ' gl-imp__layers--none' : ''}`}>
-                        {d.regionCount > 0 ? `${d.regionCount} layers` : 'No layers — re-upload as vector'}
+                        {d.regionCount > 0 ? t('garmentUi.import.layersCount', { n: d.regionCount }) : t('garmentUi.import.noLayersReupload')}
                       </span>
                     </div>
                   </div>
@@ -308,7 +318,7 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
             </div>
             <footer className="gl-imp__foot">
               <button className="s-btn" type="button" onClick={reset} disabled={phase === 'publishing'}>
-                Start over
+                {t('garmentUi.import.startOver')}
               </button>
               <button
                 className="s-btn s-btn--accent"
@@ -316,7 +326,11 @@ export function ImportDialog({ open, onClose, onPublished }: Props) {
                 onClick={publish}
                 disabled={includedCount === 0 || phase === 'publishing'}
               >
-                {phase === 'publishing' ? 'Publishing…' : `Publish ${includedCount} garment${includedCount === 1 ? '' : 's'}`}
+                {phase === 'publishing'
+                  ? t('garmentUi.import.publishing')
+                  : includedCount === 1
+                    ? t('garmentUi.import.publishOne')
+                    : t('garmentUi.import.publishMany', { n: includedCount })}
               </button>
             </footer>
           </>

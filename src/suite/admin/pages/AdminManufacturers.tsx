@@ -1,9 +1,11 @@
 import { useStore } from '../../data/store'
+import { useT } from '../../../i18n'
 import { useToast } from '../../components/ui/Toast'
 import { IcoStar } from '../../components/ui/Icons'
 
 export function AdminManufacturers() {
   const { data, mutate } = useStore()
+  const t = useT()
   const toast = useToast()
 
   function toggleVerified(id: string, name: string, verified: boolean) {
@@ -11,15 +13,15 @@ export function AdminManufacturers() {
       ...d,
       manufacturers: d.manufacturers.map((m) => (m.id === id ? { ...m, verified: !verified } : m)),
     }))
-    toast(`${name} ${verified ? 'unverified' : 'verified'}.`, verified ? 'default' : 'success')
+    toast(verified ? t('adminPages.manufacturers.toast.unverified', { name }) : t('adminPages.manufacturers.toast.verified', { name }), verified ? 'default' : 'success')
   }
 
   return (
     <div>
       <header style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>Manufacturers</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('adminPages.manufacturers.title')}</h1>
         <p style={{ marginTop: 8, fontSize: 14, color: 'var(--s-text-2)' }}>
-          {data.manufacturers.length} factories · {data.manufacturers.filter((m) => m.verified).length} verified.
+          {t('adminPages.manufacturers.subtitle', { total: data.manufacturers.length, verified: data.manufacturers.filter((m) => m.verified).length })}
         </p>
       </header>
 
@@ -27,12 +29,12 @@ export function AdminManufacturers() {
         <table className="adm-table">
           <thead>
             <tr>
-              <th>Factory</th>
-              <th>Location</th>
-              <th>Rating</th>
-              <th>MOQ</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
+              <th>{t('adminPages.col.factory')}</th>
+              <th>{t('adminPages.col.location')}</th>
+              <th>{t('adminPages.col.rating')}</th>
+              <th>{t('adminPages.col.moq')}</th>
+              <th>{t('adminPages.col.status')}</th>
+              <th style={{ textAlign: 'right' }}>{t('adminPages.col.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -50,13 +52,13 @@ export function AdminManufacturers() {
                 <td>{m.moq}</td>
                 <td>
                   <span className={`adm-badge ${m.verified ? 'adm-badge--active' : 'adm-badge--muted'}`}>
-                    {m.verified ? 'verified' : 'pending'}
+                    {m.verified ? t('adminPages.manufacturers.verified') : t('adminPages.manufacturers.pending')}
                   </span>
                 </td>
                 <td>
                   <div className="adm-row-actions">
                     <button className="adm-mini-btn" type="button" onClick={() => toggleVerified(m.id, m.name, m.verified)}>
-                      {m.verified ? 'Unverify' : 'Verify'}
+                      {m.verified ? t('adminPages.manufacturers.unverify') : t('adminPages.manufacturers.verify')}
                     </button>
                   </div>
                 </td>

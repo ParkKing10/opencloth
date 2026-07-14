@@ -10,6 +10,7 @@ import {
   IcoCommunity,
   IcoMarketplace,
   IcoAnalytics,
+  IcoBolt,
   IcoSettings,
   IcoCoins,
   IcoChevron,
@@ -18,24 +19,27 @@ import {
 } from './ui/Icons'
 import { useAuth } from '../auth/auth'
 import { useStorageEstimate } from '../lib/useStorageEstimate'
+import { useT } from '@/i18n'
 import loomLogo from '../../assets/loom-logo.png'
 import './sidebar.css'
 
-type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: string }
+type NavItem = { to: string; label: string; icon: typeof IcoDashboard; end?: boolean; badge?: boolean }
 
+// `label` holds the i18n key; it is translated at render.
 const PRIMARY: NavItem[] = [
-  { to: '/suite', label: 'Dashboard', icon: IcoDashboard, end: true },
-  { to: '/suite/shop', label: 'Garment Shop', icon: IcoMarketplace },
-  { to: '/suite/garments', label: 'Garments Studio', icon: IcoAI },
-  { to: '/suite/design', label: 'Design Studio', icon: IcoDesign },
-  { to: '/suite/ai', label: 'AI Designer', icon: IcoAI, badge: 'NEW' },
-  { to: '/suite/collections', label: 'Collections', icon: IcoCollections },
-  { to: '/suite/assets', label: 'Assets', icon: IcoGrid },
-  { to: '/suite/manufacturers', label: 'Manufacturers', icon: IcoFactory },
-  { to: '/suite/community', label: 'Community', icon: IcoCommunity },
-  { to: '/suite/marketplace', label: 'Marketplace', icon: IcoMarketplace },
-  { to: '/suite/analytics', label: 'Analytics', icon: IcoAnalytics },
-  { to: '/suite/settings', label: 'Settings', icon: IcoSettings },
+  { to: '/suite', label: 'nav.dashboard', icon: IcoDashboard, end: true },
+  { to: '/suite/shop', label: 'nav.shop', icon: IcoMarketplace },
+  { to: '/suite/garments', label: 'nav.garments', icon: IcoAI },
+  { to: '/suite/design', label: 'nav.design', icon: IcoDesign },
+  { to: '/suite/ai', label: 'nav.ai', icon: IcoAI, badge: true },
+  { to: '/suite/collections', label: 'nav.collections', icon: IcoCollections },
+  { to: '/suite/assets', label: 'nav.assets', icon: IcoGrid },
+  { to: '/suite/manufacturers', label: 'nav.manufacturers', icon: IcoFactory },
+  { to: '/suite/community', label: 'nav.community', icon: IcoCommunity },
+  { to: '/suite/marketplace', label: 'nav.marketplace', icon: IcoMarketplace },
+  { to: '/suite/analytics', label: 'nav.analytics', icon: IcoAnalytics },
+  { to: '/suite/explainer', label: 'nav.explainer', icon: IcoBolt, badge: true },
+  { to: '/suite/settings', label: 'nav.settings', icon: IcoSettings },
 ]
 
 function initials(name: string): string {
@@ -46,6 +50,7 @@ function initials(name: string): string {
 export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: () => void } = {}) {
   const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
+  const t = useT()
   const [menuOpen, setMenuOpen] = useState(false)
 
   // Real browser-reported storage for this workspace — never a fabricated figure.
@@ -58,7 +63,7 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
       <aside className={`sb${open ? ' is-open' : ''}`}>
       <div className="sb__brand">
         <img className="sb__logo" src={loomLogo} alt="loom studios" />
-        <span className="sb__tag">Design. Build. Brand.</span>
+        <span className="sb__tag">{t('shell.tag')}</span>
       </div>
 
       <nav className="sb__nav" aria-label="Suite Navigation">
@@ -72,15 +77,15 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
           >
             <span className="sb__glow" aria-hidden="true" />
             <Icon className="sb__ico" width="19" height="19" />
-            <span className="sb__label">{label}</span>
-            {badge && <span className="sb__badge">{badge}</span>}
+            <span className="sb__label">{t(label)}</span>
+            {badge && <span className="sb__badge">{t('common.new_badge')}</span>}
           </NavLink>
         ))}
         {isAdmin && (
           <NavLink to="/admin" onClick={onClose} className={({ isActive }) => `sb__item${isActive ? ' is-active' : ''}`}>
             <span className="sb__glow" aria-hidden="true" />
             <IcoShield className="sb__ico" width="19" height="19" />
-            <span className="sb__label">Admin Console</span>
+            <span className="sb__label">{t('nav.admin')}</span>
           </NavLink>
         )}
       </nav>
@@ -92,18 +97,18 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               <IcoCoins className="sb__coins-ico" width="17" height="17" />
               <span>
                 <b>{(user?.coins ?? 0).toLocaleString()}</b>
-                <small>Coins</small>
+                <small>{t('shell.coins')}</small>
               </span>
             </span>
             <button className="sb__buy" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
-              Buy
+              {t('shell.buy')}
             </button>
           </div>
 
           <div className="sb__storage">
             <div className="sb__storage-top">
-              <span>Storage</span>
-              <span className="sb__storage-pct" title={storage.ready ? storage.label : 'Measuring…'}>
+              <span>{t('shell.storage')}</span>
+              <span className="sb__storage-pct" title={storage.ready ? storage.label : t('shell.measuring')}>
                 {!storage.ready ? '…' : storage.pct && storage.pct > 0 ? `${storage.pct}%` : storage.usedLabel}
               </span>
             </div>
@@ -117,11 +122,11 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
 
         <div className="sb__plan">
           <div className="sb__plan-info">
-            <span className="sb__plan-label">Current plan</span>
-            <span className="sb__plan-name">{user?.plan ?? 'Free'}</span>
+            <span className="sb__plan-label">{t('shell.currentPlan')}</span>
+            <span className="sb__plan-name">{user?.plan ?? t('common.free')}</span>
           </div>
           <button className="sb__upgrade" type="button" onClick={() => navigate('/suite/settings?section=billing')}>
-            Upgrade
+            {t('shell.upgrade')}
           </button>
         </div>
 
@@ -131,15 +136,15 @@ export function Sidebar({ open = false, onClose }: { open?: boolean; onClose?: (
               <div className="sb__menu-scrim" onClick={() => setMenuOpen(false)} />
               <div className="sb__menu">
                 <button className="sb__menu-item" type="button" onClick={() => { setMenuOpen(false); navigate('/suite/settings') }}>
-                  <IcoSettings width="16" height="16" /> Settings
+                  <IcoSettings width="16" height="16" /> {t('common.settings')}
                 </button>
                 {isAdmin && (
                   <button className="sb__menu-item" type="button" onClick={() => { setMenuOpen(false); navigate('/admin') }}>
-                    <IcoShield width="16" height="16" /> Admin console
+                    <IcoShield width="16" height="16" /> {t('shell.adminConsole')}
                   </button>
                 )}
                 <button className="sb__menu-item sb__menu-item--danger" type="button" onClick={() => { logout(); navigate('/login') }}>
-                  <IcoLogout width="16" height="16" /> Log out
+                  <IcoLogout width="16" height="16" /> {t('common.logout')}
                 </button>
               </div>
             </>

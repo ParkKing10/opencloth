@@ -1,0 +1,43 @@
+/* Compact EN/DE segmented switch. Theme-agnostic: uses suite tokens when present, with fallbacks. */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--s-line, rgba(255, 255, 255, 0.12));
+  background: var(--s-panel, rgba(255, 255, 255, 0.04));
+  flex-shrink: 0;
+}
+.lang-toggle__opt {
+  min-width: 34px;
+  height: 26px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--s-text-3, #8a8a95);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease;
+}
+.lang-toggle__opt:hover {
+  color: var(--s-text, #f4f4f6);
+}
+.lang-toggle__opt.is-active {
+  color: var(--s-accent-ink, #10120a);
+  background: var(--s-accent, #c9f24a);
+}
+
+/* Ghost variant for busy/marketing bars — lighter chrome until hovered. */
+.lang-toggle--ghost {
+  background: transparent;
+  border-color: transparent;
+}
+.lang-toggle--ghost .lang-toggle__opt.is-active {
+  color: var(--s-text, #f4f4f6);
+  background: var(--s-panel-2, rgba(255, 255, 255, 0.1));
+}

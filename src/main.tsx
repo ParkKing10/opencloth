@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/global.css'
 import { App } from './App'
 import { initTheme } from './suite/theme'
+import { I18nProvider } from '@/i18n'
 import { StoreProvider } from './suite/data/store'
 import { AuthProvider, RequireAuth, RequireAdmin } from './suite/auth/auth'
 import { ToastProvider } from './suite/components/ui/Toast'
@@ -27,6 +28,7 @@ import { Community } from './suite/pages/Community/Community'
 import { Marketplace } from './suite/pages/Marketplace/Marketplace'
 import { GarmentShop } from './suite/pages/Shop/GarmentShop'
 import { Analytics } from './suite/pages/Analytics/Analytics'
+import { Explainer } from './suite/pages/Explainer/Explainer'
 import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
 import { AdminOverview } from './suite/admin/pages/AdminOverview'
@@ -42,6 +44,7 @@ initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    <I18nProvider>
     <BrowserRouter>
       <StoreProvider>
         <AuthProvider>
@@ -94,6 +97,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="community" element={<Community />} />
                 <Route path="marketplace" element={<Marketplace />} />
                 <Route path="analytics" element={<Analytics />} />
+                <Route path="explainer" element={<Explainer />} />
                 <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/suite" replace />} />
               </Route>
@@ -126,5 +130,6 @@ createRoot(document.getElementById('root')!).render(
         </AuthProvider>
       </StoreProvider>
     </BrowserRouter>
+    </I18nProvider>
   </StrictMode>,
 )

@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/auth'
 import { DEMO_CREDENTIALS } from '../../data/seed'
 import { isSupabaseConfigured } from '../../../lib/supabase'
 import { AuthBrand } from './AuthBrand'
+import loomMark from '../../../assets/loom-mark.png'
 import './auth-screen.css'
 
 type LocationState = { from?: string }
@@ -61,6 +62,7 @@ export function Login() {
             ← {t('auth.backToSite')}
           </Link>
           <LanguageToggle variant="ghost" />
+          <img className="auth__mark" src={loomMark} alt="loom studios" width="52" height="52" />
           <div className="auth__card">
             <h1 className="auth__title">{t('auth.login.title')}</h1>
             <p className="auth__sub">{t('auth.login.sub')}</p>

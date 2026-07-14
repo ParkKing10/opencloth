@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useT, LanguageToggle } from '@/i18n'
 import { useAuth } from '../../auth/auth'
 import { AuthBrand } from './AuthBrand'
+import loomMark from '../../../assets/loom-mark.png'
 import './auth-screen.css'
 
 export function Signup() {
@@ -40,6 +41,7 @@ export function Signup() {
             ← {t('auth.backToSite')}
           </Link>
           <LanguageToggle variant="ghost" />
+          <img className="auth__mark" src={loomMark} alt="loom studios" width="52" height="52" />
           <div className="auth__card">
             <h1 className="auth__title">{t('auth.signup.title')}</h1>
             <p className="auth__sub">{t('auth.signup.sub')}</p>

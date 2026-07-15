@@ -1,0 +1,870 @@
+/* Community 2.0 (“chub”) — hero + weekly challenge, tab pills, the Lounge chat, and the
+   feedback/collab boards. Avatar gradients (com-av / com-grad-*) come from com.css. */
+
+.chub {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────────────────── */
+
+.chub-hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 26px;
+  padding: 28px;
+  border-radius: 22px;
+  border: 1px solid var(--s-line-2);
+  background:
+    radial-gradient(120% 160% at 0% 0%, color-mix(in oklab, var(--s-accent) 14%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--s-panel-2), var(--s-panel));
+}
+.chub-hero__glow {
+  position: absolute;
+  right: -80px;
+  top: -120px;
+  width: 380px;
+  height: 380px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in oklab, var(--s-accent) 22%, transparent), transparent 65%);
+  filter: blur(10px);
+  z-index: -1;
+  pointer-events: none;
+}
+.chub-hero__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  min-width: 0;
+}
+.chub-hero__title {
+  margin: 0;
+  font-size: clamp(24px, 2.6vw, 34px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--s-text);
+}
+.chub-hero__sub {
+  margin: 0;
+  max-width: 52ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--s-text-3);
+}
+.chub-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.chub-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line-2);
+  background: color-mix(in oklab, var(--s-panel) 70%, transparent);
+  font-size: 12.5px;
+  color: var(--s-text-3);
+}
+.chub-stat b {
+  color: var(--s-text);
+  font-size: 13px;
+}
+.chub-online__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--s-good, #3fcf8e);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--s-good, #3fcf8e) 55%, transparent);
+  animation: chub-pulse 2.2s ease-out infinite;
+  flex-shrink: 0;
+}
+@keyframes chub-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--s-good, #3fcf8e) 45%, transparent); }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chub-online__dot { animation: none; }
+}
+
+/* Weekly challenge card */
+.chub-challenge {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in oklab, var(--s-accent) 35%, var(--s-line-2));
+  background: color-mix(in oklab, var(--s-panel) 78%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 12px 34px color-mix(in oklab, var(--s-accent) 10%, transparent);
+}
+.chub-challenge__kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--s-accent-2);
+}
+.chub-challenge__reward {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--s-accent) 18%, transparent);
+  color: var(--s-accent-2);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.chub-challenge__theme {
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--s-text);
+}
+.chub-challenge__hint {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--s-text-3);
+}
+.chub-challenge__cta {
+  justify-content: center;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.chub-localnote {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--s-text-3);
+  padding: 9px 14px;
+  border-radius: var(--s-r, 10px);
+  border: 1px dashed var(--s-line-2);
+  background: var(--s-panel);
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────────────────────────── */
+
+.chub-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chub-tabbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: var(--s-r-pill, 999px);
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease), color var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
+}
+.chub-tabbtn:hover {
+  background: var(--s-panel-2);
+  color: var(--s-text);
+}
+.chub-tabbtn.is-active {
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+  color: var(--s-accent-ink, #14141a);
+}
+.chub-livepill {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--s-good, #3fcf8e) 22%, transparent);
+  color: var(--s-good, #3fcf8e);
+}
+.chub-tabbtn.is-active .chub-livepill {
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+}
+
+/* ── Lounge ───────────────────────────────────────────────────────────────────────────── */
+
+.chub-lounge {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.chub-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chub-chan {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 14px;
+  border: 1px solid var(--s-line);
+  background: var(--s-panel);
+  color: var(--s-text-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--s-dur) var(--s-ease), border-color var(--s-dur) var(--s-ease);
+}
+.chub-chan:hover {
+  background: var(--s-panel-2);
+}
+.chub-chan.is-active {
+  border-color: color-mix(in oklab, var(--s-accent) 55%, var(--s-line));
+  background: color-mix(in oklab, var(--s-accent) 9%, var(--s-panel));
+}
+.chub-chan__hash {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--s-accent-2);
+  line-height: 1.2;
+}
+.chub-chan__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chub-chan__text b {
+  font-size: 13.5px;
+  color: var(--s-text);
+}
+.chub-chan__text small {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--s-text-3);
+}
+
+.chub-chat {
+  display: flex;
+  flex-direction: column;
+  height: 620px;
+  border-radius: 18px;
+  border: 1px solid var(--s-line-2);
+  background: var(--s-panel);
+  overflow: hidden;
+}
+.chub-chat__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--s-line);
+  background: color-mix(in oklab, var(--s-panel-2) 65%, transparent);
+}
+.chub-chat__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--s-text);
+  white-space: nowrap;
+}
+.chub-chat__desc {
+  font-size: 12px;
+  color: var(--s-text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chub-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--s-good, #3fcf8e);
+  white-space: nowrap;
+}
+
+.chub-msgs {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chub-chat__empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-align: center;
+  color: var(--s-text-3);
+  font-size: 13px;
+}
+.chub-chat__empty b {
+  color: var(--s-text-2);
+  font-size: 14.5px;
+}
+.chub-day {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 4px;
+  color: var(--s-text-4, var(--s-text-3));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.chub-day::before,
+.chub-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--s-line);
+}
+.chub-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.chub-msg.is-grouped {
+  padding-left: 38px;
+  margin-top: -6px;
+}
+.chub-msg__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.chub-msg__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.chub-msg__meta b {
+  font-size: 12.5px;
+  color: var(--s-text);
+}
+.chub-msg__meta small {
+  font-size: 10.5px;
+  color: var(--s-text-4, var(--s-text-3));
+}
+.chub-msg__text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--s-text-2);
+  overflow-wrap: anywhere;
+}
+.chub-msg.is-own .chub-msg__text {
+  color: var(--s-text);
+}
+.chub-msg.is-own .chub-msg__meta b {
+  color: var(--s-accent-2);
+}
+
+.chub-composer {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 12px 14px;
+  border-top: 1px solid var(--s-line);
+  background: color-mix(in oklab, var(--s-panel-2) 55%, transparent);
+}
+.chub-composer textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 120px;
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: var(--s-inset, var(--s-panel-2));
+  color: var(--s-text);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 10px 13px;
+}
+.chub-composer textarea:focus {
+  outline: none;
+  border-color: var(--s-accent-line, var(--s-accent));
+}
+.chub-send {
+  flex-shrink: 0;
+}
+
+/* ── Boards ───────────────────────────────────────────────────────────────────────────── */
+
+.chub-board {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.chub-board__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.chub-board__head h2 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--s-text);
+}
+.chub-board__head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--s-text-3);
+}
+.chub-board__empty {
+  margin: 0;
+  padding: 26px;
+  text-align: center;
+  border: 1px dashed var(--s-line-2);
+  border-radius: 16px;
+  color: var(--s-text-3);
+  font-size: 13.5px;
+}
+.chub-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.chub-post {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--s-line-2);
+  background: var(--s-panel);
+  transition: border-color var(--s-dur) var(--s-ease), transform var(--s-dur) var(--s-ease);
+}
+.chub-post:hover {
+  border-color: var(--s-line-strong, var(--s-line-2));
+}
+.chub-post__media {
+  margin: -16px -16px 2px;
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+  background: var(--s-panel-2);
+}
+.chub-post__media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.chub-post__tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.chub-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--s-panel-3, var(--s-panel-2));
+  color: var(--s-text-3);
+}
+.chub-tag--seeking {
+  background: color-mix(in oklab, var(--s-accent) 20%, transparent);
+  color: var(--s-accent-2);
+}
+.chub-tag--offering {
+  background: color-mix(in oklab, var(--s-info, #6aa7ff) 20%, transparent);
+  color: var(--s-info, #6aa7ff);
+}
+.chub-tag--challenge {
+  background: color-mix(in oklab, var(--s-warn, #e5a44d) 20%, transparent);
+  color: var(--s-warn, #e5a44d);
+}
+.chub-post__title {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--s-text);
+}
+.chub-post__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--s-text-3);
+}
+.chub-post__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.chub-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chub-author__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.chub-author__text b {
+  font-size: 12px;
+  color: var(--s-text-2);
+}
+.chub-author__text small {
+  font-size: 10.5px;
+  color: var(--s-text-4, var(--s-text-3));
+}
+.chub-post__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.chub-vote {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--s-line);
+  background: transparent;
+  color: var(--s-text-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--s-dur) var(--s-ease);
+}
+.chub-vote:hover {
+  border-color: var(--s-accent-line, var(--s-accent));
+  color: var(--s-text);
+}
+.chub-vote.is-on {
+  background: color-mix(in oklab, var(--s-accent) 18%, transparent);
+  border-color: color-mix(in oklab, var(--s-accent) 45%, var(--s-line));
+  color: var(--s-accent-2);
+}
+.chub-replybtn {
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--s-text-3);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chub-replybtn:hover,
+.chub-replybtn.is-open {
+  color: var(--s-text);
+}
+.chub-chatbtn {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.chub-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--s-line);
+}
+.chub-replyrow {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+}
+.chub-replyrow__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.chub-replyrow__body p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--s-text-2);
+  overflow-wrap: anywhere;
+}
+.chub-replybox {
+  display: flex;
+  gap: 8px;
+}
+.chub-replybox input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--s-line);
+  border-radius: 10px;
+  background: var(--s-inset, var(--s-panel-2));
+  color: var(--s-text);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+.chub-replybox input:focus {
+  outline: none;
+  border-color: var(--s-accent-line, var(--s-accent));
+}
+
+/* ── Create-post dialog ───────────────────────────────────────────────────────────────── */
+
+.chub-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 240;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 8, 12, 0.6);
+  backdrop-filter: blur(6px);
+}
+.chub-dlg {
+  width: min(560px, 100%);
+  max-height: min(86vh, 720px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px;
+  border-radius: 20px;
+  border: 1px solid var(--s-line-2);
+  background: var(--s-panel);
+  box-shadow: var(--s-shadow-lg, 0 24px 70px rgba(0, 0, 0, 0.5));
+}
+.chub-dlg__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.chub-dlg__head h2 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  color: var(--s-text);
+}
+.chub-dlg__x {
+  border: none;
+  background: none;
+  color: var(--s-text-3);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.chub-dlg__x:hover {
+  color: var(--s-text);
+}
+.chub-dlg__challenge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--s-accent-2);
+  background: color-mix(in oklab, var(--s-accent) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--s-accent) 30%, transparent);
+}
+.chub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.chub-field > span {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--s-text-3);
+}
+.chub-field input,
+.chub-field textarea {
+  border: 1px solid var(--s-line);
+  border-radius: 12px;
+  background: var(--s-inset, var(--s-panel-2));
+  color: var(--s-text);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  padding: 10px 13px;
+  resize: none;
+}
+.chub-field input:focus,
+.chub-field textarea:focus {
+  outline: none;
+  border-color: var(--s-accent-line, var(--s-accent));
+}
+.chub-modes {
+  display: flex;
+  gap: 8px;
+}
+.chub-mode {
+  flex: 1;
+  padding: 9px;
+  border-radius: 11px;
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  color: var(--s-text-3);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+}
+.chub-mode--seek.is-on {
+  background: color-mix(in oklab, var(--s-accent) 18%, transparent);
+  border-color: color-mix(in oklab, var(--s-accent) 50%, var(--s-line));
+  color: var(--s-accent-2);
+}
+.chub-mode--offer.is-on {
+  background: color-mix(in oklab, var(--s-info, #6aa7ff) 18%, transparent);
+  border-color: color-mix(in oklab, var(--s-info, #6aa7ff) 50%, var(--s-line));
+  color: var(--s-info, #6aa7ff);
+}
+.chub-topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.chub-topic {
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--s-line);
+  background: var(--s-panel-2);
+  color: var(--s-text-3);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.chub-topic.is-on {
+  background: color-mix(in oklab, var(--s-accent) 16%, transparent);
+  border-color: color-mix(in oklab, var(--s-accent) 45%, var(--s-line));
+  color: var(--s-accent-2);
+}
+.chub-dlg__none {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--s-text-3);
+}
+.chub-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+.chub-pick {
+  padding: 0;
+  border: 2px solid var(--s-line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--s-panel-2);
+  cursor: pointer;
+  transition: border-color var(--s-dur) var(--s-ease);
+}
+.chub-pick img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.chub-pick.is-on {
+  border-color: var(--s-accent);
+}
+.chub-dlg__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .chub-hero {
+    grid-template-columns: 1fr;
+    padding: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chub-lounge {
+    grid-template-columns: 1fr;
+  }
+  .chub-rail {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chub-chan {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 9px 13px;
+  }
+  .chub-chan__text small {
+    display: none;
+  }
+  .chub-chat {
+    height: min(66vh, 560px);
+  }
+  .chub-chat__desc {
+    display: none;
+  }
+  .chub-grid {
+    grid-template-columns: 1fr;
+  }
+  .chub-hero__glow {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .chub-hero {
+    padding: 18px;
+  }
+  .chub-tabs {
+    gap: 6px;
+  }
+  .chub-tabbtn {
+    padding: 8px 12px;
+    font-size: 12.5px;
+  }
+  .chub-composer {
+    padding: 10px;
+  }
+}

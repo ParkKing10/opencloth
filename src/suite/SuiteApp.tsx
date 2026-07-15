@@ -9,6 +9,8 @@ import { AuthGate } from './components/AuthGate'
 import { GuestWall } from './components/GuestWall'
 import { requestTour } from './onboarding/tourBus'
 import { useAuth } from './auth/auth'
+import { useToast } from './components/ui/Toast'
+import { useT } from '@/i18n'
 import './suite.css'
 
 const POST_SIGNUP_KEY = 'threados-post-signup'
@@ -16,6 +18,8 @@ const POST_SIGNUP_KEY = 'threados-post-signup'
 export function SuiteApp() {
   const { pathname } = useLocation()
   const { user, initializing } = useAuth()
+  const toast = useToast()
+  const t = useT()
   // Off-canvas nav drawer state (only visible on compact/phone viewports).
   const [navOpen, setNavOpen] = useState(false)
   // Guest auth gate — opened when a visitor without an account clicks anything real.
@@ -35,6 +39,21 @@ export function SuiteApp() {
   useEffect(() => {
     if (user && localStorage.getItem(POST_SIGNUP_KEY)) setPostSignup(true)
   }, [user])
+
+  // Persistence failures (cloud reconcile / local quota) surface as a toast — they used to be
+  // console-only while the UI kept claiming success. Throttled so bursts don't spam.
+  useEffect(() => {
+    let last = 0
+    const h = (e: Event) => {
+      const now = Date.now()
+      if (now - last < 30_000) return
+      last = now
+      const kind = (e as CustomEvent).detail
+      toast(t(kind === 'local' ? 'sync.localFull' : 'sync.cloudFail'), 'info')
+    }
+    window.addEventListener('loom:sync-error', h)
+    return () => window.removeEventListener('loom:sync-error', h)
+  }, [toast, t])
   const finishPostSignup = () => {
     localStorage.removeItem(POST_SIGNUP_KEY)
     setPostSignup(false)

@@ -153,6 +153,9 @@ export const dsMain: LocaleBundle = {
     // ---- Toasts ----
     'dsMain.toast.storageFull':
       'Storage is full — recent changes may not be saved. Export your work, or remove heavy images/versions.',
+    'dsMain.toast.docElsewhere':
+      'This design was created on another device — its contents are stored there. You can start fresh here.',
+    'dsMain.toast.designUnavailable': 'This design is not available on this device — showing your designs instead.',
     'dsMain.toast.neckLabelAdded': 'Neck label added to the garment.',
     'dsMain.toast.garmentApplied': 'Garment applied to this page — start designing on top.',
     'dsMain.toast.blankPageAdded': 'Blank page added.',
@@ -374,6 +377,9 @@ export const dsMain: LocaleBundle = {
     // ---- Toasts ----
     'dsMain.toast.storageFull':
       'Der Speicher ist voll – aktuelle Änderungen werden möglicherweise nicht gespeichert. Exportiere deine Arbeit oder entferne große Bilder/Versionen.',
+    'dsMain.toast.docElsewhere':
+      'Dieses Design wurde auf einem anderen Gerät erstellt – seine Inhalte liegen dort. Hier kannst du neu starten.',
+    'dsMain.toast.designUnavailable': 'Dieses Design ist auf diesem Gerät nicht verfügbar – hier sind deine Designs.',
     'dsMain.toast.neckLabelAdded': 'Nackenetikett zum Kleidungsstück hinzugefügt.',
     'dsMain.toast.garmentApplied': 'Kleidungsstück auf diese Seite angewendet – gestalte darauf los.',
     'dsMain.toast.blankPageAdded': 'Leere Seite hinzugefügt.',

@@ -8,6 +8,7 @@ export const labMain: LocaleBundle = {
     'labMain.savedSecondsAgo': 'Saved {s}s ago',
     'labMain.savedMinutesAgo': 'Saved {m}m ago',
     'labMain.savedAt': 'Saved {time}',
+    'labMain.saveFailed': 'Not saved — storage is full',
 
     // GarmentLab — toasts
     'labMain.toastGenerated': 'Garment generated — every region is editable.',
@@ -113,6 +114,7 @@ export const labMain: LocaleBundle = {
     'labMain.savedSecondsAgo': 'Vor {s} Sek. gespeichert',
     'labMain.savedMinutesAgo': 'Vor {m} Min. gespeichert',
     'labMain.savedAt': 'Gespeichert um {time}',
+    'labMain.saveFailed': 'Nicht gespeichert — Speicher voll',
 
     // GarmentLab — toasts
     'labMain.toastGenerated': 'Kleidungsstück generiert — jede Region ist bearbeitbar.',

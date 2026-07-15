@@ -22,6 +22,7 @@ import { buildFromTemplate } from '../../garment-model/garmentFactory'
 import { createGarment, getGarment as getEditableSummary } from '../../garment-model/garmentLibrary'
 import { categoryLabel, EMPTY_VIEWS, type Garment as LibGarment, type GarmentCategoryId, type GarmentRepresentation, type GarmentViews } from '../../garments/types'
 import { useToast } from '../../components/ui/Toast'
+import { compressImageFile } from '../../lib/imageCompress'
 import { useSuiteTheme } from '../../theme'
 import { useStore } from '../../data/store'
 import { useAuth } from '../../auth/auth'
@@ -282,7 +283,9 @@ export function DesignStudio() {
   // A Design belongs to a garment blank: its id is derived from the active garment
   // (see `designId` below, after the catalog resolves), so one stable design per garment.
   const [designName, setDesignName] = useState('Hoodie')
-  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('unsaved')
+  // Starts 'saved': a freshly opened design has nothing to save — the indicator must never
+  // claim unsaved work (and arm the leave guards) before the first real edit.
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   // loom studios AI — the command bar routes described-graphic prompts here (open + seed prompt + mode).
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiMode] = useState<AiMode>('graphic')
@@ -478,11 +481,19 @@ export function DesignStudio() {
   // Garments Studio) uses a brand-new key so it starts blank and never overwrites the garment's
   // existing designs. The garment STRUCTURE still loads from the garment id.
   const docKeyRef = useRef<string | null>(null)
-  const freshConsumedRef = useRef(false)
   const designNameRef = useRef('Hoodie')
   const collectionIdRef = useRef<string | undefined>(undefined)
   const specsRef = useRef<ProductSpecs>({})
   const projectInfoRef = useRef<ProjectInfo>({})
+  /** Whether the LAST document write actually landed — the save indicator and the leave
+      guards must never claim success past a quota failure. */
+  const lastDocOkRef = useRef(true)
+  /** True once THIS session really edited the design — leaving flushes the metadata row
+      only then, so opening + backing out never creates an empty draft row. */
+  const hasEditedRef = useRef(false)
+  /** Bumped by saveCurrentDoc on every successful REAL edit; drives the metadata autosave.
+      Loading a design never bumps it, so merely opening cannot reorder Recent Designs. */
+  const [dirtyTick, setDirtyTick] = useState(0)
 
   /**
    * Persist the given canvas snapshot to the current garment's document. Called ONLY from
@@ -545,7 +556,13 @@ export function DesignStudio() {
       updatedAt: Date.now(),
     })
     // A silent drop would lose work while the UI still says "Saved" — surface it honestly instead.
-    if (!ok) {
+    lastDocOkRef.current = ok
+    if (ok) {
+      // The document itself is on disk now; 'saving' covers the debounced metadata update.
+      hasEditedRef.current = true
+      setSaveState('saving')
+      setDirtyTick((n) => n + 1)
+    } else {
       setSaveState('unsaved')
       const now = Date.now()
       if (now - lastQuotaWarnRef.current > 15_000) {
@@ -807,15 +824,18 @@ export function DesignStudio() {
         toast(t('dsMain.toast.chooseImage'), 'info')
         return
       }
-      const reader = new FileReader()
-      reader.onload = () => {
-        const l = makeImageLayer(file.name, String(reader.result))
+      // Compress before inlining — raw phone photos in the doc are what used to blow the
+      // localStorage quota and made saves silently fail.
+      void compressImageFile(file).then((src) => {
+        if (!src) {
+          toast(t('dsMain.toast.readFail'), 'info')
+          return
+        }
+        const l = makeImageLayer(file.name, src)
         commit({ layers: [l, ...presentRef.current.layers], hidden: presentRef.current.hidden })
         setSelectedIds([l.id])
         toast(t('dsMain.toast.imageAdded'), 'success')
-      }
-      reader.onerror = () => toast(t('dsMain.toast.readFail'), 'info')
-      reader.readAsDataURL(file)
+      })
     },
     [commit, toast, t],
   )
@@ -870,12 +890,11 @@ export function DesignStudio() {
       input.onchange = () => {
         const f = input.files?.[0]
         if (!f || !f.type.startsWith('image/')) return
-        const reader = new FileReader()
-        reader.onload = () => {
-          setObjectProp(id, { src: String(reader.result) })
+        void compressImageFile(f).then((src) => {
+          if (!src) return
+          setObjectProp(id, { src })
           toast(t('dsMain.toast.imageReplaced'), 'success')
-        }
-        reader.readAsDataURL(f)
+        })
       }
       input.click()
     },
@@ -1465,8 +1484,16 @@ export function DesignStudio() {
     if (!gid) return
     const h = loadHistory(gid)
     const catalogG = catalog.find((x) => x.id === gid)
-    // Neither an editable garment nor a catalog entry → let the normal restore/gate handle it.
-    if (!h && !catalogG) return
+    // Neither an editable garment nor a catalog entry: once the catalog has resolved, this is
+    // a dead link (e.g. a seed row or a design created on another device) — say so and take
+    // the user to their designs instead of silently opening the default blank hoodie.
+    if (!h && !catalogG) {
+      if (catalog.length === 0) return // catalog still loading — retry on the next run
+      bridgedRef.current = true
+      toast(t('dsMain.toast.designUnavailable'), 'info')
+      navigate('/design')
+      return
+    }
     bridgedRef.current = true
     restoredRef.current = true // the injected garment wins over last-opened restore
     try {
@@ -1501,16 +1528,21 @@ export function DesignStudio() {
     const gid = activeGarment.id
     if (!gid || loadedGarmentRef.current === gid) return
     loadedGarmentRef.current = gid
-    // Opening from the Garments Studio passes ?design=<newId> → the design is keyed by that id, not
-    // the garment id, so it starts as its own NEW file (a brand-new id has no saved doc → blank) and
-    // never overwrites the garment's other designs. It stays reachable across reloads (the id is in
-    // the URL). The garment STRUCTURE is unaffected (it loads from the garment id). The design id only
-    // applies to the FIRST load — an internal garment switch afterwards loads that garment normally.
-    const design = freshConsumedRef.current ? null : searchParams.get('design')
-    freshConsumedRef.current = true
-    const docKey = design || gid
-    docKeyRef.current = docKey
-    const doc = loadDoc(docKey)
+    // The doc key IS the garment id — one design per garment blank. Every surface that lists
+    // saved work (Recent Designs, /design, Collections) reopens by exactly this id, so what
+    // the user saves is always what those cards open. (The old ?design=<uid> throwaway keys
+    // orphaned docs the moment the URL was gone — reopening showed a blank canvas. Legacy
+    // docs saved under such a key are migrated to the garment key once, below.)
+    docKeyRef.current = gid
+    let doc = loadDoc(gid)
+    if (!doc) {
+      const legacy = searchParams.get('design')
+      const legacyDoc = legacy ? loadDoc(legacy) : null
+      if (legacyDoc) {
+        doc = legacyDoc
+        saveDoc(gid, legacyDoc) // rescue the orphan under the stable key
+      }
+    }
     const snapshot: Snapshot = doc
       ? {
           layers: doc.layers,
@@ -1589,6 +1621,15 @@ export function DesignStudio() {
     neckLabelRef.current = doc?.neckLabel ?? null
     setSelectedIds([])
     saveLastGarment(gid)
+    // Pristine after load: the indicator must not claim unsaved work before any edit.
+    lastDocOkRef.current = true
+    hasEditedRef.current = false
+    setSaveState('saved')
+    // The design row exists (e.g. created on another device) but its document lives in that
+    // device's browser — say so instead of silently presenting an empty canvas.
+    if (!doc && data.designs.some((x) => x.id === gid && x.ownerId === user?.id)) {
+      toast(t('dsMain.toast.docElsewhere'), 'info')
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGarment.id, activeGarment.name])
 
@@ -2119,6 +2160,8 @@ export function DesignStudio() {
   const persistDesign = useCallback(
     (name: string, colId: string | undefined, notify: boolean) => {
       if (!user || !designId) {
+        // Signed-out work IS saved locally by saveCurrentDoc — reflect that honestly.
+        if (lastDocOkRef.current) setSaveState('saved')
         if (notify && !user) toast(t('dsMain.toast.signInToSave'), 'info')
         return
       }
@@ -2138,20 +2181,34 @@ export function DesignStudio() {
         }
         return {
           ...d,
+          // Saving into a collection also freshens the collection card's timestamp.
+          collections: colId ? d.collections.map((c) => (c.id === colId ? { ...c, updatedAt: now } : c)) : d.collections,
           designs: exists
             ? d.designs.map((x) => (x.id === designId ? { ...x, ...next } : x))
             : [next, ...d.designs],
         }
       })
-      window.setTimeout(() => setSaveState('saved'), 350)
+      // 'Saved' only when the DOCUMENT write actually landed — a quota failure must keep the
+      // indicator (and the leave guards) on 'unsaved' instead of being masked by a timer.
+      setSaveState(lastDocOkRef.current ? 'saved' : 'unsaved')
       captureThumb(designId, notify) // force a fresh preview on explicit saves, throttle on auto-save
-      if (notify) {
+      if (notify && lastDocOkRef.current) {
         const col = colId ? data.collections.find((c) => c.id === colId)?.name : undefined
         toast(col ? t('dsMain.toast.savedTo', { name, col }) : t('dsMain.toast.saved', { name }), 'success')
       }
     },
     [user, designId, activeGarment.kind, readiness.score, mutate, toast, data.collections, captureThumb, t],
   )
+
+  // Latest persistDesign for the []-dep leave handlers below; flushing on a clean leave keeps
+  // the Recent-Designs row fresh even when the 2s autosave debounce dies with the unmount.
+  const persistDesignRef = useRef(persistDesign)
+  useEffect(() => {
+    persistDesignRef.current = persistDesign
+  }, [persistDesign])
+  const flushRowIfEdited = useCallback(() => {
+    if (hasEditedRef.current) persistDesignRef.current(designNameRef.current, collectionIdRef.current, false)
+  }, [])
 
   // ---- Unsaved-changes guard --------------------------------------------------------------------
   // Leaving the Studio (the logo → workspace, the browser Back button, or a refresh/close) must ask
@@ -2184,6 +2241,7 @@ export function DesignStudio() {
         window.history.pushState(null, '', window.location.href)
         setPendingLeave('back')
       } else {
+        flushRowIfEdited()
         navigate('/')
       }
     }
@@ -2196,9 +2254,12 @@ export function DesignStudio() {
   const guardedNavigate = useCallback(
     (to: string) => {
       if (dirtyRef.current) setPendingLeave(to)
-      else navigate(to)
+      else {
+        flushRowIfEdited()
+        navigate(to)
+      }
     },
-    [navigate],
+    [navigate, flushRowIfEdited],
   )
 
   const leaveNow = useCallback(() => {
@@ -2210,6 +2271,9 @@ export function DesignStudio() {
 
   const saveAndLeave = useCallback(() => {
     saveCurrentDoc(presentRef.current)
+    // Storage full → the save did NOT happen; stay in the dialog instead of walking out on
+    // unsaved work (the quota toast has already fired).
+    if (!lastDocOkRef.current) return
     persistDesign(designNameRef.current, collectionIdRef.current, false)
     leaveNow()
   }, [saveCurrentDoc, persistDesign, leaveNow])
@@ -2236,7 +2300,9 @@ export function DesignStudio() {
               { id: newColId, ownerId: user.id, name: choice.newCollection!, season: '', status: 'draft' as const, updatedAt: now },
               ...d.collections,
             ]
-          : d.collections
+          : colId
+            ? d.collections.map((c) => (c.id === colId ? { ...c, updatedAt: now } : c))
+            : d.collections
         const exists = d.designs.some((x) => x.id === designId)
         const nextDesign = {
           id: designId,
@@ -2260,8 +2326,14 @@ export function DesignStudio() {
       setCollectionId(colId)
       // Persist the local document with the chosen name + collection right away.
       saveCurrentDoc(presentRef.current, choice.name, colId)
+      if (!lastDocOkRef.current) {
+        // Quota failure — saveCurrentDoc has toasted; do NOT fake success on top of it.
+        setSaveState('unsaved')
+        setSaveOpen(false)
+        return
+      }
       captureThumb(designId, true) // real preview for Recent Designs
-      window.setTimeout(() => setSaveState('saved'), 350)
+      setSaveState('saved')
       const colName = choice.newCollection ?? (choice.collectionId ? myCollections.find((c) => c.id === choice.collectionId)?.name : undefined)
       toast(colName ? t('dsMain.toast.savedTo', { name: choice.name, col: colName }) : t('dsMain.toast.saved', { name: choice.name }), 'success')
       setSaveOpen(false)
@@ -2269,20 +2341,16 @@ export function DesignStudio() {
     [user, designId, activeGarment.kind, readiness.score, mutate, toast, myCollections, saveCurrentDoc, captureThumb, t],
   )
 
-  // Auto-save (metadata → Recent Designs): any real change persists after 2s of quiet.
-  // Skips pristine empty designs so merely browsing garments never creates empty draft rows.
-  const firstChange = useRef(true)
+  // Auto-save (metadata → Recent Designs): every REAL edit funnels through saveCurrentDoc,
+  // which bumps dirtyTick — the row persists after 2s of quiet. This covers layer edits,
+  // region recolors, specs, neck labels and AI backdrops alike (the old layers-only guard
+  // kept layer-less designs out of every list), while loading a design bumps nothing.
   useEffect(() => {
-    if (firstChange.current) {
-      firstChange.current = false
-      return
-    }
-    if (present.layers.length === 0) return
-    setSaveState('unsaved')
-    const t = window.setTimeout(() => persistDesign(designName, collectionId, false), 2000)
+    if (dirtyTick === 0) return
+    const t = window.setTimeout(() => persistDesign(designNameRef.current, collectionIdRef.current, false), 2000)
     return () => window.clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fields, config, present, activeName, designName, collectionId])
+  }, [dirtyTick])
 
   /**
    * Route a garment property to the REAL systems — the Product Specs the user sees and the

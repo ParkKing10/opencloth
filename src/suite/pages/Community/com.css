@@ -138,7 +138,8 @@
 .com-scroller {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(292px, 1fr);
+  /* Capped column width — with 1fr the cards ballooned on wide screens (empty banners, airy rows). */
+  grid-auto-columns: minmax(292px, 340px);
   gap: 16px;
   overflow-x: auto;
   padding: 4px 2px 12px;
@@ -190,6 +191,10 @@
 }
 
 .com-designer__top {
+  /* Positioned so this row paints ABOVE the (positioned) banner it overlaps into — without it the
+     opaque banner covered the pulled-up avatar half and swallowed the designer name entirely. */
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -266,6 +271,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  /* Keep "Copenhagen, DK" on one line instead of an ugly mid-label wrap. */
+  white-space: nowrap;
 }
 .com-designer__meta b {
   color: var(--s-text);

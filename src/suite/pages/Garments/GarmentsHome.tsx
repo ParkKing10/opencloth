@@ -6,7 +6,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode, type SVGProps } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SuitePage } from '../_shared/SuitePage'
-import { uid } from '../../data/utils'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
 import { useT } from '@/i18n'
@@ -219,7 +218,7 @@ export function GarmentsHome() {
   // Always open a garment as a FRESH design (blank canvas) — never the previously-saved one. A new
   // design id per open keys it as its own new file (reachable across reloads); the garment is just
   // the reusable base.
-  const open = (id: string) => navigate(`/studio?garment=${id}&design=${uid('des')}`)
+  const open = (id: string) => navigate(`/studio?garment=${id}`)
   const editStructure = (id: string) => navigate(`/garment-lab/${id}`)
 
   const commitRename = (id: string) => {

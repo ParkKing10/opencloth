@@ -31,6 +31,8 @@ export const trial: LocaleBundle = {
     'gate.note': 'No credit card needed. 100 coins to start.',
     'wall.title': 'This is where you need an account',
     'wall.sub': 'Create a free account in 30 seconds — then the studio, the shop, the AI designer and everything else is yours.',
+    'sync.cloudFail': 'Cloud sync failed — your work is saved on this device and will sync when the connection recovers.',
+    'sync.localFull': 'Browser storage is full — recent changes may not survive closing this tab. Export your work or remove heavy images.',
   },
   de: {
     'trial.topCta': 'Starte deine Testphase für 0 €',
@@ -60,5 +62,7 @@ export const trial: LocaleBundle = {
     'gate.note': 'Keine Kreditkarte nötig. 100 Coins zum Start.',
     'wall.title': 'Ab hier brauchst du einen Account',
     'wall.sub': 'Erstell dir in 30 Sekunden einen kostenlosen Account — dann stehen dir Studio, Shop, KI-Designer und alles andere offen.',
+    'sync.cloudFail': 'Cloud-Sync fehlgeschlagen — deine Arbeit ist auf diesem Gerät gespeichert und synct, sobald die Verbindung steht.',
+    'sync.localFull': 'Der Browser-Speicher ist voll — aktuelle Änderungen überleben das Schließen des Tabs evtl. nicht. Exportiere deine Arbeit oder entferne große Bilder.',
   },
 }

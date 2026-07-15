@@ -94,8 +94,9 @@ export function GarmentLab() {
     if (user?.id && garmentId) setSummary(getGarment(user.id, garmentId))
   }, [user?.id, garmentId])
   useEffect(() => {
-    setSavedAt(Date.now())
-  }, [hist.history])
+    // Only stamp "saved" when the write actually landed — see useGarmentHistory.saveOk.
+    if (hist.saveOk) setSavedAt(Date.now())
+  }, [hist.history, hist.saveOk])
 
   const refreshSummary = useCallback(() => {
     if (user?.id && garmentId) setSummary(getGarment(user.id, garmentId))
@@ -319,7 +320,7 @@ export function GarmentLab() {
         regionCount={Object.keys(garment.regions).length}
         isAi={summary?.origin === 'ai'}
         isFavorite={!!summary?.favorite}
-        savedLabel={savedAgo(savedAt, t)}
+        savedLabel={hist.saveOk ? savedAgo(savedAt, t) : t('labMain.saveFailed')}
         canUndo={hist.canUndo}
         canRedo={hist.canRedo}
         rev={`${revNumber}/${revTotal}`}

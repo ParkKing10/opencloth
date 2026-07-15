@@ -24,14 +24,18 @@ import type { AiEditResult } from '../../garment-model/aiGarmentEditor'
 
 export function useGarmentHistory(garmentId: string, makeFallback: () => EditableGarment, userId?: string) {
   const [history, setHistory] = useState<GarmentHistory>(() => loadHistory(garmentId) ?? initHistory(makeFallback()))
+  // Whether the LAST autosave write actually landed — the header indicator must not
+  // claim "Saved" when the quota retry gave up.
+  const [saveOk, setSaveOk] = useState(true)
 
   const historyRef = useRef(history)
   useEffect(() => {
     historyRef.current = history
     // Only persist for a real, id-bearing garment — never write a fallback under an empty/aliased key.
     if (!garmentId) return
-    saveHistory(history)
-    if (userId) touchGarment(userId, garmentId, currentGarment(history))
+    const res = saveHistory(history)
+    setSaveOk(res.ok)
+    if (res.ok && userId) touchGarment(userId, garmentId, currentGarment(history))
   }, [history, userId, garmentId])
 
   const garment = currentGarment(history)
@@ -70,6 +74,7 @@ export function useGarmentHistory(garmentId: string, makeFallback: () => Editabl
   return {
     garment,
     history,
+    saveOk,
     commitManual,
     replaceCurrent,
     applyAi,

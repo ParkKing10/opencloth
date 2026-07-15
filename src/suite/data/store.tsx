@@ -79,7 +79,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
     } catch {
-      /* ignore quota */
+      // Quota hit: the app database could NOT persist — designs/collections would only
+      // survive until the tab closes. Tell the shell so the user hears about it.
+      window.dispatchEvent(new CustomEvent('loom:sync-error', { detail: 'local' }))
     }
   }, [data])
 
@@ -127,9 +129,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       commit(next)
       if (SUPA && sessionRef.current) {
         // optimistic UI already applied; persist the delta in the background
-        void reconcile(SUPA, prev, next, sessionRef.current.id).catch((e) =>
-          console.error('[store] reconcile failed:', e),
-        )
+        void reconcile(SUPA, prev, next, sessionRef.current.id).catch((e) => {
+          console.error('[store] reconcile failed:', e)
+          // A failed cloud write must not stay a console-only secret — surface it.
+          window.dispatchEvent(new CustomEvent('loom:sync-error', { detail: 'cloud' }))
+        })
       }
     },
     [commit],

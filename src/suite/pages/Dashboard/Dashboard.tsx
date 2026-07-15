@@ -120,12 +120,10 @@ export function Dashboard() {
   const { user } = useAuth()
   const toast = useToast()
 
-  // Real designs, scoped to the current user. When the user owns none, fall
-  // back to showing all designs so the dashboard never looks empty for a fresh
-  // demo account — but still surface an empty state when there are truly none.
+  // Real designs, strictly the current user's. (The old fallback padded fresh accounts with
+  // OTHER users' seed rows — clicking those opened nothing, which read as broken saving.)
   const ownDesigns = user ? data.designs.filter((d) => d.ownerId === user.id) : []
-  const source = ownDesigns.length > 0 ? ownDesigns : data.designs
-  const recentDesigns = [...source].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT)
+  const recentDesigns = [...ownDesigns].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, RECENT_LIMIT)
 
   return (
     <div className="dash">
@@ -236,7 +234,7 @@ export function Dashboard() {
                 <button
                   className="s-link"
                   type="button"
-                  onClick={() => navigate('/collections')}
+                  onClick={() => navigate('/design')}
                 >
                   {t('dashboard.recent.viewAll')} <IcoArrowRight width="13" height="13" />
                 </button>

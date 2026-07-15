@@ -221,10 +221,10 @@ export function Collections() {
   const [sort, setSort] = useState<Sort>('Last updated')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
-  /* Scope to the signed-in user; fall back to all so a fresh demo never looks empty. */
+  /* Strictly the signed-in user's collections — padding fresh accounts with other users'
+     seed rows made saved work look inconsistent across surfaces. */
   const scoped = useMemo<Collection[]>(() => {
-    const owned = user ? data.collections.filter((c) => c.ownerId === user.id) : []
-    return owned.length > 0 ? owned : data.collections
+    return user ? data.collections.filter((c) => c.ownerId === user.id) : []
   }, [data.collections, user])
 
   /* Index designs by collection once, then derive each card's real display fields. */

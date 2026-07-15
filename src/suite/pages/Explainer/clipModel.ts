@@ -200,7 +200,7 @@ function sanitize(raw: unknown): Commercial | null {
       assetIds: Array.isArray(k.assetIds) ? k.assetIds.filter((a): a is string => typeof a === 'string').slice(0, 8) : [],
       durationSec: num(k.durationSec, DUR_MIN, DUR_MAX, 5),
       style: CLIP_STYLES.includes(k.style as ClipStyle) ? k.style : 'cinematic',
-      status: k.status === 'accepted' && k.acceptedId ? 'accepted' : k.status === 'ready' && Array.isArray(k.versions) && k.versions.length > 0 ? 'ready' : 'draft',
+      status: (k.status === 'accepted' && k.acceptedId ? 'accepted' : k.status === 'ready' && Array.isArray(k.versions) && k.versions.length > 0 ? 'ready' : 'draft') as ClipStatus,
       versions: Array.isArray(k.versions) ? k.versions.filter((v) => !!v && (v.kind === 'scene' || v.kind === 'footage')) : [],
       trimStart: num(k.trimStart, 0, DUR_MAX, 0),
       trimEnd: num(k.trimEnd, 0, DUR_MAX, 0),

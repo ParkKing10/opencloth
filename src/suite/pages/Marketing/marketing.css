@@ -903,6 +903,29 @@
   margin-top: 4px;
 }
 
+/* Storyboard → real video block in the content viewer. */
+.mst-render {
+  margin: 4px 0 14px;
+  padding: 12px;
+  border-radius: var(--s-r, 12px);
+  border: 1px solid var(--s-line-2, rgba(255, 255, 255, 0.1));
+  background: var(--s-inset, #0c0c11);
+}
+.mst-render__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.mst-render__video {
+  display: block;
+  margin: 0 auto 12px;
+  max-height: 52vh;
+  max-width: 100%;
+  border-radius: var(--s-r, 12px);
+  background: #000;
+}
+
 /* Soft-minimum hint in the character wizard (below the recommended photo count). */
 .mst-char-warn {
   margin: 10px 0 0;

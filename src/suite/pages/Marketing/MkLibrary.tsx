@@ -3,6 +3,7 @@ import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { useMarketing } from '../../marketing/useMarketing'
 import { delBlobs, getBlob, type MkContent } from '../../marketing/marketingStore'
+import { renderStoryboardVideo, storyboardDuration } from '../../marketing/storyboardVideo'
 import { downloadBlob, slugify } from '../../lib/download'
 
 /* Generated Content — everything the studio creates lands here, ready to reuse:
@@ -53,6 +54,70 @@ function SceneFrame({ imageKey, index }: { imageKey?: string; index: number }) {
     }
   }, [imageKey])
   return <span className="mst-scene__frame">{img ? <img src={img} alt="" /> : index + 1}</span>
+}
+
+/** Turn the storyboard into an actual playable/downloadable video, on demand. */
+function StoryboardVideoBlock({ item }: { item: MkContent }) {
+  const t = useT()
+  const toast = useToast()
+  const [pct, setPct] = useState<number | null>(null) // null = idle
+  const [video, setVideo] = useState<{ url: string; blob: Blob; ext: string } | null>(null)
+
+  // Blob URLs die with the component.
+  useEffect(() => () => {
+    if (video) URL.revokeObjectURL(video.url)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const scenes = item.script?.scenes ?? []
+  const seconds = Math.round(storyboardDuration(scenes.length))
+
+  const render = async () => {
+    if (pct !== null || !scenes.length) return
+    setPct(0)
+    try {
+      const frames = await Promise.all(
+        scenes.map(async (s) => ({
+          image: s.imageKey ? await getBlob(s.imageKey) : null,
+          title: s.title,
+          caption: s.caption,
+        })),
+      )
+      const out = await renderStoryboardVideo({ scenes: frames, onProgress: setPct })
+      setVideo({ url: URL.createObjectURL(out.blob), blob: out.blob, ext: out.ext })
+    } catch {
+      toast(t('mk.lib.renderFail'), 'info')
+    } finally {
+      setPct(null)
+    }
+  }
+
+  return (
+    <div className="mst-render">
+      {video ? (
+        <>
+          <video className="mst-render__video" src={video.url} controls autoPlay loop playsInline />
+          <div className="mst-render__row">
+            <button
+              type="button"
+              className="s-btn s-btn--accent"
+              onClick={() => downloadBlob(video.blob, `loom-${slugify(item.title)}.${video.ext}`)}
+            >
+              {t('mk.lib.downloadVideo')}
+            </button>
+            <span className="mst-note">{t('mk.lib.renderHint')}</span>
+          </div>
+        </>
+      ) : (
+        <div className="mst-render__row">
+          <button type="button" className="s-btn s-btn--accent" disabled={pct !== null} onClick={() => void render()}>
+            {pct !== null ? t('mk.lib.rendering', { p: Math.round(pct * 100) }) : `🎬 ${t('mk.lib.renderVideo', { s: seconds })}`}
+          </button>
+          {pct === null && <span className="mst-note">{t('mk.lib.renderNote')}</span>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function Viewer({ item, onClose, onDelete }: { item: MkContent; onClose: () => void; onDelete: () => void }) {
@@ -142,6 +207,9 @@ function Viewer({ item, onClose, onDelete }: { item: MkContent; onClose: () => v
 
         {item.kind === 'storyboard' && item.script && (
           <>
+            {/* The storyboard becomes a REAL 9:16 video — Ken-Burns keyframes + captions,
+                rendered in the browser (realtime capture, ~duration seconds). */}
+            <StoryboardVideoBlock item={item} />
             <p className="mst-meta-line"><b>{t('mk.lib.hook')}:</b> {item.script.hook}</p>
             <div>
               {item.script.scenes.map((s, i) => (

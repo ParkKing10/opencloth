@@ -181,42 +181,60 @@ const num = (v: unknown, lo: number, hi: number, dflt: number): number =>
   typeof v === 'number' && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : dflt
 const str = (v: unknown, dflt = ''): string => (typeof v === 'string' ? v : dflt)
 
-/** Light sanitize on load — clamp the fields the UI trusts. Version specs
-    are engine Projects; renderProject tolerates missing pieces, and the
-    generator replaces them on regenerate, so we keep them as-is. */
+/** A stored version is only usable when its render payload is intact: scene versions
+    need a spec with at least one scene, footage versions a plan + cfg (renderProject /
+    composeAdFrame would otherwise throw and kill the preview loop). */
+function okVersion(v: unknown): v is ClipVersion {
+  if (!v || typeof v !== 'object') return false
+  const x = v as { id?: unknown; label?: unknown; kind?: unknown; spec?: { scenes?: unknown }; plan?: { clips?: unknown }; cfg?: unknown }
+  if (typeof x.id !== 'string' || (x.label !== 'A' && x.label !== 'B' && x.label !== 'C')) return false
+  if (x.kind === 'scene') return !!x.spec && Array.isArray(x.spec.scenes) && x.spec.scenes.length > 0
+  if (x.kind === 'footage') return !!x.plan && Array.isArray(x.plan.clips) && !!x.cfg && typeof x.cfg === 'object'
+  return false
+}
+
+/** Rebuild every clip field explicitly (never spread the raw object — hostile payloads
+    must not smuggle junk fields or override the validated type/id/status). */
 function sanitize(raw: unknown): Commercial | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Partial<Commercial>
   if (r.version !== 2 || !Array.isArray(r.clips)) return null
   const base = newCommercial()
-  const clips: Clip[] = r.clips
-    .filter((k): k is Clip => !!k && typeof k === 'object')
+  const clips: Clip[] = (r.clips as unknown[])
+    .filter((k): k is Record<string, unknown> => !!k && typeof k === 'object')
     .slice(0, 40)
-    .map((k) => ({
-      ...newClip(CLIP_TYPES.some((t) => t.id === k.type) ? k.type : 'ai-scene'),
-      ...k,
-      title: str(k.title).slice(0, 80),
-      prompt: str(k.prompt).slice(0, 600),
-      assetIds: Array.isArray(k.assetIds) ? k.assetIds.filter((a): a is string => typeof a === 'string').slice(0, 8) : [],
-      durationSec: num(k.durationSec, DUR_MIN, DUR_MAX, 5),
-      style: CLIP_STYLES.includes(k.style as ClipStyle) ? k.style : 'cinematic',
-      status: (k.status === 'accepted' && k.acceptedId ? 'accepted' : k.status === 'ready' && Array.isArray(k.versions) && k.versions.length > 0 ? 'ready' : 'draft') as ClipStatus,
-      versions: Array.isArray(k.versions) ? k.versions.filter((v) => !!v && (v.kind === 'scene' || v.kind === 'footage')) : [],
-      trimStart: num(k.trimStart, 0, DUR_MAX, 0),
-      trimEnd: num(k.trimEnd, 0, DUR_MAX, 0),
-      caption: k.caption ? str(k.caption).slice(0, 120) : undefined,
-    }))
-    // Footage versions reference session-local blobs — after a reload the video is
-    // gone, so those clips honestly fall back to draft (regenerate re-attaches).
-    .map((k) => {
-      const av = k.versions.find((v) => v.id === k.acceptedId)
-      const lostFootage = (v: ClipVersion | undefined) => !!v && v.kind === 'footage'
-      if (lostFootage(av) || (k.versions.length > 0 && k.versions.every((v) => v.kind === 'footage'))) {
-        return { ...k, versions: [], acceptedId: undefined, status: 'draft' as ClipStatus }
+    .map((raw) => {
+      const k = raw as Partial<Clip>
+      const fresh = newClip(CLIP_TYPES.some((t) => t.id === k.type) ? (k.type as ClipTypeId) : 'ai-scene')
+      let versions = Array.isArray(k.versions) ? k.versions.filter(okVersion).slice(0, 3) : []
+      // Footage versions reference session-local blobs — after a reload the video is
+      // gone, so those clips honestly fall back to draft (regenerate re-attaches).
+      const accepted = versions.find((v) => v.id === k.acceptedId)
+      if ((accepted && accepted.kind === 'footage') || (versions.length > 0 && versions.every((v) => v.kind === 'footage'))) {
+        versions = []
       }
-      return k
+      const acceptedId = k.status === 'accepted' && typeof k.acceptedId === 'string' && versions.some((v) => v.id === k.acceptedId) ? k.acceptedId : undefined
+      const status: ClipStatus = acceptedId ? 'accepted' : versions.length > 0 ? 'ready' : 'draft'
+      return {
+        ...fresh,
+        id: str(k.id, fresh.id),
+        title: str(k.title).slice(0, 80),
+        prompt: str(k.prompt).slice(0, 600),
+        assetIds: Array.isArray(k.assetIds) ? k.assetIds.filter((a): a is string => typeof a === 'string').slice(0, 8) : [],
+        recordingName: k.recordingName ? str(k.recordingName).slice(0, 120) : undefined,
+        durationSec: num(k.durationSec, DUR_MIN, fresh.type === 'recording' ? DUR_MAX * 8 : DUR_MAX, 5), // only footage may exceed 8s
+        style: CLIP_STYLES.includes(k.style as ClipStyle) ? (k.style as ClipStyle) : 'cinematic',
+        status,
+        versions,
+        acceptedId,
+        trimStart: num(k.trimStart, 0, DUR_MAX * 8, 0),
+        trimEnd: num(k.trimEnd, 0, DUR_MAX * 8, 0),
+        caption: k.caption ? str(k.caption).slice(0, 120) : undefined,
+      }
     })
-  const ids = new Set(clips.map((k) => k.id))
+  // The sequence may only reference clips that are still genuinely accepted —
+  // footage resets above must not leave ghost entries (they inflate the Project badge).
+  const acceptedIds = new Set(clips.filter((k) => k.status === 'accepted').map((k) => k.id))
   return {
     ...base,
     id: str(r.id, base.id),
@@ -224,7 +242,7 @@ function sanitize(raw: unknown): Commercial | null {
     aspect: r.aspect === '9:16' || r.aspect === '1:1' ? r.aspect : '16:9',
     accent: /^#[0-9a-fA-F]{6}$/.test(str(r.accent)) ? (r.accent as string) : base.accent,
     clips,
-    order: Array.isArray(r.order) ? r.order.filter((id): id is string => typeof id === 'string' && ids.has(id)) : [],
+    order: Array.isArray(r.order) ? r.order.filter((id): id is string => typeof id === 'string' && acceptedIds.has(id)) : [],
     transition: r.transition === 'cut' || r.transition === 'zoom' ? r.transition : 'fade',
     music: r.music && typeof r.music === 'object' && typeof (r.music as { assetId?: unknown }).assetId === 'string'
       ? { assetId: (r.music as { assetId: string }).assetId, name: str((r.music as { name?: unknown }).name), volume: num((r.music as { volume?: unknown }).volume, 0, 1, 0.8), fadeOut: num((r.music as { fadeOut?: unknown }).fadeOut, 0, 5, 1.5) }

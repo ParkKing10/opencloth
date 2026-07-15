@@ -30,10 +30,10 @@ import {
   type TransitionKind,
 } from './clipModel'
 import { generateSceneVersions, generateFootageVersions } from './clipDirector'
-import { buildSegments, segmentsDuration, drawCommercialFrame, syncFootage, exportCommercial, EXPORT_SIZES, type MediaProvider } from './exportCommercial'
+import { buildSegments, segmentsDuration, segmentAt, drawCommercialFrame, syncFootage, exportCommercial, EXPORT_SIZES, type MediaProvider } from './exportCommercial'
 import { renderProject } from './engine/render'
 import { composeAdFrame, adOutputDuration } from './engine/adCompose'
-import { saveAsset, deleteAsset, ensureAssetsLoaded, getAssetImage, type AssetMeta } from './engine/assets'
+import { saveAsset, ensureAssetsLoaded, getAssetImage, type AssetMeta } from './engine/assets'
 import { saveAudioAsset, decodeAudioAsset } from './engine/audio'
 import { analyzeRecording, type RecordingAnalysis } from './engine/recordingAnalysis'
 import { hasDirectorAi } from './engine/aiDirector'
@@ -83,6 +83,8 @@ export function DirectorStudio() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const timeRef = useRef(0)
   const playingRef = useRef(false)
+  const exportingRef = useRef(false)
+  const editVideoRef = useRef<HTMLVideoElement | null>(null) // the one footage video rolling in Project view
   const recsRef = useRef(new Map<string, Rec>())
   const metasRef = useRef(new Map<string, AssetMeta>())
   const abortRef = useRef<AbortController | null>(null)
@@ -111,12 +113,50 @@ export function DirectorStudio() {
     if (ids.length) void ensureAssetsLoaded(ids)
   }, [com.clips])
 
+  // Leaving the studio: cancel a running export and free the session recordings
+  // (object URLs + video elements would otherwise leak until the tab dies).
+  useEffect(
+    () => () => {
+      abortRef.current?.abort()
+      for (const rec of recsRef.current.values()) {
+        rec.video.pause()
+        rec.video.src = ''
+        URL.revokeObjectURL(rec.url)
+      }
+      recsRef.current.clear()
+    },
+    [],
+  )
+
   /* ---------- mutations ---------- */
   const patchClip = useCallback((id: string, patch: Partial<Clip>) => {
     setCom((c) => ({ ...c, clips: c.clips.map((k) => (k.id === id ? { ...k, ...patch } : k)) }))
   }, [])
 
+  // Switching / deleting / adding a clip supersedes any in-flight generation — the
+  // late result must neither hijack the view nor leave the veil up.
+  const cancelGeneration = useCallback(() => {
+    genSeq.current++
+    setGenerating(false)
+  }, [])
+
+  // Duration edits RETIME existing takes instead of desyncing them: element timings
+  // are fractions of the scene duration, so updating the baked spec re-times cleanly.
+  const setClipDuration = (id: string, v: number) => {
+    setCom((c) => ({
+      ...c,
+      clips: c.clips.map((k) => {
+        if (k.id !== id) return k
+        const versions = k.versions.map((ver) =>
+          ver.kind === 'scene' ? { ...ver, spec: { ...ver.spec, scenes: ver.spec.scenes.map((s) => ({ ...s, duration: v })) } } : ver,
+        )
+        return { ...k, durationSec: v, versions }
+      }),
+    }))
+  }
+
   const addClip = (type: ClipTypeId) => {
+    cancelGeneration()
     const k = newClip(type)
     setCom((c) => ({ ...c, clips: [...c.clips, k] }))
     setSelectedId(k.id)
@@ -126,8 +166,11 @@ export function DirectorStudio() {
   }
 
   const removeClip = (id: string) => {
+    cancelGeneration()
     const rec = recsRef.current.get(id)
     if (rec) {
+      rec.video.pause()
+      rec.video.src = ''
       URL.revokeObjectURL(rec.url)
       recsRef.current.delete(id)
     }
@@ -155,12 +198,14 @@ export function DirectorStudio() {
     const startedAt = performance.now()
     try {
       let versions: ClipVersion[]
-      let duration = clip.durationSec
+      let footageDuration = 0
       if (clip.type === 'recording') {
         const rec = recsRef.current.get(clip.id)!
         const out = generateFootageVersions(rec.analysis, com.accent)
         versions = out.versions
-        duration = Math.round(out.durations[0] * 10) / 10
+        // Floor, never round up: a display duration past the plan's cut length would
+        // push the final frames into composeAdFrame's outro-card branch.
+        footageDuration = Math.floor(out.durations[0] * 10) / 10
       } else {
         await ensureAssetsLoaded(clip.assetIds)
         const metas = clip.assetIds.map((id) => metasRef.current.get(id) ?? { id, name: 'asset', addedAt: 0 })
@@ -171,7 +216,19 @@ export function DirectorStudio() {
       const elapsed = performance.now() - startedAt
       if (elapsed < min) await new Promise((r) => setTimeout(r, min - elapsed))
       if (seq !== genSeq.current) return // superseded (clip switched / deleted)
-      patchClip(clip.id, { versions, status: 'ready', acceptedId: undefined, durationSec: clip.type === 'recording' ? duration : clip.durationSec })
+      // Commit against the LIVE clip (not this closure): if the duration slider moved
+      // while the director worked, the fresh takes are retimed to the current value.
+      setCom((c) => ({
+        ...c,
+        clips: c.clips.map((k) => {
+          if (k.id !== clip.id) return k
+          const dur = clip.type === 'recording' ? footageDuration : k.durationSec
+          const retimed = versions.map((v) =>
+            v.kind === 'scene' ? { ...v, spec: { ...v.spec, scenes: v.spec.scenes.map((s) => ({ ...s, duration: dur })) } } : v,
+          )
+          return { ...k, versions: retimed, status: 'ready' as const, acceptedId: undefined, durationSec: dur }
+        }),
+      }))
       setVersionId(versions[0].id)
       timeRef.current = 0
       setPlaying(true)
@@ -186,7 +243,9 @@ export function DirectorStudio() {
 
   const accept = () => {
     if (!clip || !version) return
-    const dur = Math.round(versionDuration(clip, version) * 10) / 10
+    const raw = versionDuration(clip, version)
+    // Footage: floor so the stored duration can never overshoot the plan (outro flash).
+    const dur = version.kind === 'footage' ? Math.floor(raw * 10) / 10 : Math.round(raw * 10) / 10
     setCom((c) => ({
       ...c,
       clips: c.clips.map((k) => (k.id === clip.id ? { ...k, status: 'accepted', acceptedId: version.id, durationSec: dur, trimStart: 0, trimEnd: 0 } : k)),
@@ -209,7 +268,7 @@ export function DirectorStudio() {
   }
 
   const onUploadRecording = async (files: FileList | null) => {
-    if (!clip || !files?.[0]) return
+    if (!clip || !files?.[0] || analyzing > 0) return // one analysis at a time
     const file = files[0]
     const url = URL.createObjectURL(file)
     setAnalyzing(0.01)
@@ -230,8 +289,9 @@ export function DirectorStudio() {
 
   const removeAsset = (id: string) => {
     if (!clip) return
+    // Detach only — generated/accepted takes may still reference the image, and a
+    // hard delete would burn a dashed placeholder into their preview and export.
     patchClip(clip.id, { assetIds: clip.assetIds.filter((a) => a !== id) })
-    void deleteAsset(id)
   }
 
   /* ---------- music ---------- */
@@ -251,6 +311,7 @@ export function DirectorStudio() {
     if (segments.length === 0 || exporting !== null) return
     setPlaying(false)
     setExporting(0)
+    exportingRef.current = true // freezes the preview loop — the export owns the footage videos
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
@@ -265,6 +326,7 @@ export function DirectorStudio() {
     } catch (err) {
       if (!(err instanceof DOMException && err.name === 'AbortError')) toast(t('director.toast.exportFailed'), 'info')
     } finally {
+      exportingRef.current = false
       setExporting(null)
       abortRef.current = null
     }
@@ -275,22 +337,16 @@ export function DirectorStudio() {
 
   useEffect(() => {
     playingRef.current = playing
-    // Footage videos follow the transport.
-    const rec = clip ? recsRef.current.get(clip.id) : null
-    if (rec) {
-      if (playing && (view === 'edit' || version?.kind === 'footage')) void rec.video.play().catch(() => {})
-      else rec.video.pause()
+    // Clips view: the selected clip's recording follows the transport directly.
+    // Project view: the rAF loop rolls exactly ONE footage video (the active segment,
+    // like the export loop) — here we only make sure everything stops on pause/switch.
+    for (const [id, rec] of recsRef.current) {
+      const directActive = view === 'direct' && clip?.id === id && version?.kind === 'footage'
+      if (playing && directActive) void rec.video.play().catch(() => {})
+      else if (!playing || view === 'direct') rec.video.pause()
     }
-    if (view === 'edit') {
-      for (const s of segments) {
-        const v = recsRef.current.get(s.clip.id)?.video
-        if (v) {
-          if (playing) void v.play().catch(() => {})
-          else v.pause()
-        }
-      }
-    }
-  }, [playing, clip, version, view, segments])
+    if (view !== 'edit') editVideoRef.current = null
+  }, [playing, clip, version, view])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -301,6 +357,13 @@ export function DirectorStudio() {
     let last = performance.now()
     let uiTick = 0
     const tick = (nowMs: number) => {
+      // While an export runs it owns the footage videos — the preview must not
+      // seek/pause them underneath the recorder (the veil covers the canvas anyway).
+      if (exportingRef.current) {
+        last = nowMs
+        raf = requestAnimationFrame(tick)
+        return
+      }
       const dt = Math.min(0.1, (nowMs - last) / 1000)
       last = nowMs
       const len = previewLen
@@ -311,6 +374,20 @@ export function DirectorStudio() {
       const W = canvas.width
       const H = canvas.height
       if (view === 'edit') {
+        // Same discipline as the export loop: keep the ACTIVE footage segment's video
+        // on plan time (trims + speed ramps), one video rolling at a time — so the
+        // Project preview shows exactly what the export will contain.
+        const hit = segmentAt(segments, tt)
+        const v = hit && hit.seg.version.kind === 'footage' ? media.videoFor(hit.seg.clip.id) : null
+        if (v !== editVideoRef.current) {
+          editVideoRef.current?.pause()
+          editVideoRef.current = v
+        }
+        if (hit && v && hit.seg.version.kind === 'footage') {
+          if (playingRef.current && v.paused) void v.play().catch(() => {})
+          if (!playingRef.current && !v.paused) v.pause()
+          syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, playingRef.current)
+        }
         drawCommercialFrame(ctx, com, segments, tt, { W, H, media })
       } else if (clip && version) {
         if (version.kind === 'scene') {
@@ -375,7 +452,9 @@ export function DirectorStudio() {
               key={k.id}
               type="button"
               className={`cdr-clip${k.id === selectedId && view === 'direct' ? ' is-selected' : ''}`}
+              disabled={exporting !== null}
               onClick={() => {
+                cancelGeneration()
                 setSelectedId(k.id)
                 setVersionId(k.acceptedId ?? k.versions[0]?.id ?? null)
                 setView('direct')
@@ -536,7 +615,7 @@ export function DirectorStudio() {
               {clip.type !== 'recording' && (
                 <>
                   <span className="cdr__sec">{t('director.brief.duration')}</span>
-                  <Slider label="" value={clip.durationSec} min={DUR_MIN} max={DUR_MAX} step={0.5} fmt={(v) => `${v.toFixed(1)}s`} onChange={(v) => patchClip(clip.id, { durationSec: v })} />
+                  <Slider label="" value={clip.durationSec} min={DUR_MIN} max={DUR_MAX} step={0.5} fmt={(v) => `${v.toFixed(1)}s`} onChange={(v) => setClipDuration(clip.id, v)} />
                 </>
               )}
 

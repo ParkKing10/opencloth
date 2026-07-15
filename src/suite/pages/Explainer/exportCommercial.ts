@@ -16,6 +16,7 @@ import { renderProject } from './engine/render'
 import { composeAdFrame, adOutputDuration } from './engine/adCompose'
 import { getAudioContext } from './engine/audio'
 import { clamp01, easeInOutCubic } from './engine/ease'
+import { collectAssetIds, ensureAssetsLoaded } from './engine/assets'
 import { pickMime } from './recorder'
 import { EXPORT_SIZES, type ExportAudio } from './engine/exportVideo'
 
@@ -107,7 +108,10 @@ export function drawCommercialFrame(ctx: CanvasRenderingContext2D, c: Commercial
   } else {
     const video = media.videoFor(seg.clip.id)
     if (video && video.readyState >= 2) {
-      composeAdFrame(ctx, seg.version.plan, seg.version.cfg, { videos: [video], logo: null }, sourceT, W, H)
+      // Clamp to the plan's real length — durationSec is rounded for display, and a
+      // value past cutDuration would flip composeAdFrame into its outro-card branch.
+      const planT = Math.min(sourceT, adOutputDuration(seg.version.plan, seg.version.cfg) - 0.001)
+      composeAdFrame(ctx, seg.version.plan, seg.version.cfg, { videos: [video], logo: null }, planT, W, H)
     } else {
       // Recording blob is gone (page reload) — honest placeholder, never a fake frame.
       ctx.fillStyle = 'rgba(255,255,255,0.35)'
@@ -164,14 +168,21 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
   canvas.height = h
   const ctx = canvas.getContext('2d')!
 
-  // Warm up: seek footage videos to their first frame and start silent playback.
+  // Warm up: the asset store's contract — export MUST await ensureAssetsLoaded, or
+  // scene specs bake dashed placeholders instead of the real screenshots/logos.
+  const assetIds = segs.flatMap((s) => (s.version.kind === 'scene' ? collectAssetIds(s.version.spec) : []))
+  if (assetIds.length) await ensureAssetsLoaded(assetIds)
+
+  // Footage videos: seek each to its segment's first frame but do NOT start them —
+  // a video that free-runs from t=0 is at the wrong source time (or already ended)
+  // when its segment finally begins. The render loop below plays exactly one at a time.
   const footage = segs.filter((s): s is Segment & { version: Extract<ClipVersion, { kind: 'footage' }> } => s.version.kind === 'footage')
   for (const s of footage) {
     const v = media.videoFor(s.clip.id)
     if (v) {
       v.muted = true
+      v.pause()
       syncFootage(v, s.version, s.clip.trimStart, false)
-      await v.play().catch(() => {})
     }
   }
   drawCommercialFrame(ctx, commercial, segs, 0, { W: w, H: h, media })
@@ -237,6 +248,7 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
   try {
     let contentT = 0
     let last = performance.now()
+    let activeVideo: HTMLVideoElement | null = null // exactly one footage video rolls at a time
     await new Promise<void>((done) => {
       let raf = 0
       const tick = (now: number) => {
@@ -249,9 +261,14 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
         else contentT += Math.min(0.1, Math.max(0, (now - last) / 1000))
         last = now
         const hit = segmentAt(segs, contentT)
-        if (hit && hit.seg.version.kind === 'footage') {
-          const v = media.videoFor(hit.seg.clip.id)
-          if (v) syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, true)
+        const v = hit && hit.seg.version.kind === 'footage' ? media.videoFor(hit.seg.clip.id) : null
+        if (v !== activeVideo) {
+          activeVideo?.pause()
+          activeVideo = v
+        }
+        if (hit && v && hit.seg.version.kind === 'footage') {
+          if (v.paused) void v.play().catch(() => {})
+          syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, true)
         }
         drawCommercialFrame(ctx, commercial, segs, Math.min(contentT, dur - 0.001), { W: w, H: h, media })
         onProgress?.(Math.min(0.99, contentT / dur))

@@ -138,7 +138,7 @@ describe('clipModel — commercial assembly + persistence', () => {
     expect(back.clips[0].status).toBe('ready')
   })
 
-  it('footage versions do not survive a reload — the clip honestly returns to draft', () => {
+  it('footage versions do not survive a reload — the clip honestly returns to draft and leaves the sequence', () => {
     const c = newCommercial()
     const { versions } = generateFootageVersions(analysis, '#d1f94f')
     const clip = { ...newClip('recording'), versions, status: 'accepted' as const, acceptedId: versions[0].id }
@@ -149,5 +149,49 @@ describe('clipModel — commercial assembly + persistence', () => {
     expect(back.clips[0].status).toBe('draft')
     expect(back.clips[0].versions).toHaveLength(0)
     expect(back.clips[0].acceptedId).toBeUndefined()
+    // No ghost entry: the Project badge must not count a clip that is no longer accepted.
+    expect(back.order).toHaveLength(0)
+  })
+
+  it('drops broken versions (scene without spec) instead of letting renderProject crash the preview', () => {
+    const c = newCommercial()
+    const clip = newClip('typography')
+    c.clips = [
+      {
+        ...clip,
+        status: 'ready',
+        versions: [
+          { id: 'v1', label: 'A', kind: 'scene' } as never, // spec missing — hostile/corrupt payload
+          { id: 'v2', label: 'B', kind: 'footage' } as never, // plan/cfg missing
+        ],
+      },
+    ]
+    saveCommercial(c)
+    const back = loadCommercial()
+    expect(back.clips[0].versions).toHaveLength(0)
+    expect(back.clips[0].status).toBe('draft')
+  })
+
+  it('never lets raw payloads smuggle junk fields or a bogus acceptedId through', async () => {
+    const c = newCommercial()
+    const clip = { ...newClip('logo'), prompt: 'x' }
+    const versions = await generateSceneVersions(clip, [], '#d1f94f', '16:9')
+    const hostile = {
+      ...clip,
+      versions,
+      status: 'accepted',
+      acceptedId: 'not-a-version', // points nowhere
+      __proto__polluted: true,
+      hax: 'field',
+    } as never
+    c.clips = [hostile]
+    c.order = [clip.id]
+    saveCommercial(c)
+    const back = loadCommercial()
+    expect('hax' in back.clips[0]).toBe(false)
+    // Bogus acceptedId → demoted to ready (takes exist), and the sequence drops it.
+    expect(back.clips[0].status).toBe('ready')
+    expect(back.clips[0].acceptedId).toBeUndefined()
+    expect(back.order).toHaveLength(0)
   })
 })

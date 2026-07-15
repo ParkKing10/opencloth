@@ -50,6 +50,7 @@ import { AdminDesigns } from './suite/admin/pages/AdminDesigns'
 import { AdminManufacturers } from './suite/admin/pages/AdminManufacturers'
 import { AdminOrders } from './suite/admin/pages/AdminOrders'
 import { AdminSettings } from './suite/admin/pages/AdminSettings'
+import { AdminVideoProviders } from './suite/admin/pages/AdminVideoProviders'
 
 initTheme()
 
@@ -144,6 +145,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="manufacturers" element={<AdminManufacturers />} />
                 <Route path="orders" element={<AdminOrders />} />
                 <Route path="settings" element={<AdminSettings />} />
+                <Route path="video" element={<AdminVideoProviders />} />
                 <Route path="*" element={<Navigate to="/admin" replace />} />
               </Route>
 

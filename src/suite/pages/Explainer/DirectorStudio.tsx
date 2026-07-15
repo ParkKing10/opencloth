@@ -12,7 +12,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
+import { useAuth } from '../../auth/auth'
+import { useStore } from '../../data/store'
 import { Slider, Switch, fmtTime } from './controls'
+import { uid } from './types'
 import {
   CLIP_TYPES,
   CLIP_STYLES,
@@ -21,6 +24,7 @@ import {
   loadCommercial,
   saveCommercial,
   clipPlayLength,
+  versionLabelFor,
   DUR_MIN,
   DUR_MAX,
   type Clip,
@@ -29,8 +33,14 @@ import {
   type Commercial,
   type TransitionKind,
 } from './clipModel'
-import { generateSceneVersions, generateFootageVersions } from './clipDirector'
-import { buildSegments, segmentsDuration, segmentAt, drawCommercialFrame, syncFootage, exportCommercial, EXPORT_SIZES, type MediaProvider } from './exportCommercial'
+import { compilePrompt } from './generation/promptCompiler'
+import { startGeneration, runJob, recoverPendingJobs, resolveProviderId, newIdempotencyKey, type CreditWallet } from './generation/generationService'
+import { registerHiggsfieldProvider } from './generation/higgsfieldProvider'
+import { getVideoAssetMeta } from './generation/videoAssets'
+import { isTerminal, VIDEO_GEN_COST, type GenerationJob } from './generation/types'
+import { generateFootageVersions } from './clipDirector'
+import { buildSegments, segmentsDuration, segmentAt, drawCommercialFrame, syncFootage, syncPlainVideo, drawVideoCover, isVideoBacked, exportCommercial, EXPORT_SIZES, type MediaProvider } from './exportCommercial'
+import { getVideoObjectURL, releaseVideoObjectURLs } from './generation/videoAssets'
 import { renderProject } from './engine/render'
 import { composeAdFrame, adOutputDuration } from './engine/adCompose'
 import { saveAsset, ensureAssetsLoaded, getAssetImage, type AssetMeta } from './engine/assets'
@@ -42,6 +52,9 @@ import { pickMime } from './recorder'
 import { downloadBlob } from '../../lib/download'
 import './explainer.css' // xp-* primitives used by the shared Slider/Switch controls
 import './director-studio.css'
+
+/* Register the cloud provider once (no-op without a configured backend). */
+registerHiggsfieldProvider()
 
 /* ---------------- session-local recording registry ---------------- */
 
@@ -59,7 +72,9 @@ function makeVideo(url: string): HTMLVideoElement {
 /* ---------------- duration of a specific version ---------------- */
 
 function versionDuration(clip: Clip, v: ClipVersion): number {
-  return v.kind === 'scene' ? clip.durationSec : adOutputDuration(v.plan, v.cfg)
+  if (v.kind === 'scene') return clip.durationSec
+  if (v.kind === 'footage') return adOutputDuration(v.plan, v.cfg)
+  return v.duration // provider-generated video: the real media length
 }
 
 /* ============================================================ */
@@ -67,6 +82,8 @@ function versionDuration(clip: Clip, v: ClipVersion): number {
 export function DirectorStudio() {
   const t = useT()
   const toast = useToast()
+  const { user, isAdmin } = useAuth()
+  const { mutate } = useStore()
 
   const [com, setCom] = useState<Commercial>(() => loadCommercial())
   const [view, setView] = useState<'direct' | 'edit'>('direct')
@@ -75,6 +92,8 @@ export function DirectorStudio() {
   const [pickerOpen, setPickerOpen] = useState(com.clips.length === 0)
   const [generating, setGenerating] = useState(false)
   const [genPhase, setGenPhase] = useState(0)
+  /** The in-flight provider job (mock or cloud) — drives the truthful state veil. */
+  const [genJob, setGenJob] = useState<GenerationJob | null>(null)
   const [analyzing, setAnalyzing] = useState(0) // 0..1 while a recording is analysed
   const [exporting, setExporting] = useState<number | null>(null)
   const [playing, setPlaying] = useState(false)
@@ -86,8 +105,11 @@ export function DirectorStudio() {
   const exportingRef = useRef(false)
   const editVideoRef = useRef<HTMLVideoElement | null>(null) // the one footage video rolling in Project view
   const recsRef = useRef(new Map<string, Rec>())
+  /** Generated-video elements (IndexedDB-backed object URLs), keyed by clip. */
+  const genVidsRef = useRef(new Map<string, { assetId: string; video: HTMLVideoElement }>())
   const metasRef = useRef(new Map<string, AssetMeta>())
   const abortRef = useRef<AbortController | null>(null)
+  const genAbortRef = useRef<AbortController | null>(null)
   const genSeq = useRef(0)
 
   const clip = com.clips.find((c) => c.id === selectedId) ?? null
@@ -95,8 +117,77 @@ export function DirectorStudio() {
   const typeDef = clip ? clipTypeDef(clip.type) : null
   const segments = useMemo(() => buildSegments(com), [com])
   const projectLen = segmentsDuration(segments)
+  const providerId = resolveProviderId()
+  const cloudBusy = genJob !== null && !isTerminal(genJob.state)
+  const busyGen = generating || cloudBusy
 
-  const media: MediaProvider = useMemo(() => ({ videoFor: (id) => recsRef.current.get(id)?.video ?? null }), [])
+  // Generated videos win over session recordings — a clip's active version decides
+  // which map is populated for it (the warm-up effect below keeps them disjoint).
+  const media: MediaProvider = useMemo(() => ({ videoFor: (id) => genVidsRef.current.get(id)?.video ?? recsRef.current.get(id)?.video ?? null }), [])
+
+  /* ---------- credits: reserve on submit, refund on provider failure ---------- */
+  const wallet: CreditWallet = useMemo(
+    () => ({
+      reserve: (coins) => {
+        if (coins <= 0) return true
+        if (!user || user.coins < coins) return false
+        mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins - coins } : u)) }))
+        return true
+      },
+      refund: (coins) => {
+        if (coins <= 0 || !user) return
+        mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, coins: u.coins + coins } : u)) }))
+      },
+    }),
+    [user, mutate],
+  )
+
+  /** A finished provider job becomes ONE new take on its clip — history is never
+      overwritten, and nothing is ever added to the project automatically. */
+  const appendVideoVersion = useCallback(async (job: GenerationJob): Promise<string | null> => {
+    if (!job.resultAssetId) return null
+    const meta = await getVideoAssetMeta(job.resultAssetId)
+    if (!meta) return null
+    const newId = uid()
+    setCom((c) => {
+      const k = c.clips.find((x) => x.id === job.clipId)
+      if (!k) return c // clip was deleted while the job ran — the asset stays in the library
+      const ver: ClipVersion = {
+        id: newId,
+        label: versionLabelFor(k.versions.length),
+        kind: 'video',
+        assetId: meta.id,
+        width: meta.width,
+        height: meta.height,
+        duration: Math.max(0.5, Math.round(meta.duration * 10) / 10),
+        thumb: meta.thumb || undefined,
+        jobId: job.id,
+      }
+      return {
+        ...c,
+        clips: c.clips.map((x) =>
+          x.id === job.clipId ? { ...x, versions: [...x.versions, ver].slice(-10), status: x.status === 'accepted' ? 'accepted' : 'ready' } : x,
+        ),
+      }
+    })
+    return newId
+  }, [])
+
+  // After a reload: resume polling for cloud jobs that were still running (mock jobs
+  // honestly fail — their bake died with the tab) and land any finished results.
+  const recovered = useRef(false)
+  useEffect(() => {
+    if (recovered.current) return
+    recovered.current = true
+    void recoverPendingJobs(wallet, (j) => setGenJob((cur) => (cur && cur.id === j.id ? j : cur))).then(async (jobs) => {
+      let landed = 0
+      for (const j of jobs) {
+        if (j.state === 'completed' && (await appendVideoVersion(j))) landed++
+      }
+      if (landed > 0) toast(t('director.toast.recovered', { n: landed }), 'success')
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ---------- persistence (specs only — media lives elsewhere) ---------- */
   const storageWarned = useRef(false)
@@ -113,6 +204,34 @@ export function DirectorStudio() {
     if (ids.length) void ensureAssetsLoaded(ids)
   }, [com.clips])
 
+  // Keep a warmed <video> element for every clip whose ACTIVE version is a generated
+  // video (selected in Clips view or accepted in the sequence). Elements for versions
+  // no longer in play are dropped; the underlying object URLs are cache-owned by
+  // videoAssets and released once on unmount.
+  useEffect(() => {
+    const wanted = new Map<string, string>() // clipId → assetId
+    if (clip && version?.kind === 'video') wanted.set(clip.id, version.assetId)
+    for (const s of segments) if (s.version.kind === 'video') wanted.set(s.clip.id, s.version.assetId)
+    for (const [cid, entry] of genVidsRef.current) {
+      if (wanted.get(cid) !== entry.assetId) {
+        entry.video.pause()
+        entry.video.src = ''
+        genVidsRef.current.delete(cid)
+      }
+    }
+    let dead = false
+    for (const [cid, assetId] of wanted) {
+      if (genVidsRef.current.get(cid)?.assetId === assetId) continue
+      void getVideoObjectURL(assetId).then((url) => {
+        if (dead || !url) return
+        genVidsRef.current.set(cid, { assetId, video: makeVideo(url) })
+      })
+    }
+    return () => {
+      dead = true
+    }
+  }, [clip, version, segments])
+
   // Leaving the studio: cancel a running export and free the session recordings
   // (object URLs + video elements would otherwise leak until the tab dies).
   useEffect(
@@ -124,6 +243,12 @@ export function DirectorStudio() {
         URL.revokeObjectURL(rec.url)
       }
       recsRef.current.clear()
+      for (const e of genVidsRef.current.values()) {
+        e.video.pause()
+        e.video.src = ''
+      }
+      genVidsRef.current.clear()
+      releaseVideoObjectURLs()
     },
     [],
   )
@@ -182,62 +307,122 @@ export function DirectorStudio() {
     toast(t('director.toast.clipDeleted'), 'default')
   }
 
-  /* ---------- generation ---------- */
-  const generate = async (regenerate = false) => {
-    if (!clip || generating) return
-    if (clip.type === 'recording' && !recsRef.current.get(clip.id)) {
-      toast(t('director.toast.needRecording'), 'info')
-      return
-    }
-    // Assets are never required: image-led types without an upload honestly
-    // degrade to the typography recipes inside the generator.
-    const seq = ++genSeq.current
-    setGenerating(true)
-    setGenPhase(0)
-    const phaseTimer = window.setInterval(() => setGenPhase((p) => (p + 1) % 4), 900)
-    const startedAt = performance.now()
-    try {
-      let versions: ClipVersion[]
-      let footageDuration = 0
-      if (clip.type === 'recording') {
+  /* ---------- generation ----------
+     Recording clips cut the user's own footage locally. Everything else goes
+     through the provider service: mock (local bake, free) or Higgsfield Cloud
+     via our backend — selected by VIDEO_PROVIDER, never by the browser holding
+     a key. One in-flight job at a time; Regenerate APPENDS takes, never
+     overwrites, and nothing lands in the project without an explicit Accept. */
+  const generate = async () => {
+    if (!clip || generating || (genJob && !isTerminal(genJob.state))) return
+
+    if (clip.type === 'recording') {
+      if (!recsRef.current.get(clip.id)) {
+        toast(t('director.toast.needRecording'), 'info')
+        return
+      }
+      const seq = ++genSeq.current
+      setGenerating(true)
+      setGenPhase(0)
+      const phaseTimer = window.setInterval(() => setGenPhase((p) => (p + 1) % 4), 900)
+      const startedAt = performance.now()
+      try {
         const rec = recsRef.current.get(clip.id)!
         const out = generateFootageVersions(rec.analysis, com.accent)
-        versions = out.versions
         // Floor, never round up: a display duration past the plan's cut length would
         // push the final frames into composeAdFrame's outro-card branch.
-        footageDuration = Math.floor(out.durations[0] * 10) / 10
-      } else {
-        await ensureAssetsLoaded(clip.assetIds)
-        const metas = clip.assetIds.map((id) => metasRef.current.get(id) ?? { id, name: 'asset', addedAt: 0 })
-        versions = await generateSceneVersions(clip, metas, com.accent, com.aspect, regenerate ? Math.floor(Math.random() * 3) + 1 : 0)
+        const footageDuration = Math.floor(out.durations[0] * 10) / 10
+        const min = 1100
+        const elapsed = performance.now() - startedAt
+        if (elapsed < min) await new Promise((r) => setTimeout(r, min - elapsed))
+        if (seq !== genSeq.current) return // superseded (clip switched / deleted)
+        setCom((c) => ({
+          ...c,
+          clips: c.clips.map((k) => (k.id === clip.id ? { ...k, versions: out.versions, status: 'ready' as const, acceptedId: undefined, durationSec: footageDuration } : k)),
+        }))
+        setVersionId(out.versions[0].id)
+        timeRef.current = 0
+        setPlaying(true)
+        toast(t('director.toast.generated'), 'success')
+      } catch {
+        if (seq === genSeq.current) toast(t('director.toast.genFailed'), 'info')
+      } finally {
+        window.clearInterval(phaseTimer)
+        if (seq === genSeq.current) setGenerating(false)
       }
-      // Direction takes a beat — never flash the result in under a second.
-      const min = 1100
-      const elapsed = performance.now() - startedAt
-      if (elapsed < min) await new Promise((r) => setTimeout(r, min - elapsed))
-      if (seq !== genSeq.current) return // superseded (clip switched / deleted)
-      // Commit against the LIVE clip (not this closure): if the duration slider moved
-      // while the director worked, the fresh takes are retimed to the current value.
-      setCom((c) => ({
-        ...c,
-        clips: c.clips.map((k) => {
-          if (k.id !== clip.id) return k
-          const dur = clip.type === 'recording' ? footageDuration : k.durationSec
-          const retimed = versions.map((v) =>
-            v.kind === 'scene' ? { ...v, spec: { ...v.spec, scenes: v.spec.scenes.map((s) => ({ ...s, duration: dur })) } } : v,
-          )
-          return { ...k, versions: retimed, status: 'ready' as const, acceptedId: undefined, durationSec: dur }
-        }),
-      }))
-      setVersionId(versions[0].id)
-      timeRef.current = 0
-      setPlaying(true)
-      toast(t('director.toast.generated'), 'success')
-    } catch {
-      if (seq === genSeq.current) toast(t('director.toast.genFailed'), 'info')
+      return
+    }
+
+    // Provider path (assets always optional — no assets = documented text mode).
+    const source = clip.continuesFromClipId ? com.clips.find((k) => k.id === clip.continuesFromClipId) : undefined
+    const input = {
+      clipId: clip.id,
+      clipType: clip.type,
+      userPrompt: clip.prompt.trim(),
+      compiledPrompt: compilePrompt({
+        clipType: clip.type,
+        userPrompt: clip.prompt,
+        style: clip.style,
+        aspect: com.aspect,
+        durationSec: clip.durationSec,
+        brandProduct: 'loom studios',
+        brandAccent: com.accent,
+        hasImages: clip.assetIds.length > 0,
+        imageCount: clip.assetIds.length,
+        continuesFrom: source ? { userPrompt: source.prompt } : undefined,
+      }),
+      style: clip.style,
+      aspect: com.aspect,
+      durationSec: clip.durationSec,
+      imageAssetIds: clip.assetIds,
+      continueFromClipId: clip.continuesFromClipId,
+      idempotencyKey: newIdempotencyKey(),
+    }
+    const ctrl = new AbortController()
+    genAbortRef.current = ctrl
+    try {
+      const { job } = await startGeneration(input, wallet)
+      setGenJob(job)
+      const final = await runJob(job, wallet, (j) => setGenJob(j), ctrl.signal)
+      setGenJob(final)
+      if (final.state === 'completed') {
+        const newVersionId = await appendVideoVersion(final)
+        if (newVersionId && selectedId === final.clipId) {
+          setVersionId(newVersionId)
+          timeRef.current = 0
+          setPlaying(true)
+        }
+        toast(t('director.toast.generated'), 'success')
+      } else if (final.state === 'failed') {
+        toast(errorText(final.error?.code), 'info')
+      }
+    } catch (err) {
+      const code = err instanceof Error ? err.message : 'generic'
+      toast(errorText(code), 'info')
     } finally {
-      window.clearInterval(phaseTimer)
-      if (seq === genSeq.current) setGenerating(false)
+      genAbortRef.current = null
+      setGenJob(null)
+    }
+  }
+
+  /** Understandable provider errors — technical detail stays in server logs. */
+  const errorText = (code?: string): string => {
+    switch (code) {
+      case 'credits':
+        return t('director.err.credits', { n: VIDEO_GEN_COST })
+      case 'moderation':
+        return t('director.err.moderation')
+      case 'timeout':
+        return t('director.err.timeout')
+      case 'not_configured':
+      case 'backend_missing':
+        return t('director.err.notConfigured')
+      case 'provider_credits':
+        return t('director.err.providerCredits')
+      case 'rate_limited':
+        return t('director.err.rateLimited')
+      default:
+        return t('director.toast.genFailed')
     }
   }
 
@@ -252,6 +437,48 @@ export function DirectorStudio() {
       order: c.order.includes(clip.id) ? c.order : [...c.order, clip.id],
     }))
     toast(t('director.toast.accepted'), 'success')
+  }
+
+  /* ---------- Continue Scene ----------
+     New linked clip + the current take's FINAL FRAME as its reference image —
+     honest continuity: the compiler asks the provider to match it, we never
+     claim a seamless cut the model can't guarantee. */
+  const continueScene = async () => {
+    if (!clip || !version || version.kind !== 'video') return
+    const video = media.videoFor(clip.id)
+    if (!video || video.readyState < 2) {
+      toast(t('director.toast.continueNotReady'), 'info')
+      return
+    }
+    try {
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          video.onseeked = null
+          resolve()
+        }
+        video.onseeked = done
+        video.currentTime = Math.max(0, version.duration - 0.08)
+        window.setTimeout(done, 800) // seek fallback
+      })
+      const c = document.createElement('canvas')
+      c.width = video.videoWidth || 1280
+      c.height = video.videoHeight || 720
+      c.getContext('2d')!.drawImage(video, 0, 0)
+      const blob = await new Promise<Blob | null>((res) => c.toBlob((b) => res(b), 'image/jpeg', 0.9))
+      if (!blob) throw new Error('frame')
+      const meta = await saveAsset(new File([blob], 'continuity.jpg', { type: 'image/jpeg' }))
+      metasRef.current.set(meta.id, meta)
+      const next: Clip = { ...newClip(clip.type), continuesFromClipId: clip.id, assetIds: [meta.id], prompt: clip.prompt, style: clip.style }
+      cancelGeneration()
+      setCom((c2) => ({ ...c2, clips: [...c2.clips, next] }))
+      setSelectedId(next.id)
+      setVersionId(null)
+      setView('direct')
+      timeRef.current = 0
+      toast(t('director.toast.continued'), 'success')
+    } catch {
+      toast(t('director.toast.continueFailed'), 'info')
+    }
   }
 
   /* ---------- assets ---------- */
@@ -337,14 +564,19 @@ export function DirectorStudio() {
 
   useEffect(() => {
     playingRef.current = playing
-    // Clips view: the selected clip's recording follows the transport directly.
-    // Project view: the rAF loop rolls exactly ONE footage video (the active segment,
-    // like the export loop) — here we only make sure everything stops on pause/switch.
-    for (const [id, rec] of recsRef.current) {
-      const directActive = view === 'direct' && clip?.id === id && version?.kind === 'footage'
-      if (playing && directActive) void rec.video.play().catch(() => {})
-      else if (!playing || view === 'direct') rec.video.pause()
+    // Clips view: the selected clip's video (recording OR generated) follows the
+    // transport directly. Project view: the rAF loop rolls exactly ONE video (the
+    // active segment, like the export loop) — here we only stop things on pause/switch.
+    const activeId = view === 'direct' && clip && version && isVideoBacked(version) ? clip.id : null
+    const activeMap: Map<string, { video: HTMLVideoElement }> = version?.kind === 'video' ? genVidsRef.current : recsRef.current
+    const sweep = (map: Map<string, { video: HTMLVideoElement }>) => {
+      for (const [id, e] of map) {
+        if (playing && id === activeId && map === activeMap) void e.video.play().catch(() => {})
+        else if (!playing || view === 'direct') e.video.pause()
+      }
     }
+    sweep(recsRef.current)
+    sweep(genVidsRef.current)
     if (view !== 'edit') editVideoRef.current = null
   }, [playing, clip, version, view])
 
@@ -392,11 +624,20 @@ export function DirectorStudio() {
       } else if (clip && version) {
         if (version.kind === 'scene') {
           renderProject(ctx, version.spec, tt, W, H)
-        } else {
+        } else if (version.kind === 'footage') {
           const video = media.videoFor(clip.id)
           if (video) {
             syncFootage(video, version, tt, playingRef.current)
             composeAdFrame(ctx, version.plan, version.cfg, { videos: [video], logo: null }, tt, W, H)
+          }
+        } else {
+          // Provider-generated video: real pixels, cover-fit — nothing composited on top.
+          ctx.fillStyle = '#08080b'
+          ctx.fillRect(0, 0, W, H)
+          const video = media.videoFor(clip.id)
+          if (video && video.readyState >= 2) {
+            syncPlainVideo(video, version.duration, tt, playingRef.current)
+            drawVideoCover(ctx, video, W, H)
           }
         }
       } else {
@@ -474,7 +715,9 @@ export function DirectorStudio() {
         <button type="button" className="cdr__new" onClick={() => setPickerOpen(true)} disabled={exporting !== null}>
           + {t('director.clips.new')}
         </button>
-        <p className="cdr__ai-note">{hasDirectorAi() ? t('director.ai.live') : t('director.ai.local')}</p>
+        <p className="cdr__ai-note">
+          {providerId === 'higgsfield' ? t('director.ai.cloud') : hasDirectorAi() ? t('director.ai.live') : t('director.ai.local')}
+        </p>
       </aside>
 
       {/* ─── CENTER: the preview ─── */}
@@ -486,6 +729,17 @@ export function DirectorStudio() {
               <span className="cdr__veil-spin" aria-hidden="true" />
               <b>{genPhrases[genPhase]}</b>
               <small>{t('director.gen.sub')}</small>
+            </div>
+          )}
+          {cloudBusy && genJob && genJob.clipId === selectedId && view === 'direct' && (
+            <div className="cdr__veil" role="status">
+              {/* No fake percentages — the API reports states, not progress. */}
+              <span className="cdr__veil-spin" aria-hidden="true" />
+              <b>{t(`director.state.${genJob.state}`)}</b>
+              <small>{genJob.provider === 'higgsfield' ? t('director.gen.cloudSub') : t('director.gen.mockSub')}</small>
+              <button type="button" className="cdr__veil-cancel" onClick={() => genAbortRef.current?.abort()}>
+                {t('director.export.cancel')}
+              </button>
             </div>
           )}
           {analyzing > 0 && (
@@ -556,7 +810,12 @@ export function DirectorStudio() {
               <button type="button" className="cdr__accept" onClick={accept} disabled={!version || clip.acceptedId === version?.id}>
                 {clip.acceptedId === version?.id ? `✓ ${t('director.inProject')}` : t('director.accept')}
               </button>
-              <button type="button" className="cdr__ghost" onClick={() => void generate(true)} disabled={generating}>
+              {version?.kind === 'video' && (
+                <button type="button" className="cdr__ghost" onClick={() => void continueScene()} disabled={busyGen}>
+                  {t('director.continueScene')} →
+                </button>
+              )}
+              <button type="button" className="cdr__ghost" onClick={() => void generate()} disabled={busyGen}>
                 {t('director.regenerate')}
               </button>
               <button type="button" className="cdr__ghost cdr__ghost--danger" onClick={() => removeClip(clip.id)}>
@@ -637,9 +896,29 @@ export function DirectorStudio() {
                 ))}
               </div>
 
-              <button type="button" className="cdr__generate" onClick={() => void generate(false)} disabled={generating || analyzing > 0}>
-                {generating ? t('director.generating') : clip.versions.length > 0 ? t('director.regenerate') : `✨ ${t('director.generate')}`}
+              {isAdmin && (
+                <details className="cdr__debug">
+                  <summary>{t('director.debug.title')}</summary>
+                  <pre>
+                    {compilePrompt({
+                      clipType: clip.type,
+                      userPrompt: clip.prompt,
+                      style: clip.style,
+                      aspect: com.aspect,
+                      durationSec: clip.durationSec,
+                      brandProduct: 'loom studios',
+                      brandAccent: com.accent,
+                      hasImages: clip.assetIds.length > 0,
+                      imageCount: clip.assetIds.length,
+                      continuesFrom: clip.continuesFromClipId ? { userPrompt: com.clips.find((k) => k.id === clip.continuesFromClipId)?.prompt ?? '' } : undefined,
+                    })}
+                  </pre>
+                </details>
+              )}
+              <button type="button" className="cdr__generate" onClick={() => void generate()} disabled={busyGen || analyzing > 0}>
+                {busyGen ? t('director.generating') : clip.versions.length > 0 ? t('director.regenerate') : `✨ ${t('director.generate')}`}
               </button>
+              {providerId === 'higgsfield' && <small className="cdr__hint-line">{t('director.costNote', { n: VIDEO_GEN_COST })}</small>}
             </>
           ) : (
             <div className="cdr__noclip">

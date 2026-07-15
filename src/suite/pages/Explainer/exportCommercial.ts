@@ -75,6 +75,33 @@ export function syncFootage(video: HTMLVideoElement, version: Extract<ClipVersio
   }
 }
 
+/** Keep a plain generated-video element near source time (identity mapping; trims are
+    applied by the caller via sourceT). Exact while paused, drift-corrected while rolling. */
+export function syncPlainVideo(video: HTMLVideoElement, duration: number, sourceT: number, playing: boolean): void {
+  const src = Math.min(Math.max(0, sourceT), Math.max(0, duration - 0.05))
+  const drift = Math.abs(video.currentTime - src)
+  if (!playing) {
+    if (drift > 0.033) video.currentTime = src
+  } else if (drift > 0.3) {
+    video.currentTime = src
+  }
+}
+
+/** True for versions whose frames come from a <video> element the caller manages. */
+export function isVideoBacked(v: ClipVersion): v is Extract<ClipVersion, { kind: 'footage' | 'video' }> {
+  return v.kind === 'footage' || v.kind === 'video'
+}
+
+/** Cover-fit a video frame into the stage (center-crop, never letterbox bars). */
+export function drawVideoCover(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number): void {
+  const vw = video.videoWidth || W
+  const vh = video.videoHeight || H
+  const s = Math.max(W / vw, H / vh)
+  const dw = vw * s
+  const dh = vh * s
+  ctx.drawImage(video, (W - dw) / 2, (H - dh) / 2, dw, dh)
+}
+
 const TRANS = 0.35
 
 type DrawOpts = { W: number; H: number; media: MediaProvider }
@@ -108,12 +135,16 @@ export function drawCommercialFrame(ctx: CanvasRenderingContext2D, c: Commercial
   } else {
     const video = media.videoFor(seg.clip.id)
     if (video && video.readyState >= 2) {
-      // Clamp to the plan's real length — durationSec is rounded for display, and a
-      // value past cutDuration would flip composeAdFrame into its outro-card branch.
-      const planT = Math.min(sourceT, adOutputDuration(seg.version.plan, seg.version.cfg) - 0.001)
-      composeAdFrame(ctx, seg.version.plan, seg.version.cfg, { videos: [video], logo: null }, planT, W, H)
+      if (seg.version.kind === 'footage') {
+        // Clamp to the plan's real length — durationSec is rounded for display, and a
+        // value past cutDuration would flip composeAdFrame into its outro-card branch.
+        const planT = Math.min(sourceT, adOutputDuration(seg.version.plan, seg.version.cfg) - 0.001)
+        composeAdFrame(ctx, seg.version.plan, seg.version.cfg, { videos: [video], logo: null }, planT, W, H)
+      } else {
+        drawVideoCover(ctx, video, W, H)
+      }
     } else {
-      // Recording blob is gone (page reload) — honest placeholder, never a fake frame.
+      // Media not loaded (yet) — honest placeholder, never a fake frame.
       ctx.fillStyle = 'rgba(255,255,255,0.35)'
       ctx.font = `500 ${Math.round(H * 0.03)}px Inter, system-ui, sans-serif`
       ctx.textAlign = 'center'
@@ -173,16 +204,17 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
   const assetIds = segs.flatMap((s) => (s.version.kind === 'scene' ? collectAssetIds(s.version.spec) : []))
   if (assetIds.length) await ensureAssetsLoaded(assetIds)
 
-  // Footage videos: seek each to its segment's first frame but do NOT start them —
-  // a video that free-runs from t=0 is at the wrong source time (or already ended)
-  // when its segment finally begins. The render loop below plays exactly one at a time.
-  const footage = segs.filter((s): s is Segment & { version: Extract<ClipVersion, { kind: 'footage' }> } => s.version.kind === 'footage')
-  for (const s of footage) {
+  // Video-backed segments (recordings + generated videos): seek each to its first frame
+  // but do NOT start them — a video that free-runs from t=0 is at the wrong source time
+  // (or already ended) when its segment begins. The render loop plays exactly one at a time.
+  const videoBacked = segs.filter((s) => isVideoBacked(s.version))
+  for (const s of videoBacked) {
     const v = media.videoFor(s.clip.id)
     if (v) {
       v.muted = true
       v.pause()
-      syncFootage(v, s.version, s.clip.trimStart, false)
+      if (s.version.kind === 'footage') syncFootage(v, s.version, s.clip.trimStart, false)
+      else if (s.version.kind === 'video') syncPlainVideo(v, s.version.duration, s.clip.trimStart, false)
     }
   }
   drawCommercialFrame(ctx, commercial, segs, 0, { W: w, H: h, media })
@@ -261,14 +293,15 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
         else contentT += Math.min(0.1, Math.max(0, (now - last) / 1000))
         last = now
         const hit = segmentAt(segs, contentT)
-        const v = hit && hit.seg.version.kind === 'footage' ? media.videoFor(hit.seg.clip.id) : null
+        const v = hit && isVideoBacked(hit.seg.version) ? media.videoFor(hit.seg.clip.id) : null
         if (v !== activeVideo) {
           activeVideo?.pause()
           activeVideo = v
         }
-        if (hit && v && hit.seg.version.kind === 'footage') {
+        if (hit && v) {
           if (v.paused) void v.play().catch(() => {})
-          syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, true)
+          if (hit.seg.version.kind === 'footage') syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, true)
+          else if (hit.seg.version.kind === 'video') syncPlainVideo(v, hit.seg.version.duration, hit.seg.clip.trimStart + hit.local, true)
         }
         drawCommercialFrame(ctx, commercial, segs, Math.min(contentT, dur - 0.001), { W: w, H: h, media })
         onProgress?.(Math.min(0.99, contentT / dur))
@@ -281,7 +314,7 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
     await new Promise((r) => setTimeout(r, 80))
   } finally {
     document.removeEventListener('visibilitychange', onVisibility)
-    for (const s of footage) media.videoFor(s.clip.id)?.pause()
+    for (const s of videoBacked) media.videoFor(s.clip.id)?.pause()
     try {
       audioSource?.stop()
     } catch {

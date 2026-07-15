@@ -65,13 +65,19 @@ export const CLIP_STYLES: ClipStyle[] = ['cinematic', 'minimal', 'bold', 'electr
 
 /* ---------------- versions ---------------- */
 
-export type VersionLabel = 'A' | 'B' | 'C'
+export type VersionLabel = string // 'A', 'B', 'C', … — history accumulates on Regenerate
 
-/** A generated take. `scene` versions are pure engine specs; `footage`
-    versions cut a screen recording (video lives in memory, keyed by clip). */
+export const versionLabelFor = (index: number): VersionLabel => 'ABCDEFGHIJ'[index] ?? `V${index + 1}`
+
+/** A generated take.
+    `scene`   — pure engine spec (deterministic local director).
+    `footage` — a cut of a screen recording (video blob is session-local).
+    `video`   — a REAL generated video from a provider, ingested into the
+                IndexedDB video-asset store (survives reloads). */
 export type ClipVersion =
   | { id: string; label: VersionLabel; kind: 'scene'; spec: Project }
   | { id: string; label: VersionLabel; kind: 'footage'; plan: AdPlan; cfg: AdConfig }
+  | { id: string; label: VersionLabel; kind: 'video'; assetId: string; width: number; height: number; duration: number; thumb?: string; jobId?: string }
 
 /* ---------------- clip ---------------- */
 
@@ -86,6 +92,8 @@ export type Clip = {
   assetIds: string[]
   /** Screen-recording file name, when a recording is attached (blob is session-local). */
   recordingName?: string
+  /** Continue Scene: the clip this one continues (continuity context for the compiler). */
+  continuesFromClipId?: string
   /** Target length in seconds (2–8). */
   durationSec: number
   style: ClipStyle
@@ -186,10 +194,11 @@ const str = (v: unknown, dflt = ''): string => (typeof v === 'string' ? v : dflt
     composeAdFrame would otherwise throw and kill the preview loop). */
 function okVersion(v: unknown): v is ClipVersion {
   if (!v || typeof v !== 'object') return false
-  const x = v as { id?: unknown; label?: unknown; kind?: unknown; spec?: { scenes?: unknown }; plan?: { clips?: unknown }; cfg?: unknown }
-  if (typeof x.id !== 'string' || (x.label !== 'A' && x.label !== 'B' && x.label !== 'C')) return false
+  const x = v as { id?: unknown; label?: unknown; kind?: unknown; spec?: { scenes?: unknown }; plan?: { clips?: unknown }; cfg?: unknown; assetId?: unknown; duration?: unknown }
+  if (typeof x.id !== 'string' || typeof x.label !== 'string' || x.label.length === 0 || x.label.length > 3) return false
   if (x.kind === 'scene') return !!x.spec && Array.isArray(x.spec.scenes) && x.spec.scenes.length > 0
   if (x.kind === 'footage') return !!x.plan && Array.isArray(x.plan.clips) && !!x.cfg && typeof x.cfg === 'object'
+  if (x.kind === 'video') return typeof x.assetId === 'string' && typeof x.duration === 'number' && x.duration > 0
   return false
 }
 
@@ -206,15 +215,14 @@ function sanitize(raw: unknown): Commercial | null {
     .map((raw) => {
       const k = raw as Partial<Clip>
       const fresh = newClip(CLIP_TYPES.some((t) => t.id === k.type) ? (k.type as ClipTypeId) : 'ai-scene')
-      let versions = Array.isArray(k.versions) ? k.versions.filter(okVersion).slice(0, 3) : []
-      // Footage versions reference session-local blobs — after a reload the video is
-      // gone, so those clips honestly fall back to draft (regenerate re-attaches).
-      const accepted = versions.find((v) => v.id === k.acceptedId)
-      if ((accepted && accepted.kind === 'footage') || (versions.length > 0 && versions.every((v) => v.kind === 'footage'))) {
-        versions = []
-      }
+      // Footage versions reference session-local blobs and die with the tab; scene
+      // specs and provider `video` assets (IndexedDB) genuinely survive a reload.
+      const versions = (Array.isArray(k.versions) ? k.versions.filter(okVersion).slice(0, 10) : []).filter((v) => v.kind !== 'footage')
       const acceptedId = k.status === 'accepted' && typeof k.acceptedId === 'string' && versions.some((v) => v.id === k.acceptedId) ? k.acceptedId : undefined
       const status: ClipStatus = acceptedId ? 'accepted' : versions.length > 0 ? 'ready' : 'draft'
+      // Real provider videos / footage cuts may legitimately run past the 8s scene cap.
+      const accepted = versions.find((v) => v.id === acceptedId)
+      const maxDur = fresh.type === 'recording' || (accepted && accepted.kind !== 'scene') ? DUR_MAX * 8 : DUR_MAX
       return {
         ...fresh,
         id: str(k.id, fresh.id),
@@ -222,7 +230,8 @@ function sanitize(raw: unknown): Commercial | null {
         prompt: str(k.prompt).slice(0, 600),
         assetIds: Array.isArray(k.assetIds) ? k.assetIds.filter((a): a is string => typeof a === 'string').slice(0, 8) : [],
         recordingName: k.recordingName ? str(k.recordingName).slice(0, 120) : undefined,
-        durationSec: num(k.durationSec, DUR_MIN, fresh.type === 'recording' ? DUR_MAX * 8 : DUR_MAX, 5), // only footage may exceed 8s
+        continuesFromClipId: k.continuesFromClipId ? str(k.continuesFromClipId) : undefined,
+        durationSec: num(k.durationSec, DUR_MIN, maxDur, 5),
         style: CLIP_STYLES.includes(k.style as ClipStyle) ? (k.style as ClipStyle) : 'cinematic',
         status,
         versions,

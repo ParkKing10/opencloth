@@ -1,7 +1,7 @@
-/* AI Commercial Director — cd- prefix (never ad-*: adblockers hide those).
+/* AI Commercial Director — cdr- prefix (never ad-*: adblockers hide those).
    Minimal, premium, huge preview. Desktop-first like every editor here. */
 
-.cd {
+.cdr {
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr) 300px;
   gap: 18px;
@@ -9,14 +9,14 @@
 }
 
 /* ── left rail ── */
-.cd__left {
+.cdr__left {
   display: flex;
   flex-direction: column;
   gap: 12px;
   position: sticky;
   top: 12px;
 }
-.cd__name {
+.cdr__name {
   width: 100%;
   padding: 10px 12px;
   border-radius: 12px;
@@ -26,11 +26,11 @@
   font-size: 14px;
   font-weight: 700;
 }
-.cd__name:focus {
+.cdr__name:focus {
   outline: none;
   border-color: var(--s-accent, #d1f94f);
 }
-.cd__viewtabs {
+.cdr__viewtabs {
   display: flex;
   gap: 4px;
   padding: 4px;
@@ -38,7 +38,7 @@
   border: 1px solid var(--s-line);
   background: var(--s-panel-2, rgba(255, 255, 255, 0.03));
 }
-.cd__viewtab {
+.cdr__viewtab {
   flex: 1;
   border: none;
   background: transparent;
@@ -53,36 +53,36 @@
   justify-content: center;
   gap: 6px;
 }
-.cd__viewtab.is-on {
+.cdr__viewtab.is-on {
   background: var(--s-accent, #d1f94f);
   color: #14141a;
 }
-.cd__viewtab em {
+.cdr__viewtab em {
   font-style: normal;
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.25);
 }
-.cd__viewtab:not(.is-on) em {
+.cdr__viewtab:not(.is-on) em {
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 18%, transparent);
   color: var(--s-accent, #d1f94f);
 }
 
-.cd__clips {
+.cdr__clips {
   display: flex;
   flex-direction: column;
   gap: 6px;
   max-height: 46vh;
   overflow: auto;
 }
-.cd__empty {
+.cdr__empty {
   font-size: 12px;
   color: var(--s-text-3);
   line-height: 1.5;
   margin: 4px 2px;
 }
-.cd-clip {
+.cdr-clip {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -95,53 +95,53 @@
   text-align: left;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.cd-clip:hover {
+.cdr-clip:hover {
   transform: translateY(-1px);
   border-color: color-mix(in oklab, var(--s-accent, #d1f94f) 40%, var(--s-line));
 }
-.cd-clip.is-selected {
+.cdr-clip.is-selected {
   border-color: var(--s-accent, #d1f94f);
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 7%, var(--s-panel, #121216));
 }
-.cd-clip__emoji {
+.cdr-clip__emoji {
   font-size: 17px;
   flex: none;
 }
-.cd-clip__body {
+.cdr-clip__body {
   min-width: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
   line-height: 1.25;
 }
-.cd-clip__body b {
+.cdr-clip__body b {
   font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cd-clip__body small {
+.cdr-clip__body small {
   font-size: 10.5px;
   color: var(--s-text-3);
 }
-.cd-clip__dot {
+.cdr-clip__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   flex: none;
 }
-.cd-clip__dot.is-draft {
+.cdr-clip__dot.is-draft {
   background: rgba(255, 255, 255, 0.22);
 }
-.cd-clip__dot.is-ready {
+.cdr-clip__dot.is-ready {
   background: #5aa2ff;
 }
-.cd-clip__dot.is-accepted {
+.cdr-clip__dot.is-accepted {
   background: var(--s-accent, #d1f94f);
   box-shadow: 0 0 8px color-mix(in oklab, var(--s-accent, #d1f94f) 60%, transparent);
 }
 
-.cd__new {
+.cdr__new {
   width: 100%;
   padding: 11px;
   border-radius: 12px;
@@ -152,10 +152,10 @@
   font-weight: 700;
   cursor: pointer;
 }
-.cd__new:hover {
+.cdr__new:hover {
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 8%, transparent);
 }
-.cd__ai-note {
+.cdr__ai-note {
   margin: 0;
   font-size: 10.5px;
   color: var(--s-text-3);
@@ -163,13 +163,13 @@
 }
 
 /* ── stage ── */
-.cd__stage {
+.cdr__stage {
   display: flex;
   flex-direction: column;
   gap: 14px;
   min-width: 0;
 }
-.cd__frame {
+.cdr__frame {
   position: relative;
   width: 100%;
   border-radius: 18px;
@@ -178,26 +178,26 @@
   background: #08080b;
   box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.8);
 }
-.cd__frame--16x9 {
+.cdr__frame--16x9 {
   aspect-ratio: 16 / 9;
 }
-.cd__frame--9x16 {
+.cdr__frame--9x16 {
   aspect-ratio: 9 / 16;
   max-height: 72vh;
   margin-inline: auto;
 }
-.cd__frame--1x1 {
+.cdr__frame--1x1 {
   aspect-ratio: 1;
   max-height: 72vh;
   margin-inline: auto;
 }
-.cd__canvas {
+.cdr__canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-.cd__veil {
+.cdr__veil {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -213,32 +213,32 @@
   text-align: center;
   padding: 20px;
 }
-.cd__veil b {
+.cdr__veil b {
   font-size: 15px;
 }
-.cd__veil small {
+.cdr__veil small {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.55);
 }
-.cd__veil-spin {
+.cdr__veil-spin {
   width: 30px;
   height: 30px;
   border-radius: 50%;
   border: 3px solid rgba(255, 255, 255, 0.15);
   border-top-color: var(--s-accent, #d1f94f);
-  animation: cd-spin 0.9s linear infinite;
+  animation: cdr-spin 0.9s linear infinite;
 }
-@keyframes cd-spin {
+@keyframes cdr-spin {
   to {
     transform: rotate(360deg);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cd__veil-spin {
+  .cdr__veil-spin {
     animation-duration: 2.5s;
   }
 }
-.cd__veil-cancel {
+.cdr__veil-cancel {
   margin-top: 6px;
   padding: 7px 16px;
   border-radius: 999px;
@@ -248,7 +248,7 @@
   font-size: 12px;
   cursor: pointer;
 }
-.cd__hint {
+.cdr__hint {
   position: absolute;
   inset: 0;
   display: flex;
@@ -261,25 +261,25 @@
   padding: 24px;
   pointer-events: none;
 }
-.cd__hint span {
+.cdr__hint span {
   font-size: 34px;
 }
-.cd__hint b {
+.cdr__hint b {
   color: rgba(255, 255, 255, 0.85);
   font-size: 16px;
 }
-.cd__hint small {
+.cdr__hint small {
   font-size: 12.5px;
   max-width: 380px;
   line-height: 1.5;
 }
 
-.cd__transport {
+.cdr__transport {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.cd__play {
+.cdr__play {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -291,29 +291,29 @@
   cursor: pointer;
   flex: none;
 }
-.cd__transport input[type='range'] {
+.cdr__transport input[type='range'] {
   flex: 1;
   accent-color: var(--s-accent, #d1f94f);
 }
-.cd__time {
+.cdr__time {
   font-size: 12px;
   color: var(--s-text-3);
   font-variant-numeric: tabular-nums;
   flex: none;
 }
 
-.cd__decide {
+.cdr__decide {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
 }
-.cd__versions {
+.cdr__versions {
   display: inline-flex;
   gap: 6px;
 }
-.cd__ver {
+.cdr__ver {
   width: 44px;
   height: 44px;
   border-radius: 12px;
@@ -325,25 +325,25 @@
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.cd__ver:hover {
+.cdr__ver:hover {
   transform: translateY(-1px);
 }
-.cd__ver.is-on {
+.cdr__ver.is-on {
   border-color: var(--s-accent, #d1f94f);
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 12%, var(--s-panel, #121216));
 }
-.cd__ver.is-accepted::after {
+.cdr__ver.is-accepted::after {
   content: '✓';
   font-size: 9px;
   color: var(--s-accent, #d1f94f);
   display: block;
   margin-top: -3px;
 }
-.cd__actions {
+.cdr__actions {
   display: inline-flex;
   gap: 8px;
 }
-.cd__accept {
+.cdr__accept {
   padding: 11px 22px;
   border-radius: 12px;
   border: none;
@@ -354,12 +354,12 @@
   cursor: pointer;
   box-shadow: 0 8px 24px -10px color-mix(in oklab, var(--s-accent, #d1f94f) 60%, transparent);
 }
-.cd__accept:disabled {
+.cdr__accept:disabled {
   opacity: 0.55;
   cursor: default;
   box-shadow: none;
 }
-.cd__ghost {
+.cdr__ghost {
   padding: 11px 16px;
   border-radius: 12px;
   border: 1px solid var(--s-line);
@@ -369,16 +369,16 @@
   font-weight: 600;
   cursor: pointer;
 }
-.cd__ghost:hover {
+.cdr__ghost:hover {
   border-color: rgba(255, 255, 255, 0.3);
 }
-.cd__ghost--danger:hover {
+.cdr__ghost--danger:hover {
   border-color: #f0616d;
   color: #f0616d;
 }
 
 /* ── right rail ── */
-.cd__right {
+.cdr__right {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -391,7 +391,7 @@
   max-height: calc(100vh - 120px);
   overflow: auto;
 }
-.cd__sec {
+.cdr__sec {
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.09em;
@@ -399,10 +399,10 @@
   color: var(--s-text-3);
   margin-top: 6px;
 }
-.cd__sec:first-child {
+.cdr__sec:first-child {
   margin-top: 0;
 }
-.cd__input {
+.cdr__input {
   width: 100%;
   padding: 9px 11px;
   border-radius: 10px;
@@ -411,14 +411,14 @@
   color: var(--s-text, #fff);
   font-size: 13px;
 }
-.cd__input--sm {
+.cdr__input--sm {
   font-size: 12px;
 }
-.cd__input:focus {
+.cdr__input:focus {
   outline: none;
   border-color: var(--s-accent, #d1f94f);
 }
-.cd__prompt {
+.cdr__prompt {
   width: 100%;
   resize: vertical;
   min-height: 90px;
@@ -431,16 +431,16 @@
   line-height: 1.5;
   font-family: inherit;
 }
-.cd__prompt:focus {
+.cdr__prompt:focus {
   outline: none;
   border-color: var(--s-accent, #d1f94f);
 }
-.cd__assets {
+.cdr__assets {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.cd__asset {
+.cdr__asset {
   position: relative;
   width: 56px;
   height: 56px;
@@ -451,12 +451,12 @@
   display: grid;
   place-items: center;
 }
-.cd__asset img {
+.cdr__asset img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.cd__asset button {
+.cdr__asset button {
   position: absolute;
   top: 2px;
   right: 2px;
@@ -470,21 +470,21 @@
   line-height: 1;
   cursor: pointer;
 }
-.cd__asset--add {
+.cdr__asset--add {
   cursor: pointer;
   color: var(--s-text-3);
   font-size: 20px;
   border-style: dashed;
 }
-.cd__asset--add:hover {
+.cdr__asset--add:hover {
   color: var(--s-accent, #d1f94f);
   border-color: var(--s-accent, #d1f94f);
 }
-.cd__hint-line {
+.cdr__hint-line {
   font-size: 10.5px;
   color: var(--s-text-3);
 }
-.cd__upload {
+.cdr__upload {
   display: block;
   padding: 11px;
   border-radius: 10px;
@@ -497,16 +497,16 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.cd__upload:hover {
+.cdr__upload:hover {
   border-color: var(--s-accent, #d1f94f);
   color: var(--s-accent, #d1f94f);
 }
-.cd__pills {
+.cdr__pills {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.cd__pill {
+.cdr__pill {
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid var(--s-line);
@@ -516,12 +516,12 @@
   font-weight: 600;
   cursor: pointer;
 }
-.cd__pill.is-on {
+.cdr__pill.is-on {
   border-color: var(--s-accent, #d1f94f);
   background: color-mix(in oklab, var(--s-accent, #d1f94f) 13%, transparent);
   color: var(--s-text, #fff);
 }
-.cd__generate {
+.cdr__generate {
   margin-top: 10px;
   width: 100%;
   padding: 13px;
@@ -534,17 +534,17 @@
   cursor: pointer;
   box-shadow: 0 10px 28px -12px color-mix(in oklab, var(--s-accent, #d1f94f) 65%, transparent);
 }
-.cd__generate:disabled {
+.cdr__generate:disabled {
   opacity: 0.55;
   cursor: default;
   box-shadow: none;
 }
-.cd__noclip {
+.cdr__noclip {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.cd__noclip p {
+.cdr__noclip p {
   margin: 0;
   font-size: 13px;
   color: var(--s-text-3);
@@ -552,12 +552,12 @@
 }
 
 /* project editor bits */
-.cd__seq {
+.cdr__seq {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.cd-seq {
+.cdr-seq {
   padding: 10px;
   border-radius: 12px;
   border: 1px solid var(--s-line);
@@ -566,13 +566,13 @@
   flex-direction: column;
   gap: 6px;
 }
-.cd-seq__head {
+.cdr-seq__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
-.cd-seq__label {
+.cdr-seq__label {
   font-size: 12px;
   color: var(--s-text-2, rgba(255, 255, 255, 0.85));
   min-width: 0;
@@ -580,12 +580,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cd-seq__btns {
+.cdr-seq__btns {
   display: inline-flex;
   gap: 4px;
   flex: none;
 }
-.cd-seq__btns button {
+.cdr-seq__btns button {
   width: 22px;
   height: 22px;
   border-radius: 6px;
@@ -596,15 +596,15 @@
   font-size: 11px;
   line-height: 1;
 }
-.cd-seq__btns button:hover:not(:disabled) {
+.cdr-seq__btns button:hover:not(:disabled) {
   color: var(--s-text);
   border-color: rgba(255, 255, 255, 0.3);
 }
-.cd-seq__btns button:disabled {
+.cdr-seq__btns button:disabled {
   opacity: 0.35;
   cursor: default;
 }
-.cd__music {
+.cdr__music {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -615,20 +615,20 @@
   background: var(--s-inset, rgba(255, 255, 255, 0.03));
   font-size: 12.5px;
 }
-.cd__music span {
+.cdr__music span {
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.cd__music button {
+.cdr__music button {
   border: none;
   background: transparent;
   color: var(--s-text-3);
   font-size: 15px;
   cursor: pointer;
 }
-.cd__row {
+.cdr__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -639,7 +639,7 @@
 }
 
 /* picker */
-.cd-scrim {
+.cdr-scrim {
   position: fixed;
   inset: 0;
   z-index: 900;
@@ -651,7 +651,7 @@
   backdrop-filter: blur(8px);
   overflow: auto;
 }
-.cd-picker {
+.cdr-picker {
   width: min(720px, 100%);
   padding: 26px;
   border-radius: 22px;
@@ -659,22 +659,22 @@
   background: var(--s-panel, #121216);
   box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
 }
-.cd-picker__title {
+.cdr-picker__title {
   font-size: 19px;
   font-weight: 800;
   color: var(--s-text, #fff);
 }
-.cd-picker__sub {
+.cdr-picker__sub {
   margin: 4px 0 18px;
   font-size: 13px;
   color: var(--s-text-3);
 }
-.cd-picker__grid {
+.cdr-picker__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
 }
-.cd-picker__item {
+.cdr-picker__item {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -688,17 +688,17 @@
   text-align: left;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
-.cd-picker__item:hover {
+.cdr-picker__item:hover {
   transform: translateY(-2px);
   border-color: var(--s-accent, #d1f94f);
 }
-.cd-picker__item span {
+.cdr-picker__item span {
   font-size: 22px;
 }
-.cd-picker__item b {
+.cdr-picker__item b {
   font-size: 13px;
 }
-.cd-picker__item small {
+.cdr-picker__item small {
   font-size: 10.5px;
   color: var(--s-text-3);
   line-height: 1.4;
@@ -706,11 +706,11 @@
 
 /* ── narrow screens: stack (editors stay desktop-first, this just prevents breakage) ── */
 @media (max-width: 1100px) {
-  .cd {
+  .cdr {
     grid-template-columns: 1fr;
   }
-  .cd__left,
-  .cd__right {
+  .cdr__left,
+  .cdr__right {
     position: static;
     max-height: none;
   }

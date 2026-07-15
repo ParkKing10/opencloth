@@ -40,6 +40,7 @@ import { hasDirectorAi } from './engine/aiDirector'
 import { fileExtFor } from './exporter'
 import { pickMime } from './recorder'
 import { downloadBlob } from '../../lib/download'
+import './explainer.css' // xp-* primitives used by the shared Slider/Switch controls
 import './director-studio.css'
 
 /* ---------------- session-local recording registry ---------------- */
@@ -347,33 +348,33 @@ export function DirectorStudio() {
 
   /* ============================ render ============================ */
   return (
-    <div className="cd">
+    <div className="cdr">
       {/* ─── LEFT: project + clips ─── */}
-      <aside className="cd__left">
+      <aside className="cdr__left">
         <input
-          className="cd__name"
+          className="cdr__name"
           value={com.name}
           placeholder={t('director.project.namePh')}
           onChange={(e) => setCom((c) => ({ ...c, name: e.target.value.slice(0, 80) }))}
           aria-label={t('director.project.nameAria')}
         />
-        <div className="cd__viewtabs" role="tablist">
-          <button role="tab" aria-selected={view === 'direct'} className={`cd__viewtab${view === 'direct' ? ' is-on' : ''}`} onClick={() => setView('direct')} disabled={exporting !== null}>
+        <div className="cdr__viewtabs" role="tablist">
+          <button role="tab" aria-selected={view === 'direct'} className={`cdr__viewtab${view === 'direct' ? ' is-on' : ''}`} onClick={() => setView('direct')} disabled={exporting !== null}>
             {t('director.view.clips')}
           </button>
-          <button role="tab" aria-selected={view === 'edit'} className={`cd__viewtab${view === 'edit' ? ' is-on' : ''}`} onClick={() => { setView('edit'); setPlaying(false); timeRef.current = 0 }} disabled={exporting !== null}>
+          <button role="tab" aria-selected={view === 'edit'} className={`cdr__viewtab${view === 'edit' ? ' is-on' : ''}`} onClick={() => { setView('edit'); setPlaying(false); timeRef.current = 0 }} disabled={exporting !== null}>
             {t('director.view.project')}
             {com.order.length > 0 && <em>{com.order.length}</em>}
           </button>
         </div>
 
-        <div className="cd__clips">
-          {com.clips.length === 0 && <p className="cd__empty">{t('director.clips.empty')}</p>}
+        <div className="cdr__clips">
+          {com.clips.length === 0 && <p className="cdr__empty">{t('director.clips.empty')}</p>}
           {com.clips.map((k) => (
             <button
               key={k.id}
               type="button"
-              className={`cd-clip${k.id === selectedId && view === 'direct' ? ' is-selected' : ''}`}
+              className={`cdr-clip${k.id === selectedId && view === 'direct' ? ' is-selected' : ''}`}
               onClick={() => {
                 setSelectedId(k.id)
                 setVersionId(k.acceptedId ?? k.versions[0]?.id ?? null)
@@ -381,58 +382,58 @@ export function DirectorStudio() {
                 timeRef.current = 0
               }}
             >
-              <span className="cd-clip__emoji">{clipTypeDef(k.type).emoji}</span>
-              <span className="cd-clip__body">
+              <span className="cdr-clip__emoji">{clipTypeDef(k.type).emoji}</span>
+              <span className="cdr-clip__body">
                 <b>{k.title || t(clipTypeDef(k.type).labelKey)}</b>
                 <small>{k.status === 'accepted' ? fmtTime(clipPlayLength(k)) : t(`director.status.${k.status}`)}</small>
               </span>
-              <i className={`cd-clip__dot ${statusDot(k)}`} aria-hidden="true" />
+              <i className={`cdr-clip__dot ${statusDot(k)}`} aria-hidden="true" />
             </button>
           ))}
         </div>
 
-        <button type="button" className="cd__new" onClick={() => setPickerOpen(true)} disabled={exporting !== null}>
+        <button type="button" className="cdr__new" onClick={() => setPickerOpen(true)} disabled={exporting !== null}>
           + {t('director.clips.new')}
         </button>
-        <p className="cd__ai-note">{hasDirectorAi() ? t('director.ai.live') : t('director.ai.local')}</p>
+        <p className="cdr__ai-note">{hasDirectorAi() ? t('director.ai.live') : t('director.ai.local')}</p>
       </aside>
 
       {/* ─── CENTER: the preview ─── */}
-      <main className="cd__stage">
-        <div className={`cd__frame cd__frame--${com.aspect.replace(':', 'x')}`}>
-          <canvas ref={canvasRef} width={cw} height={ch} className="cd__canvas" />
+      <main className="cdr__stage">
+        <div className={`cdr__frame cdr__frame--${com.aspect.replace(':', 'x')}`}>
+          <canvas ref={canvasRef} width={cw} height={ch} className="cdr__canvas" />
           {generating && (
-            <div className="cd__veil" role="status">
-              <span className="cd__veil-spin" aria-hidden="true" />
+            <div className="cdr__veil" role="status">
+              <span className="cdr__veil-spin" aria-hidden="true" />
               <b>{genPhrases[genPhase]}</b>
               <small>{t('director.gen.sub')}</small>
             </div>
           )}
           {analyzing > 0 && (
-            <div className="cd__veil" role="status">
-              <span className="cd__veil-spin" aria-hidden="true" />
+            <div className="cdr__veil" role="status">
+              <span className="cdr__veil-spin" aria-hidden="true" />
               <b>{t('director.gen.analyzing')}</b>
               <small>{Math.round(analyzing * 100)}%</small>
             </div>
           )}
           {exporting !== null && (
-            <div className="cd__veil" role="status">
-              <span className="cd__veil-spin" aria-hidden="true" />
+            <div className="cdr__veil" role="status">
+              <span className="cdr__veil-spin" aria-hidden="true" />
               <b>{t('director.export.running', { p: Math.round(exporting * 100) })}</b>
-              <button type="button" className="cd__veil-cancel" onClick={() => abortRef.current?.abort()}>
+              <button type="button" className="cdr__veil-cancel" onClick={() => abortRef.current?.abort()}>
                 {t('director.export.cancel')}
               </button>
             </div>
           )}
           {view === 'direct' && clip && clip.versions.length === 0 && !generating && analyzing === 0 && (
-            <div className="cd__hint">
+            <div className="cdr__hint">
               <span aria-hidden="true">{typeDef?.emoji}</span>
               <b>{t(typeDef?.labelKey ?? 'director.type.aiScene')}</b>
               <small>{t(typeDef?.hintKey ?? 'director.type.aiSceneHint')}</small>
             </div>
           )}
           {view === 'edit' && segments.length === 0 && (
-            <div className="cd__hint">
+            <div className="cdr__hint">
               <b>{t('director.edit.emptyTitle')}</b>
               <small>{t('director.edit.emptyBody')}</small>
             </div>
@@ -441,12 +442,12 @@ export function DirectorStudio() {
 
         {/* transport */}
         {previewLen > 0 && (
-          <div className="cd__transport">
-            <button type="button" className="cd__play" onClick={() => setPlaying((p) => !p)} aria-label={playing ? t('director.pause') : t('director.play')}>
+          <div className="cdr__transport">
+            <button type="button" className="cdr__play" onClick={() => setPlaying((p) => !p)} aria-label={playing ? t('director.pause') : t('director.play')}>
               {playing ? '❚❚' : '▶'}
             </button>
             <input type="range" min={0} max={previewLen} step={0.01} value={Math.min(now, previewLen)} onChange={(e) => scrub(parseFloat(e.target.value))} aria-label={t('director.scrub')} />
-            <span className="cd__time">
+            <span className="cdr__time">
               {fmtTime(now)} / {fmtTime(previewLen)}
             </span>
           </div>
@@ -454,14 +455,14 @@ export function DirectorStudio() {
 
         {/* versions + decisions */}
         {view === 'direct' && clip && clip.versions.length > 0 && (
-          <div className="cd__decide">
-            <div className="cd__versions" role="tablist" aria-label={t('director.versions.aria')}>
+          <div className="cdr__decide">
+            <div className="cdr__versions" role="tablist" aria-label={t('director.versions.aria')}>
               {clip.versions.map((v) => (
                 <button
                   key={v.id}
                   role="tab"
                   aria-selected={v.id === version?.id}
-                  className={`cd__ver${v.id === version?.id ? ' is-on' : ''}${clip.acceptedId === v.id ? ' is-accepted' : ''}`}
+                  className={`cdr__ver${v.id === version?.id ? ' is-on' : ''}${clip.acceptedId === v.id ? ' is-accepted' : ''}`}
                   onClick={() => {
                     setVersionId(v.id)
                     timeRef.current = 0
@@ -472,14 +473,14 @@ export function DirectorStudio() {
                 </button>
               ))}
             </div>
-            <div className="cd__actions">
-              <button type="button" className="cd__accept" onClick={accept} disabled={!version || clip.acceptedId === version?.id}>
+            <div className="cdr__actions">
+              <button type="button" className="cdr__accept" onClick={accept} disabled={!version || clip.acceptedId === version?.id}>
                 {clip.acceptedId === version?.id ? `✓ ${t('director.inProject')}` : t('director.accept')}
               </button>
-              <button type="button" className="cd__ghost" onClick={() => void generate(true)} disabled={generating}>
+              <button type="button" className="cdr__ghost" onClick={() => void generate(true)} disabled={generating}>
                 {t('director.regenerate')}
               </button>
-              <button type="button" className="cd__ghost cd__ghost--danger" onClick={() => removeClip(clip.id)}>
+              <button type="button" className="cdr__ghost cdr__ghost--danger" onClick={() => removeClip(clip.id)}>
                 {t('director.delete')}
               </button>
             </div>
@@ -489,33 +490,33 @@ export function DirectorStudio() {
 
       {/* ─── RIGHT: the brief / the project editor ─── */}
       {view === 'direct' ? (
-        <aside className="cd__right">
+        <aside className="cdr__right">
           {clip ? (
             <>
-              <span className="cd__sec">{t('director.brief.title')}</span>
-              <input className="cd__input" value={clip.title} placeholder={t('director.brief.titlePh')} onChange={(e) => patchClip(clip.id, { title: e.target.value.slice(0, 80) })} />
-              <span className="cd__sec">{t('director.brief.prompt')}</span>
+              <span className="cdr__sec">{t('director.brief.title')}</span>
+              <input className="cdr__input" value={clip.title} placeholder={t('director.brief.titlePh')} onChange={(e) => patchClip(clip.id, { title: e.target.value.slice(0, 80) })} />
+              <span className="cdr__sec">{t('director.brief.prompt')}</span>
               <textarea
-                className="cd__prompt"
+                className="cdr__prompt"
                 rows={4}
                 value={clip.prompt}
                 placeholder={t(typeDef?.promptKey ?? 'director.prefill.aiScene')}
                 onChange={(e) => patchClip(clip.id, { prompt: e.target.value.slice(0, 600) })}
               />
 
-              <span className="cd__sec">{t('director.brief.assets')}</span>
+              <span className="cdr__sec">{t('director.brief.assets')}</span>
               {clip.type === 'recording' ? (
-                <label className="cd__upload">
+                <label className="cdr__upload">
                   <input type="file" accept="video/mp4,video/webm,video/quicktime" onChange={(e) => void onUploadRecording(e.target.files)} hidden />
                   🎥 {clip.recordingName ? clip.recordingName : t('director.assets.addRecording')}
                 </label>
               ) : (
                 <>
-                  <div className="cd__assets">
+                  <div className="cdr__assets">
                     {clip.assetIds.map((id) => {
                       const img = getAssetImage(id)
                       return (
-                        <span key={id} className="cd__asset">
+                        <span key={id} className="cdr__asset">
                           {img ? <img src={img.src} alt="" /> : <i />}
                           <button type="button" aria-label={t('director.assets.remove')} onClick={() => removeAsset(id)}>
                             ×
@@ -523,67 +524,67 @@ export function DirectorStudio() {
                         </span>
                       )
                     })}
-                    <label className="cd__asset cd__asset--add">
+                    <label className="cdr__asset cdr__asset--add">
                       <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif" multiple onChange={(e) => void onUploadImages(e.target.files)} hidden />
                       +
                     </label>
                   </div>
-                  <small className="cd__hint-line">{t('director.assets.optional')}</small>
+                  <small className="cdr__hint-line">{t('director.assets.optional')}</small>
                 </>
               )}
 
               {clip.type !== 'recording' && (
                 <>
-                  <span className="cd__sec">{t('director.brief.duration')}</span>
+                  <span className="cdr__sec">{t('director.brief.duration')}</span>
                   <Slider label="" value={clip.durationSec} min={DUR_MIN} max={DUR_MAX} step={0.5} fmt={(v) => `${v.toFixed(1)}s`} onChange={(v) => patchClip(clip.id, { durationSec: v })} />
                 </>
               )}
 
-              <span className="cd__sec">{t('director.brief.style')}</span>
-              <div className="cd__pills">
+              <span className="cdr__sec">{t('director.brief.style')}</span>
+              <div className="cdr__pills">
                 {CLIP_STYLES.map((s) => (
-                  <button key={s} type="button" className={`cd__pill${clip.style === s ? ' is-on' : ''}`} onClick={() => patchClip(clip.id, { style: s })}>
+                  <button key={s} type="button" className={`cdr__pill${clip.style === s ? ' is-on' : ''}`} onClick={() => patchClip(clip.id, { style: s })}>
                     {t(`director.style.${s}`)}
                   </button>
                 ))}
               </div>
 
-              <span className="cd__sec">{t('director.brief.aspect')}</span>
-              <div className="cd__pills">
+              <span className="cdr__sec">{t('director.brief.aspect')}</span>
+              <div className="cdr__pills">
                 {(['16:9', '9:16', '1:1'] as const).map((a) => (
-                  <button key={a} type="button" className={`cd__pill${com.aspect === a ? ' is-on' : ''}`} onClick={() => setCom((c) => ({ ...c, aspect: a }))}>
+                  <button key={a} type="button" className={`cdr__pill${com.aspect === a ? ' is-on' : ''}`} onClick={() => setCom((c) => ({ ...c, aspect: a }))}>
                     {a}
                   </button>
                 ))}
               </div>
 
-              <button type="button" className="cd__generate" onClick={() => void generate(false)} disabled={generating || analyzing > 0}>
+              <button type="button" className="cdr__generate" onClick={() => void generate(false)} disabled={generating || analyzing > 0}>
                 {generating ? t('director.generating') : clip.versions.length > 0 ? t('director.regenerate') : `✨ ${t('director.generate')}`}
               </button>
             </>
           ) : (
-            <div className="cd__noclip">
+            <div className="cdr__noclip">
               <p>{t('director.brief.noClip')}</p>
-              <button type="button" className="cd__generate" onClick={() => setPickerOpen(true)}>
+              <button type="button" className="cdr__generate" onClick={() => setPickerOpen(true)}>
                 + {t('director.clips.new')}
               </button>
             </div>
           )}
         </aside>
       ) : (
-        <aside className="cd__right">
-          <span className="cd__sec">{t('director.edit.sequence')}</span>
-          <div className="cd__seq">
+        <aside className="cdr__right">
+          <span className="cdr__sec">{t('director.edit.sequence')}</span>
+          <div className="cdr__seq">
             {com.order.map((id, i) => {
               const k = com.clips.find((c) => c.id === id)
               if (!k || k.status !== 'accepted') return null
               return (
-                <div key={id} className="cd-seq">
-                  <div className="cd-seq__head">
-                    <span className="cd-seq__label">
+                <div key={id} className="cdr-seq">
+                  <div className="cdr-seq__head">
+                    <span className="cdr-seq__label">
                       {clipTypeDef(k.type).emoji} <b>{k.title || t(clipTypeDef(k.type).labelKey)}</b> · {fmtTime(clipPlayLength(k))}
                     </span>
-                    <span className="cd-seq__btns">
+                    <span className="cdr-seq__btns">
                       <button type="button" aria-label={t('director.edit.up')} disabled={i === 0} onClick={() => setCom((c) => { const o = [...c.order]; ;[o[i - 1], o[i]] = [o[i], o[i - 1]]; return { ...c, order: o } })}>↑</button>
                       <button type="button" aria-label={t('director.edit.down')} disabled={i === com.order.length - 1} onClick={() => setCom((c) => { const o = [...c.order]; ;[o[i], o[i + 1]] = [o[i + 1], o[i]]; return { ...c, order: o } })}>↓</button>
                       <button type="button" aria-label={t('director.edit.remove')} onClick={() => setCom((c) => ({ ...c, order: c.order.filter((x) => x !== id) }))}>×</button>
@@ -591,26 +592,26 @@ export function DirectorStudio() {
                   </div>
                   <Slider label={t('director.edit.trimStart')} value={k.trimStart} min={0} max={Math.max(0, k.durationSec - k.trimEnd - 0.5)} step={0.1} fmt={(v) => `${v.toFixed(1)}s`} onChange={(v) => patchClip(id, { trimStart: v })} />
                   <Slider label={t('director.edit.trimEnd')} value={k.trimEnd} min={0} max={Math.max(0, k.durationSec - k.trimStart - 0.5)} step={0.1} fmt={(v) => `${v.toFixed(1)}s`} onChange={(v) => patchClip(id, { trimEnd: v })} />
-                  <input className="cd__input cd__input--sm" value={k.caption ?? ''} placeholder={t('director.edit.captionPh')} onChange={(e) => patchClip(id, { caption: e.target.value.slice(0, 120) || undefined })} />
+                  <input className="cdr__input cdr__input--sm" value={k.caption ?? ''} placeholder={t('director.edit.captionPh')} onChange={(e) => patchClip(id, { caption: e.target.value.slice(0, 120) || undefined })} />
                 </div>
               )
             })}
-            {com.order.length === 0 && <p className="cd__empty">{t('director.edit.emptyBody')}</p>}
+            {com.order.length === 0 && <p className="cdr__empty">{t('director.edit.emptyBody')}</p>}
           </div>
 
-          <span className="cd__sec">{t('director.edit.transition')}</span>
-          <div className="cd__pills">
+          <span className="cdr__sec">{t('director.edit.transition')}</span>
+          <div className="cdr__pills">
             {(['cut', 'fade', 'zoom'] as TransitionKind[]).map((k) => (
-              <button key={k} type="button" className={`cd__pill${com.transition === k ? ' is-on' : ''}`} onClick={() => setCom((c) => ({ ...c, transition: k }))}>
+              <button key={k} type="button" className={`cdr__pill${com.transition === k ? ' is-on' : ''}`} onClick={() => setCom((c) => ({ ...c, transition: k }))}>
                 {t(`director.transition.${k}`)}
               </button>
             ))}
           </div>
 
-          <span className="cd__sec">{t('director.edit.music')}</span>
+          <span className="cdr__sec">{t('director.edit.music')}</span>
           {com.music ? (
             <>
-              <div className="cd__music">
+              <div className="cdr__music">
                 <span>🎵 {com.music.name}</span>
                 <button type="button" aria-label={t('director.edit.remove')} onClick={() => setCom((c) => ({ ...c, music: undefined }))}>
                   ×
@@ -619,18 +620,18 @@ export function DirectorStudio() {
               <Slider label={t('director.edit.volume')} value={com.music.volume} min={0} max={1} step={0.05} fmt={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setCom((c) => (c.music ? { ...c, music: { ...c.music, volume: v } } : c))} />
             </>
           ) : (
-            <label className="cd__upload">
+            <label className="cdr__upload">
               <input type="file" accept="audio/*" onChange={(e) => void onUploadMusic(e.target.files)} hidden />
               🎵 {t('director.edit.addMusic')}
             </label>
           )}
 
-          <div className="cd__row">
+          <div className="cdr__row">
             <span>{t('director.edit.subtitles')}</span>
             <Switch on={com.subtitles} onChange={(v) => setCom((c) => ({ ...c, subtitles: v }))} />
           </div>
 
-          <button type="button" className="cd__generate" onClick={() => void doExport()} disabled={segments.length === 0 || exporting !== null}>
+          <button type="button" className="cdr__generate" onClick={() => void doExport()} disabled={segments.length === 0 || exporting !== null}>
             {exporting !== null ? t('director.export.running', { p: Math.round(exporting * 100) }) : `⬇ ${t('director.export.button', { s: fmtTime(projectLen) })}`}
           </button>
         </aside>
@@ -638,13 +639,13 @@ export function DirectorStudio() {
 
       {/* ─── clip picker ─── */}
       {pickerOpen && (
-        <div className="cd-scrim" role="dialog" aria-modal="true" aria-label={t('director.picker.title')} onClick={() => setPickerOpen(false)}>
-          <div className="cd-picker" onClick={(e) => e.stopPropagation()}>
-            <b className="cd-picker__title">{t('director.picker.title')}</b>
-            <p className="cd-picker__sub">{t('director.picker.sub')}</p>
-            <div className="cd-picker__grid">
+        <div className="cdr-scrim" role="dialog" aria-modal="true" aria-label={t('director.picker.title')} onClick={() => setPickerOpen(false)}>
+          <div className="cdr-picker" onClick={(e) => e.stopPropagation()}>
+            <b className="cdr-picker__title">{t('director.picker.title')}</b>
+            <p className="cdr-picker__sub">{t('director.picker.sub')}</p>
+            <div className="cdr-picker__grid">
               {CLIP_TYPES.map((ct) => (
-                <button key={ct.id} type="button" className="cd-picker__item" onClick={() => addClip(ct.id)}>
+                <button key={ct.id} type="button" className="cdr-picker__item" onClick={() => addClip(ct.id)}>
                   <span aria-hidden="true">{ct.emoji}</span>
                   <b>{t(ct.labelKey)}</b>
                   <small>{t(ct.hintKey)}</small>

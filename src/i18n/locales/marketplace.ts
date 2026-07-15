@@ -18,6 +18,7 @@ export const marketplace: LocaleBundle = {
     // Shared
     'marketplace.verified': 'loom Verified',
     'marketplace.book': 'Book',
+    'marketplace.request': 'Request',
     'marketplace.from': 'from {price}',
 
     // ── Packages (Track A) ──────────────────────────────────────────────
@@ -33,6 +34,12 @@ export const marketplace: LocaleBundle = {
     'marketplace.feat.bullet3': 'Automated email & SMS flows',
 
     'marketplace.pkg.sectionTitle': 'Done-for-you',
+    'marketplace.pkg.production.name': 'First Collection',
+    'marketplace.pkg.production.tag': 'We help you make it real — from maker to first order',
+    'marketplace.pkg.production.price': 'On request',
+    'marketplace.pkg.production.f1': 'Find the right manufacturer',
+    'marketplace.pkg.production.f2': 'Get your first samples',
+    'marketplace.pkg.production.f3': 'Place your first production order',
     'marketplace.pkg.store.name': 'Store Launch',
     'marketplace.pkg.store.tag': 'Your Shopify store, built & branded',
     'marketplace.pkg.store.price': 'from €1,290',
@@ -57,11 +64,11 @@ export const marketplace: LocaleBundle = {
     'marketplace.academy.title': 'All-Access — learn to run the whole brand',
     'marketplace.academy.sub':
       'Every course, every template and every new drop. Store building, ads, CRO and more — kept up to date as the platforms change.',
-    'marketplace.academy.price': '€29',
-    'marketplace.academy.per': '/mo',
-    'marketplace.academy.priceYr': 'or €249/yr',
+    'marketplace.academy.price': '€999',
+    'marketplace.academy.per': 'one-time',
+    'marketplace.academy.priceYr': 'Lifetime',
     'marketplace.academy.cta': 'Get All-Access',
-    'marketplace.academy.note': 'New courses & updates every month',
+    'marketplace.academy.note': 'All future courses & updates included — forever',
     'marketplace.academy.included': 'In All-Access',
     'marketplace.academy.watch': 'View course',
     'marketplace.academy.lessons': '{n} lessons',
@@ -110,6 +117,7 @@ export const marketplace: LocaleBundle = {
     'marketplace.intake.stage.selling': 'First sales',
     'marketplace.intake.stage.scaling': 'Growing — need to scale',
     'marketplace.intake.need': 'What do you need?',
+    'marketplace.intake.need.production': 'Production',
     'marketplace.intake.need.store': 'Store',
     'marketplace.intake.need.brand': 'Branding',
     'marketplace.intake.need.email': 'Email flows',
@@ -147,6 +155,7 @@ export const marketplace: LocaleBundle = {
     // Shared
     'marketplace.verified': 'loom Verified',
     'marketplace.book': 'Buchen',
+    'marketplace.request': 'Anfrage',
     'marketplace.from': 'ab {price}',
 
     // ── Pakete (Track A) ────────────────────────────────────────────────
@@ -162,6 +171,12 @@ export const marketplace: LocaleBundle = {
     'marketplace.feat.bullet3': 'Automatische E-Mail- & SMS-Flows',
 
     'marketplace.pkg.sectionTitle': 'Für dich erledigt',
+    'marketplace.pkg.production.name': 'Erste Kollektion',
+    'marketplace.pkg.production.tag': 'Wir helfen dir, sie echt zu machen — vom Hersteller bis zur ersten Order',
+    'marketplace.pkg.production.price': 'Auf Anfrage',
+    'marketplace.pkg.production.f1': 'Den richtigen Hersteller finden',
+    'marketplace.pkg.production.f2': 'Erste Samples bekommen',
+    'marketplace.pkg.production.f3': 'Erste Produktion ordern',
     'marketplace.pkg.store.name': 'Store Launch',
     'marketplace.pkg.store.tag': 'Dein Shopify-Store, gebaut & gebrandet',
     'marketplace.pkg.store.price': 'ab €1.290',
@@ -186,11 +201,11 @@ export const marketplace: LocaleBundle = {
     'marketplace.academy.title': 'All-Access — lern, die ganze Marke zu führen',
     'marketplace.academy.sub':
       'Jeder Kurs, jedes Template und jeder neue Drop. Store-Aufbau, Ads, CRO und mehr — laufend aktualisiert, wenn sich die Plattformen ändern.',
-    'marketplace.academy.price': '€29',
-    'marketplace.academy.per': '/Mon.',
-    'marketplace.academy.priceYr': 'oder €249/Jahr',
+    'marketplace.academy.price': '€999',
+    'marketplace.academy.per': 'einmalig',
+    'marketplace.academy.priceYr': 'Lebenslang',
     'marketplace.academy.cta': 'All-Access holen',
-    'marketplace.academy.note': 'Neue Kurse & Updates jeden Monat',
+    'marketplace.academy.note': 'Alle zukünftigen Kurse & Updates inklusive — für immer',
     'marketplace.academy.included': 'Im All-Access',
     'marketplace.academy.watch': 'Kurs ansehen',
     'marketplace.academy.lessons': '{n} Lektionen',
@@ -239,6 +254,7 @@ export const marketplace: LocaleBundle = {
     'marketplace.intake.stage.selling': 'Erste Verkäufe',
     'marketplace.intake.stage.scaling': 'Wachsend — will skalieren',
     'marketplace.intake.need': 'Was brauchst du?',
+    'marketplace.intake.need.production': 'Produktion',
     'marketplace.intake.need.store': 'Store',
     'marketplace.intake.need.brand': 'Branding',
     'marketplace.intake.need.email': 'E-Mail-Flows',

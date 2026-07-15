@@ -9,6 +9,7 @@
  */
 import { isEditableGarment } from './editableGarment'
 import type { GarmentHistory, GarmentRevision } from './garmentRevision'
+import { cloudAvailable, pushDocument, pullDocument } from '../lib/docSync'
 
 const KEY_PREFIX = 'threados-garment-doc-'
 /** Hard cap so history can never grow unbounded in storage. */
@@ -30,7 +31,7 @@ function pruneOldest(history: GarmentHistory, limit: number): GarmentHistory {
   return { ...history, revisions, currentIndex: history.currentIndex - start }
 }
 
-export function saveHistory(history: GarmentHistory): SaveResult {
+export function saveHistory(history: GarmentHistory, opts?: { skipCloud?: boolean }): SaveResult {
   let toStore = pruneOldest(history, MAX_REVISIONS)
   let pruned = history.revisions.length - toStore.revisions.length
 
@@ -38,6 +39,8 @@ export function saveHistory(history: GarmentHistory): SaveResult {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     try {
       localStorage.setItem(KEY_PREFIX + history.garmentId, JSON.stringify(toStore))
+      // Cloud copy so the garment opens on other devices (skip when importing FROM the cloud).
+      if (!opts?.skipCloud) pushDocument(`garment:${history.garmentId}`, toStore)
       return { ok: true, pruned }
     } catch {
       if (toStore.revisions.length <= 1) return { ok: false, pruned }
@@ -48,6 +51,28 @@ export function saveHistory(history: GarmentHistory): SaveResult {
     }
   }
   return { ok: false, pruned }
+}
+
+/** Pull a garment history from the cloud, validate it, cache it locally and return whether it
+ *  landed. Used when another device asks for a garment this browser has never seen. */
+export async function pullHistoryFromCloud(garmentId: string): Promise<boolean> {
+  if (!cloudAvailable()) return false
+  const json = await pullDocument<GarmentHistory>(`garment:${garmentId}`)
+  if (
+    !json ||
+    !Array.isArray(json.revisions) ||
+    json.revisions.length === 0 ||
+    typeof json.currentIndex !== 'number' ||
+    !json.revisions.every(isValidRevision)
+  ) {
+    return false
+  }
+  try {
+    localStorage.setItem(KEY_PREFIX + garmentId, JSON.stringify({ ...json, garmentId }))
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function deleteHistory(garmentId: string): void {

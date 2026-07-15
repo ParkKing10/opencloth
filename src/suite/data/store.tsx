@@ -3,6 +3,7 @@ import type { SuiteData } from './types'
 import { buildSeed } from './seed'
 import { supabase, isSupabaseConfigured } from '../../lib/supabase'
 import { hydrate, reconcile, type SessionUser } from './records'
+import { setSyncSession } from '../lib/docSync'
 
 const STORAGE_KEY = 'threados-data-v1'
 
@@ -92,6 +93,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (!force && hydratingId.current === session.id) return // dedupe repeat events (INITIAL_SESSION, token refresh)
       hydratingId.current = session.id
       sessionRef.current = session
+      setSyncSession(session.id) // document sync (design docs, garments) follows the auth session
       const gen = ++hydrationSeq.current
       const mut = mutations.current
       const slices = await hydrate(SUPA, session)
@@ -112,6 +114,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       else {
         hydratingId.current = null
         sessionRef.current = null
+        setSyncSession(null)
         commit(neutralData())
       }
     })

@@ -66,10 +66,11 @@ import { buildDirector, type DirectorSuggestion } from './directorModel'
 import { CampaignModal } from './CampaignModal'
 import { ConnectAppDialog } from './ConnectAppDialog'
 import { SaveDesignDialog, type SaveChoice } from './SaveDesignDialog'
-import { loadDoc, saveDoc, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo, type DesignVersionDoc } from './designDoc'
+import { loadDoc, saveDoc, pullDocFromCloud, loadLastGarment, saveLastGarment, type ProductSpecs, type ProjectInfo, type DesignVersionDoc } from './designDoc'
+import { cloudAvailable } from '../../lib/docSync'
 import { NeckLabelModal } from './NeckLabelModal'
 // M9 bridge: open the Design Studio scoped to a garment coming from the Garments workspace.
-import { loadHistory } from '../../garment-model/garmentDocumentStore'
+import { loadHistory, pullHistoryFromCloud } from '../../garment-model/garmentDocumentStore'
 import { currentGarment } from '../../garment-model/garmentRevision'
 import { garmentThumbnailSvg } from '../../garment-model/garmentThumbnail'
 import { flattenRegions } from '../../garment-model/regionTree'
@@ -491,6 +492,11 @@ export function DesignStudio() {
   /** True once THIS session really edited the design — leaving flushes the metadata row
       only then, so opening + backing out never creates an empty draft row. */
   const hasEditedRef = useRef(false)
+  /** Cloud fallback bookkeeping: which ids were already asked for (once per session), and a
+      tick that re-runs the load/bridge effects after a successful pull cached content locally. */
+  const cloudDocTriedRef = useRef(new Set<string>())
+  const cloudGarmentTriedRef = useRef(new Set<string>())
+  const [cloudTick, setCloudTick] = useState(0)
   /** Bumped by saveCurrentDoc on every successful REAL edit; drives the metadata autosave.
       Loading a design never bumps it, so merely opening cannot reorder Recent Designs. */
   const [dirtyTick, setDirtyTick] = useState(0)
@@ -1489,6 +1495,19 @@ export function DesignStudio() {
     // the user to their designs instead of silently opening the default blank hoodie.
     if (!h && !catalogG) {
       if (catalog.length === 0) return // catalog still loading — retry on the next run
+      // The garment may live in the cloud (created on another device) — try once before
+      // declaring the link dead.
+      if (cloudAvailable() && !cloudGarmentTriedRef.current.has(gid)) {
+        cloudGarmentTriedRef.current.add(gid)
+        void pullHistoryFromCloud(gid).then((found) => {
+          if (found) setCloudTick((n) => n + 1) // re-run: loadHistory hits now
+          else {
+            toast(t('dsMain.toast.designUnavailable'), 'info')
+            navigate('/design')
+          }
+        })
+        return
+      }
       bridgedRef.current = true
       toast(t('dsMain.toast.designUnavailable'), 'info')
       navigate('/design')
@@ -1496,6 +1515,7 @@ export function DesignStudio() {
     }
     bridgedRef.current = true
     restoredRef.current = true // the injected garment wins over last-opened restore
+    cloudGarmentTriedRef.current.delete(gid)
     try {
       sessionStorage.setItem('threados-studio-configured', '1')
     } catch {
@@ -1519,7 +1539,8 @@ export function DesignStudio() {
       category: undefined,
       views: { front: true, back: true, combinedFrontBack: false, side: false, details: false, has3D: false },
     })
-  }, [searchParams, catalog])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, catalog, cloudTick])
 
   // Open a garment → load its saved document (or start empty). Resets undo history so each
   // garment is its own editing session; never carries one garment's layers onto another.
@@ -1542,6 +1563,27 @@ export function DesignStudio() {
         doc = legacyDoc
         saveDoc(gid, legacyDoc) // rescue the orphan under the stable key
       }
+    }
+    // Still nothing local → the content may live in the cloud (saved on another device).
+    // Pull once; on a hit the doc is cached locally and the load re-runs with it. On a miss
+    // (row exists but content is stuck on another machine) say so honestly.
+    let pullingNow = false
+    if (!doc && cloudAvailable() && !cloudDocTriedRef.current.has(gid)) {
+      cloudDocTriedRef.current.add(gid)
+      pullingNow = true
+      const rowExists = data.designs.some((x) => x.id === gid && x.ownerId === user?.id)
+      void pullDocFromCloud(gid).then((remote) => {
+        if (loadedGarmentRef.current !== gid) return
+        // The user already started designing on the empty canvas meanwhile — their fresh
+        // edits win (and have been pushed); never clobber them with the pulled state.
+        if (hasEditedRef.current) return
+        if (remote) {
+          loadedGarmentRef.current = null
+          setCloudTick((n) => n + 1)
+        } else if (rowExists) {
+          toast(t('dsMain.toast.docElsewhere'), 'info')
+        }
+      })
     }
     const snapshot: Snapshot = doc
       ? {
@@ -1625,13 +1667,13 @@ export function DesignStudio() {
     lastDocOkRef.current = true
     hasEditedRef.current = false
     setSaveState('saved')
-    // The design row exists (e.g. created on another device) but its document lives in that
-    // device's browser — say so instead of silently presenting an empty canvas.
-    if (!doc && data.designs.some((x) => x.id === gid && x.ownerId === user?.id)) {
+    // The design row exists but no sync is available to fetch its content — the honest hint
+    // fires immediately (with sync, the pull callback above owns this message).
+    if (!doc && !pullingNow && !cloudAvailable() && data.designs.some((x) => x.id === gid && x.ownerId === user?.id)) {
       toast(t('dsMain.toast.docElsewhere'), 'info')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGarment.id, activeGarment.name])
+  }, [activeGarment.id, activeGarment.name, cloudTick])
 
   const visibleGarments = useMemo(() => {
     const q = query.trim().toLowerCase()

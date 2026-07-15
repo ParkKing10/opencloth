@@ -6,10 +6,12 @@
  * localStorage keyed by garment id so a page reload restores your work. localStorage has a
  * ~5 MB per-origin budget, so a very heavy design (many placed images across several versions)
  * CAN exceed it — `saveDoc` returns false in that case and the editor surfaces it honestly instead
- * of pretending the save succeeded. (Cross-device sync + large-image offloading via Supabase is the
- * eventual fix; the design metadata row already syncs, this stores the editable canvas itself.)
+ * of pretending the save succeeded. Successful saves are ALSO pushed to Supabase
+ * (`user_documents`, key `doc:<garmentId>`) so designs open on other devices; the studio pulls
+ * a missing doc from the cloud on demand (see pullDocFromCloud).
  */
 import type { Layer } from './LayersPanel'
+import { cloudAvailable, pushDocument, pullDocument } from '../../lib/docSync'
 
 /** A colorway the user records for the product (a name + hex). Not a garment recolor. */
 export type SpecColor = { name: string; hex: string }
@@ -107,14 +109,27 @@ export function loadDoc(garmentId: string): DesignDoc | null {
 }
 
 /** Persist a garment's document. Returns false on quota overflow so callers can warn the user
- *  instead of silently losing work (never throws — the app stays responsive). */
-export function saveDoc(garmentId: string, doc: DesignDoc): boolean {
+ *  instead of silently losing work (never throws — the app stays responsive). A successful
+ *  local write also queues the doc for cloud sync so it opens on other devices; pass
+ *  skipCloud when writing content that CAME from the cloud (no echo). */
+export function saveDoc(garmentId: string, doc: DesignDoc, opts?: { skipCloud?: boolean }): boolean {
   try {
     localStorage.setItem(DOC_PREFIX + garmentId, JSON.stringify(doc))
+    if (!opts?.skipCloud) pushDocument(`doc:${garmentId}`, doc)
     return true
   } catch {
     return false
   }
+}
+
+/** Pull a design document from the cloud (another device saved it), cache it locally and
+ *  return it. Null when there is none / sync is unavailable. */
+export async function pullDocFromCloud(garmentId: string): Promise<DesignDoc | null> {
+  if (!cloudAvailable()) return null
+  const doc = await pullDocument<DesignDoc>(`doc:${garmentId}`)
+  if (!doc || !Array.isArray(doc.layers) || typeof doc.hidden !== 'object') return null
+  saveDoc(garmentId, doc, { skipCloud: true })
+  return doc
 }
 
 /** Remember which garment was last open so a reload reopens the same design. */

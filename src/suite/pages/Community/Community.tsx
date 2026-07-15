@@ -3,10 +3,8 @@ import { useT } from '@/i18n'
 import { SuitePage } from '../_shared/SuitePage'
 import { useAuth } from '../../auth/auth'
 import { useToast } from '../../components/ui/Toast'
-import { useRewards } from '../../economy/useRewards'
-import { IcoCoins, IcoCommunity, IcoSparkle, IcoBolt, IcoCheck } from '../../components/ui/Icons'
+import { IcoCommunity, IcoSparkle, IcoBolt, IcoCheck, IcoStar } from '../../components/ui/Icons'
 import {
-  CHALLENGE_REWARD,
   challengeClaimed,
   communityShared,
   currentChallenge,
@@ -32,7 +30,6 @@ export function Community() {
   const t = useT()
   const toast = useToast()
   const { user } = useAuth()
-  const { grant } = useRewards()
 
   const [tab, setTab] = useState<TabId>('lounge')
   const [channel, setChannel] = useState<ChannelId>('general')
@@ -41,8 +38,10 @@ export function Community() {
   const [shared, setShared] = useState<boolean | null>(null)
 
   const challenge = currentChallenge()
+  // Re-read the claim each render (bumped after a claim) — a cached boolean went stale when the
+  // ISO week rolled over while the page stayed mounted, blocking the new week's legitimate claim.
+  const [, bumpClaim] = useState(0)
   const claimed = user ? challengeClaimed(user.id, challenge.id) : false
-  const [claimedNow, setClaimedNow] = useState(claimed)
 
   useEffect(() => {
     void communityShared().then(setShared)
@@ -55,24 +54,24 @@ export function Community() {
     setTab('lounge')
   }, [])
 
-  // A posted challenge entry earns coins — once per user per week.
+  // A posted challenge entry marks this week's challenge as submitted (once per user per week) —
+  // no coin reward on purpose: the payoff is community-side (feedback, votes, getting featured).
   const onFeedbackCreated = useCallback(
     (_post: unknown, isChallenge: boolean) => {
       toast(t('chub.toast.posted'), 'success')
       if (!isChallenge || !user) return
       if (challengeClaimed(user.id, challenge.id)) return
       markChallengeClaimed(user.id, challenge.id)
-      setClaimedNow(true)
-      grant(CHALLENGE_REWARD, `Weekly challenge ${challenge.id}`)
-      toast(t('chub.toast.challenge', { n: CHALLENGE_REWARD }), 'accent')
+      bumpClaim((n) => n + 1)
+      toast(t('chub.toast.challenge'), 'accent')
     },
-    [user, challenge.id, grant, toast, t],
+    [user, challenge.id, toast, t],
   )
 
   if (!user) return null
 
   const userRef = { id: user.id, name: user.name }
-  const done = claimed || claimedNow
+  const done = claimed
 
   return (
     <SuitePage eyebrow={t('chub.eyebrow')} title={t('chub.title')} subtitle={t('chub.subtitle')} wide>
@@ -101,11 +100,11 @@ export function Community() {
             <span className="chub-challenge__kicker">
               <IcoBolt width="12" height="12" /> {t('chub.challenge.kicker')}
               <span className="chub-challenge__reward">
-                <IcoCoins width="12" height="12" /> {t('chub.challenge.reward', { n: CHALLENGE_REWARD })}
+                <IcoStar width="12" height="12" /> {t('chub.challenge.badge')}
               </span>
             </span>
             <b className="chub-challenge__theme">{t(challenge.themeKey)}</b>
-            <p className="chub-challenge__hint">{t('chub.challenge.hint', { n: CHALLENGE_REWARD })}</p>
+            <p className="chub-challenge__hint">{t('chub.challenge.hint')}</p>
             <button
               type="button"
               className={`s-btn chub-challenge__cta${done ? '' : ' s-btn--accent'}`}
@@ -130,14 +129,13 @@ export function Community() {
 
         {shared === false && <p className="chub-localnote">{t('chub.local.note')}</p>}
 
-        {/* ── Tabs ── */}
-        <div className="chub-tabs" role="tablist" aria-label={t('chub.title')}>
+        {/* ── Tabs — plain toggle buttons (a real ARIA tablist would owe arrow-key roving + panels). */}
+        <div className="chub-tabs" aria-label={t('chub.title')}>
           {TABS.map((tb) => (
             <button
               key={tb}
               type="button"
-              role="tab"
-              aria-selected={tab === tb}
+              aria-pressed={tab === tb}
               className={`chub-tabbtn${tab === tb ? ' is-active' : ''}`}
               onClick={() => setTab(tb)}
             >
@@ -162,7 +160,7 @@ export function Community() {
           <FeedbackBoard
             user={userRef}
             createOpen={challengeOpen}
-            challenge={{ themeTitle: t(challenge.themeKey), reward: CHALLENGE_REWARD }}
+            challenge={{ themeTitle: t(challenge.themeKey) }}
             onCloseCreate={() => setChallengeOpen(false)}
             onCreated={onFeedbackCreated}
           />

@@ -16,6 +16,7 @@ import {
   duplicateGarment,
   deleteGarment,
   toggleFavorite,
+  pullGarmentIndexFromCloud,
   type GarmentSummary,
 } from '../../garment-model/garmentLibrary'
 import { makeEmptyGarment } from '../../garment-model/garmentGeneration'
@@ -63,6 +64,18 @@ export function GarmentsHome() {
   const userId = user?.id
 
   const [garments, setGarments] = useState<GarmentSummary[]>(() => (userId ? listGarments(userId) : []))
+
+  // Garments created on other devices: merge the cloud index in once, then refresh the grid.
+  useEffect(() => {
+    if (!userId) return
+    let live = true
+    void pullGarmentIndexFromCloud(userId).then((changed) => {
+      if (live && changed) setGarments(listGarments(userId))
+    })
+    return () => {
+      live = false
+    }
+  }, [userId])
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<SortKey>('newest')
   const [menuId, setMenuId] = useState<string | null>(null)

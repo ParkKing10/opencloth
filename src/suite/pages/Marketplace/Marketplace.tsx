@@ -34,11 +34,15 @@ const IcoPlay = (p: SVGProps<SVGSVGElement>) => (
 const IcoTrend = (p: SVGProps<SVGSVGElement>) => (
   <svg {...svg(p)}><path d="M3 17l6-6 4 4 8-8M21 7v5m0-5h-5" /></svg>
 )
+const IcoFactory = (p: SVGProps<SVGSVGElement>) => (
+  <svg {...svg(p)}><path d="M3 21h18M4 21V10l5 3.5V10l5 3.5V6l5 3v12M8 21v-3M12 21v-3M16 21v-3" /></svg>
+)
 
 const PKG_ICONS: Record<string, (p: SVGProps<SVGSVGElement>) => JSX.Element> = {
   store: IcoStore,
   brand: IcoPalette,
   mail: IcoMail,
+  factory: IcoFactory,
 }
 
 /* ------------------------------------------------------------------ */
@@ -52,8 +56,13 @@ const TRACKS: { id: Track; labelKey: string }[] = [
   { id: 'grow', labelKey: 'marketplace.tab.grow' },
 ]
 
-type Pkg = { id: string; icon: keyof typeof PKG_ICONS; accent: string; nameKey: string; tagKey: string; priceKey: string; features: string[] }
+type Pkg = { id: string; icon: keyof typeof PKG_ICONS; accent: string; nameKey: string; tagKey: string; priceKey: string; features: string[]; inquiry?: boolean }
 const PACKAGES: Pkg[] = [
+  {
+    id: 'production', icon: 'factory', accent: '#ffb26b', inquiry: true,
+    nameKey: 'marketplace.pkg.production.name', tagKey: 'marketplace.pkg.production.tag', priceKey: 'marketplace.pkg.production.price',
+    features: ['marketplace.pkg.production.f1', 'marketplace.pkg.production.f2', 'marketplace.pkg.production.f3'],
+  },
   {
     id: 'store', icon: 'store', accent: '#7ab8ff',
     nameKey: 'marketplace.pkg.store.name', tagKey: 'marketplace.pkg.store.tag', priceKey: 'marketplace.pkg.store.price',
@@ -87,7 +96,7 @@ const COURSES: Course[] = [
 /*  Intake modal                                                       */
 /* ------------------------------------------------------------------ */
 
-const NEEDS = ['store', 'brand', 'email', 'growth', 'courses'] as const
+const NEEDS = ['production', 'store', 'brand', 'email', 'growth', 'courses'] as const
 const STAGES = ['idea', 'selling', 'scaling'] as const
 const BUDGETS = ['a', 'b', 'c', 'd'] as const
 
@@ -260,7 +269,7 @@ export function Marketplace() {
                     </ul>
                     <div className="mk-pkg__foot">
                       <span className="mk-pkg__price">{t(p.priceKey)}</span>
-                      <button type="button" className="s-btn s-btn--accent" onClick={() => openIntake(p.id === 'store' ? 'store' : p.id === 'brand' ? 'brand' : 'email')}>{t('marketplace.book')}</button>
+                      <button type="button" className="s-btn s-btn--accent" onClick={() => openIntake(p.id)}>{t(p.inquiry ? 'marketplace.request' : 'marketplace.book')}</button>
                     </div>
                   </article>
                 )

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { IcoPlus, IcoSparkle } from '../../components/ui/Icons'
@@ -83,7 +83,7 @@ function PostCard({
       {post.tags.length > 0 && (
         <div className="chub-post__tags">
           {post.tags.map((tag) => (
-            <span key={tag} className={`chub-tag chub-tag--${tag === 'seeking' || tag === 'offering' || tag === 'challenge' ? tag : 'topic'}`}>
+            <span key={tag} className={`chub-tag${tag === 'seeking' || tag === 'offering' || tag === 'challenge' ? ` chub-tag--${tag}` : ''}`}>
               {t(`chub.tag.${tag}`)}
             </span>
           ))}
@@ -103,7 +103,14 @@ function PostCard({
         </span>
 
         <div className="chub-post__actions">
-          <button type="button" className={`chub-vote${voted ? ' is-on' : ''}`} aria-pressed={voted} title={t('chub.votes.title')} onClick={() => void vote()}>
+          <button
+            type="button"
+            className={`chub-vote${voted ? ' is-on' : ''}`}
+            aria-pressed={voted}
+            aria-label={`${t('chub.votes.title')} (${post.votes})`}
+            title={t('chub.votes.title')}
+            onClick={() => void vote()}
+          >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5m0 0l-6 6m6-6l6 6" /></svg>
             {post.votes}
           </button>
@@ -139,7 +146,7 @@ function PostCard({
               placeholder={t('chub.reply.placeholder')}
               aria-label={t('chub.reply.placeholder')}
               onChange={(e) => setReply(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void submitReply()}
+              onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && void submitReply()}
             />
             <button type="button" className="s-btn s-btn--accent" disabled={!reply.trim() || busy} onClick={() => void submitReply()}>
               {t('chub.reply.send')}
@@ -163,7 +170,7 @@ export function PostDialog({
   kind: PostKind
   user: UserRef
   /** When set, this is a weekly-challenge entry: prefilled title + 'challenge' tag. */
-  challenge?: { themeTitle: string; reward: number }
+  challenge?: { themeTitle: string }
   onClose: () => void
   onCreated: (post: CommunityPost, isChallenge: boolean) => void
 }) {
@@ -176,12 +183,27 @@ export function PostDialog({
   const [designs, setDesigns] = useState<AIDesign[]>([])
   const [image, setImage] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
+  const titleRef = useRef<HTMLInputElement>(null)
+  // Close on scrim click only when the press STARTED on the scrim — releasing a text-selection
+  // drag outside the panel must never nuke what the user typed.
+  const scrimPress = useRef(false)
 
   // Feedback posts can attach a design from the user's AI library.
   useEffect(() => {
     if (kind !== 'feedback') return
     void listDesigns(user.id).then(setDesigns)
   }, [kind, user.id])
+
+  // App-wide dialog conventions: Escape closes, focus starts in the dialog.
+  useEffect(() => {
+    titleRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function submit() {
     if (!title.trim() || busy) return
@@ -198,7 +220,17 @@ export function PostDialog({
   }
 
   return (
-    <div className="chub-scrim" role="presentation" onClick={onClose}>
+    <div
+      className="chub-scrim"
+      role="presentation"
+      onMouseDown={(e) => {
+        scrimPress.current = e.target === e.currentTarget
+      }}
+      onClick={(e) => {
+        if (scrimPress.current && e.target === e.currentTarget) onClose()
+        scrimPress.current = false
+      }}
+    >
       <div className="chub-dlg" role="dialog" aria-modal="true" aria-label={kind === 'feedback' ? t('chub.dlg.fb.title') : t('chub.dlg.co.title')} onClick={(e) => e.stopPropagation()}>
         <header className="chub-dlg__head">
           <h2>{kind === 'feedback' ? t('chub.dlg.fb.title') : t('chub.dlg.co.title')}</h2>
@@ -207,13 +239,14 @@ export function PostDialog({
 
         {challenge && (
           <p className="chub-dlg__challenge">
-            <IcoSparkle width="13" height="13" /> {t('chub.dlg.challenge.note', { n: challenge.reward })}
+            <IcoSparkle width="13" height="13" /> {t('chub.dlg.challenge.note')}
           </p>
         )}
 
         <label className="chub-field">
           <span>{t('chub.dlg.title.label')}</span>
           <input
+            ref={titleRef}
             type="text"
             value={title}
             maxLength={120}
@@ -231,11 +264,12 @@ export function PostDialog({
           <>
             <div className="chub-field">
               <span>{t('chub.dlg.mode.label')}</span>
-              <div className="chub-modes" role="radiogroup" aria-label={t('chub.dlg.mode.label')}>
-                <button type="button" role="radio" aria-checked={mode === 'seeking'} className={`chub-mode chub-mode--seek${mode === 'seeking' ? ' is-on' : ''}`} onClick={() => setMode('seeking')}>
+              {/* Plain toggle buttons (aria-pressed) — a real radiogroup would owe arrow-key roving. */}
+              <div className="chub-modes">
+                <button type="button" aria-pressed={mode === 'seeking'} className={`chub-mode chub-mode--seek${mode === 'seeking' ? ' is-on' : ''}`} onClick={() => setMode('seeking')}>
                   {t('chub.tag.seeking')}
                 </button>
-                <button type="button" role="radio" aria-checked={mode === 'offering'} className={`chub-mode chub-mode--offer${mode === 'offering' ? ' is-on' : ''}`} onClick={() => setMode('offering')}>
+                <button type="button" aria-pressed={mode === 'offering'} className={`chub-mode chub-mode--offer${mode === 'offering' ? ' is-on' : ''}`} onClick={() => setMode('offering')}>
                   {t('chub.tag.offering')}
                 </button>
               </div>
@@ -316,7 +350,7 @@ export function FeedbackBoard({
 }: {
   user: UserRef
   createOpen: boolean
-  challenge?: { themeTitle: string; reward: number }
+  challenge?: { themeTitle: string }
   onCloseCreate: () => void
   onCreated: (post: CommunityPost, isChallenge: boolean) => void
 }) {

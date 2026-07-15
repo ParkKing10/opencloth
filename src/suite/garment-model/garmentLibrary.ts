@@ -8,6 +8,7 @@ import type { EditableGarment } from './editableGarment'
 import { initHistory, currentGarment } from './garmentRevision'
 import { loadHistory, saveHistory, deleteHistory } from './garmentDocumentStore'
 import { garmentThumbnailDataUrl } from './garmentThumbnail'
+import { cloudAvailable, pushDocument, pullDocument } from '../lib/docSync'
 
 export type GarmentOrigin = 'ai' | 'upload' | 'blank' | 'photo' | 'shop'
 
@@ -41,12 +42,35 @@ function readIndex(userId: string): GarmentSummary[] {
   }
 }
 
-function writeIndex(userId: string, list: GarmentSummary[]): void {
+function writeIndex(userId: string, list: GarmentSummary[], opts?: { skipCloud?: boolean }): void {
   try {
     localStorage.setItem(KEY_PREFIX + userId, JSON.stringify(list))
+    // The My-Garments cards follow the user across devices (content pulls on demand).
+    if (!opts?.skipCloud) pushDocument('garments-index', list)
   } catch {
     /* non-fatal */
   }
+}
+
+/** Merge the cloud garment index into the local one (id-keyed, newest updatedAt wins).
+ *  Returns true when anything changed — callers re-read the list then. */
+export async function pullGarmentIndexFromCloud(userId: string): Promise<boolean> {
+  if (!cloudAvailable()) return false
+  const remote = await pullDocument<GarmentSummary[]>('garments-index')
+  if (!Array.isArray(remote) || remote.length === 0) return false
+  const local = readIndex(userId)
+  const byId = new Map(local.map((g) => [g.id, g]))
+  let changed = false
+  for (const r of remote) {
+    if (!r || typeof r.id !== 'string') continue
+    const mine = byId.get(r.id)
+    if (!mine || (r.updatedAt ?? 0) > (mine.updatedAt ?? 0)) {
+      byId.set(r.id, r)
+      changed = true
+    }
+  }
+  if (changed) writeIndex(userId, [...byId.values()], { skipCloud: true })
+  return changed
 }
 
 export function listGarments(userId: string): GarmentSummary[] {

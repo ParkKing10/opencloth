@@ -41,9 +41,14 @@ export function Lounge({ user, channel, onChannelChange, prefill, onPrefillConsu
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const stickToBottom = useRef(true)
+  const channelRef = useRef(channel)
+  channelRef.current = channel
 
   const refresh = useCallback(async () => {
-    const next = await listMessages(channel)
+    const forChannel = channel
+    const next = await listMessages(forChannel)
+    // A slow response from a previous channel must never overwrite the current one.
+    if (channelRef.current !== forChannel) return
     setMessages((prev) => {
       // Cheap change check keeps polling from re-rendering (and re-scrolling) needlessly.
       if (prev.length === next.length && prev[prev.length - 1]?.id === next[next.length - 1]?.id) return prev
@@ -144,7 +149,8 @@ export function Lounge({ user, channel, onChannelChange, prefill, onPrefillConsu
           </span>
         </header>
 
-        <div className="chub-msgs" ref={listRef} onScroll={onScroll}>
+        {/* role=log + tabIndex: keyboard users can focus and scroll the history; SRs announce new messages politely. */}
+        <div className="chub-msgs" ref={listRef} onScroll={onScroll} tabIndex={0} role="log" aria-label={`# ${t(`chub.ch.${channel}`)}`}>
           {messages.length === 0 ? (
             <div className="chub-chat__empty">
               <b>{t('chub.lounge.empty.title')}</b>
@@ -190,10 +196,12 @@ export function Lounge({ user, channel, onChannelChange, prefill, onPrefillConsu
             aria-label={t('chub.lounge.placeholder', { channel: t(`chub.ch.${channel}`) })}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                void send()
-              }
+              // Never send mid-IME-composition (JA/ZH/KO candidate confirm) and let touch
+              // keyboards insert newlines — they have no Shift, sending is the button's job there.
+              if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return
+              if (window.matchMedia('(pointer: coarse)').matches) return
+              e.preventDefault()
+              void send()
             }}
           />
           <button type="button" className="s-btn s-btn--accent chub-send" disabled={!draft.trim() || sending} onClick={() => void send()}>

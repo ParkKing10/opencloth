@@ -77,6 +77,9 @@
   color: var(--s-text);
   font-size: 13px;
 }
+.chub-stat--live b {
+  color: var(--s-good, #3fcf8e);
+}
 .chub-online__dot {
   width: 8px;
   height: 8px;
@@ -466,6 +469,10 @@
 .chub-post:hover {
   border-color: var(--s-line-strong, var(--s-line-2));
 }
+/* Collab listings get a subtle accent top edge so they read differently from feedback posts. */
+.chub-post--collab {
+  border-top: 2px solid color-mix(in oklab, var(--s-accent) 40%, var(--s-line-2));
+}
 .chub-post__media {
   margin: -16px -16px 2px;
   border-radius: 18px 18px 0 0;
@@ -841,6 +848,8 @@
   }
   .chub-chat {
     height: min(66vh, 560px);
+    /* dvh tracks the iOS soft keyboard / dynamic toolbars; vh line above is the fallback. */
+    height: min(66dvh, 560px);
   }
   .chub-chat__desc {
     display: none;

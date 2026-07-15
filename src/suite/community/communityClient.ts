@@ -125,17 +125,21 @@ function readLocal<T>(key: string, seed: () => T[]): T[] {
     /* fall through to seed */
   }
   const seeded = seed()
-  writeLocal(key, seeded)
+  writeLocal(key, seeded, 'start')
   return seeded
 }
 
-function writeLocal<T>(key: string, list: T[]): void {
+/** `newestAt` says which end of the list holds the newest entries — chat appends ('end'),
+ *  posts prepend ('start') — so the quota fallback always drops the OLDEST half, never a
+ *  message the user just typed. */
+function writeLocal<T>(key: string, list: T[], newestAt: 'start' | 'end'): void {
   try {
     localStorage.setItem(key, JSON.stringify(list))
   } catch {
     try {
-      // Quota pressure — drop the oldest half rather than losing the newest entries.
-      localStorage.setItem(key, JSON.stringify(list.slice(0, Math.ceil(list.length / 2))))
+      const half = Math.ceil(list.length / 2)
+      const kept = newestAt === 'end' ? list.slice(-half) : list.slice(0, half)
+      localStorage.setItem(key, JSON.stringify(kept))
     } catch {
       /* give up quietly */
     }
@@ -179,21 +183,36 @@ function rowToPost(r: Row): CommunityPost {
   }
 }
 
+/** One-time probe for shared mode, cached for the session (re-probe requires a reload — fine,
+ *  applying the migration mid-session is a once-ever admin act). Writes use this to decide their
+ *  failure mode: in shared mode a failed write must SURFACE (return null) instead of silently
+ *  landing in localStorage where the next Supabase-backed poll would make it vanish. */
+let sharedProbe: Promise<boolean> | null = null
+function isShared(): Promise<boolean> {
+  if (!SUPA) return Promise.resolve(false)
+  if (!sharedProbe) {
+    sharedProbe = (async () => {
+      try {
+        const { error } = await SUPA.from('community_messages').select('id').limit(1)
+        return !error
+      } catch {
+        return false
+      }
+    })()
+  }
+  return sharedProbe
+}
+
 /** True when the shared Supabase tables are reachable (i.e. the migration has been applied). */
 export async function communityShared(): Promise<boolean> {
-  if (!SUPA) return false
-  try {
-    const { error } = await SUPA.from('community_messages').select('id').limit(1)
-    return !error
-  } catch {
-    return false
-  }
+  return isShared()
 }
 
 /* ── Lounge chat ───────────────────────────────────────────────────────────────────────── */
 
 export async function listMessages(channel: string): Promise<ChatMessage[]> {
-  if (SUPA) {
+  // Reads may momentarily fall back to local on a transient error — self-heals on the next poll.
+  if (SUPA && (await isShared())) {
     try {
       const { data, error } = await SUPA.from('community_messages')
         .select('*')
@@ -227,7 +246,9 @@ export async function sendMessage(input: {
     text,
     createdAt: Date.now(),
   }
-  if (SUPA) {
+  if (SUPA && (await isShared())) {
+    // Shared mode: a failed write must surface (null) — writing it to localStorage instead would
+    // render once and then vanish on the next Supabase-backed poll.
     try {
       const { error } = await SUPA.from('community_messages').insert({
         id: msg.id,
@@ -240,17 +261,17 @@ export async function sendMessage(input: {
       if (error) throw error
       return msg
     } catch {
-      /* fall back to local */
+      return null
     }
   }
-  writeLocal(CHAT_KEY, [...readChat(), msg])
+  writeLocal(CHAT_KEY, [...readChat(), msg], 'end')
   return msg
 }
 
 /* ── Boards (feedback + collab posts) ──────────────────────────────────────────────────── */
 
 export async function listPosts(kind: PostKind): Promise<CommunityPost[]> {
-  if (SUPA) {
+  if (SUPA && (await isShared())) {
     try {
       const { data, error } = await SUPA.from('community_posts')
         .select('*')
@@ -293,7 +314,8 @@ export async function createPost(input: {
     voterIds: [],
     createdAt: Date.now(),
   }
-  if (SUPA) {
+  if (SUPA && (await isShared())) {
+    // Shared mode: surface a failed write instead of stranding the post in localStorage.
     try {
       const { error } = await SUPA.from('community_posts').insert({
         id: post.id,
@@ -312,10 +334,10 @@ export async function createPost(input: {
       if (error) throw error
       return post
     } catch {
-      /* fall back to local */
+      return null
     }
   }
-  writeLocal(POSTS_KEY, [post, ...readPosts()])
+  writeLocal(POSTS_KEY, [post, ...readPosts()], 'start')
   return post
 }
 
@@ -324,7 +346,8 @@ async function patchPost(
   postId: string,
   change: (p: CommunityPost) => CommunityPost,
 ): Promise<CommunityPost | null> {
-  if (SUPA) {
+  if (SUPA && (await isShared())) {
+    // Shared mode: never patch the LOCAL copy of a Supabase-owned post — surface the failure.
     try {
       const { data, error } = await SUPA.from('community_posts').select('*').eq('id', postId).single()
       if (error || !data) throw error ?? new Error('not found')
@@ -335,7 +358,7 @@ async function patchPost(
       if (upErr) throw upErr
       return next
     } catch {
-      /* fall back to local */
+      return null
     }
   }
   const all = readPosts()
@@ -343,7 +366,7 @@ async function patchPost(
   if (idx === -1) return null
   const next = change(all[idx])
   all[idx] = next
-  writeLocal(POSTS_KEY, all)
+  writeLocal(POSTS_KEY, all, 'start')
   return next
 }
 
@@ -398,8 +421,8 @@ export async function shrinkImage(src: string, maxDim = 640): Promise<string> {
 }
 
 /* ── Weekly challenge ──────────────────────────────────────────────────────────────────── */
-
-export const CHALLENGE_REWARD = 150
+/* Deliberately NO coin reward — the payoff is community-side (feedback, votes, getting
+   featured), so the challenge can't be farmed and coins stay scarce. */
 
 const CHALLENGE_THEMES = ['varsity', 'denim', 'techrunner', 'monochrome', 'oversized', 'workwear', 'y2k', 'capsule'] as const
 

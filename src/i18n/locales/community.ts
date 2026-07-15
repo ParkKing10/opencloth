@@ -18,10 +18,10 @@ export const community: LocaleBundle = {
 
     /* ── Weekly challenge ── */
     'chub.challenge.kicker': 'Weekly Challenge',
-    'chub.challenge.reward': '+{n} coins',
+    'chub.challenge.badge': 'Get featured',
     'chub.challenge.cta': 'Submit a design',
     'chub.challenge.done': 'Submitted',
-    'chub.challenge.hint': 'Post your take on the feedback board — your first submission this week earns {n} coins.',
+    'chub.challenge.hint': 'Same brief for everyone, every week. Post your take, get honest feedback, see how other brands solved it — the community votes and the strongest entries get featured.',
     'chub.challenge.theme.varsity': 'Reinvent the varsity jacket',
     'chub.challenge.theme.denim': 'Denim, but unexpected',
     'chub.challenge.theme.techrunner': 'Techwear for the everyday runner',
@@ -108,12 +108,12 @@ export const community: LocaleBundle = {
     'chub.dlg.cancel': 'Cancel',
     'chub.dlg.post': 'Post',
     'chub.dlg.posting': 'Posting…',
-    'chub.dlg.challenge.note': 'Challenge entry — earns {n} coins when posted.',
+    'chub.dlg.challenge.note': 'Challenge entry — the community votes, and the strongest entries get featured.',
     'chub.dlg.close': 'Close',
 
     /* ── Toasts ── */
     'chub.toast.posted': 'Posted to the community',
-    'chub.toast.challenge': '+{n} coins — challenge entry submitted!',
+    'chub.toast.challenge': 'Challenge entry submitted — good luck!',
     'chub.toast.fail': 'That didn’t go through — try again.',
 
     /* ── Relative time ── */
@@ -167,10 +167,10 @@ export const community: LocaleBundle = {
 
     /* ── Weekly challenge ── */
     'chub.challenge.kicker': 'Weekly Challenge',
-    'chub.challenge.reward': '+{n} Coins',
+    'chub.challenge.badge': 'Featured werden',
     'chub.challenge.cta': 'Design einreichen',
     'chub.challenge.done': 'Eingereicht',
-    'chub.challenge.hint': 'Poste deine Version aufs Feedback-Board — deine erste Einreichung diese Woche bringt {n} Coins.',
+    'chub.challenge.hint': 'Jede Woche dasselbe Briefing für alle. Poste deine Version, hol dir ehrliches Feedback, sieh, wie andere Marken es gelöst haben — die Community votet, die stärksten Beiträge werden gefeatured.',
     'chub.challenge.theme.varsity': 'Erfinde die College-Jacke neu',
     'chub.challenge.theme.denim': 'Denim, aber unerwartet',
     'chub.challenge.theme.techrunner': 'Techwear für den Alltags-Runner',
@@ -257,12 +257,12 @@ export const community: LocaleBundle = {
     'chub.dlg.cancel': 'Abbrechen',
     'chub.dlg.post': 'Posten',
     'chub.dlg.posting': 'Wird gepostet…',
-    'chub.dlg.challenge.note': 'Challenge-Beitrag — bringt {n} Coins beim Posten.',
+    'chub.dlg.challenge.note': 'Challenge-Beitrag — die Community votet, die stärksten Beiträge werden gefeatured.',
     'chub.dlg.close': 'Schließen',
 
     /* ── Toasts ── */
     'chub.toast.posted': 'In der Community gepostet',
-    'chub.toast.challenge': '+{n} Coins — Challenge-Beitrag eingereicht!',
+    'chub.toast.challenge': 'Challenge-Beitrag eingereicht — viel Erfolg!',
     'chub.toast.fail': 'Hat nicht geklappt — versuch es nochmal.',
 
     /* ── Relative time ── */

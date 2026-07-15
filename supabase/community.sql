@@ -6,10 +6,10 @@
 -- ── Lounge chat messages ─────────────────────────────────────────────────────────────
 create table if not exists public.community_messages (
   id text primary key,
-  channel text not null,
-  author_id text not null,
-  author_name text not null,
-  text text not null,
+  channel text not null check (char_length(channel) <= 32),
+  author_id text not null check (char_length(author_id) <= 64),
+  author_name text not null check (char_length(author_name) <= 80),
+  text text not null check (char_length(text) <= 800),
   created_at timestamptz not null default now()
 );
 
@@ -18,31 +18,42 @@ create index if not exists community_messages_channel_idx
 
 alter table public.community_messages enable row level security;
 
+-- Tables created via raw SQL don't always inherit Supabase's default grants (see schema.sql),
+-- so grant explicitly. Members can read and write messages — never edit or delete them.
+grant select, insert on public.community_messages to authenticated;
+
 drop policy if exists "community messages read" on public.community_messages;
 create policy "community messages read"
   on public.community_messages for select to authenticated using (true);
 
+-- Members may only post AS THEMSELVES (author_id must be their own auth uid).
 drop policy if exists "community messages write" on public.community_messages;
 create policy "community messages write"
-  on public.community_messages for insert to authenticated with check (true);
+  on public.community_messages for insert to authenticated
+  with check (author_id = auth.uid()::text);
 
 -- ── Feedback + collab board posts ────────────────────────────────────────────────────
 create table if not exists public.community_posts (
   id text primary key,
   kind text not null check (kind in ('feedback', 'collab')),
-  author_id text not null,
-  author_name text not null,
-  title text not null,
-  body text not null default '',
-  image text,
-  tags jsonb not null default '[]',
-  replies jsonb not null default '[]',
-  votes integer not null default 0,
-  voter_ids jsonb not null default '[]',
+  author_id text not null check (char_length(author_id) <= 64),
+  author_name text not null check (char_length(author_name) <= 80),
+  title text not null check (char_length(title) <= 160),
+  body text not null default '' check (char_length(body) <= 1200),
+  image text check (image is null or char_length(image) <= 400000),
+  tags jsonb not null default '[]' check (pg_column_size(tags) <= 2048),
+  replies jsonb not null default '[]' check (pg_column_size(replies) <= 262144),
+  votes integer not null default 0 check (votes >= 0),
+  voter_ids jsonb not null default '[]' check (pg_column_size(voter_ids) <= 131072),
   created_at timestamptz not null default now()
 );
 
 alter table public.community_posts enable row level security;
+
+-- Replies and votes live on the post row, so members need UPDATE — but ONLY on those columns.
+-- The column-scoped grant is what stops a member from rewriting someone else's title/body/image.
+grant select, insert on public.community_posts to authenticated;
+grant update (replies, votes, voter_ids) on public.community_posts to authenticated;
 
 drop policy if exists "community posts read" on public.community_posts;
 create policy "community posts read"
@@ -50,9 +61,9 @@ create policy "community posts read"
 
 drop policy if exists "community posts write" on public.community_posts;
 create policy "community posts write"
-  on public.community_posts for insert to authenticated with check (true);
+  on public.community_posts for insert to authenticated
+  with check (author_id = auth.uid()::text);
 
--- Replies and votes are stored on the post row, so members need update rights.
 drop policy if exists "community posts update" on public.community_posts;
 create policy "community posts update"
   on public.community_posts for update to authenticated using (true) with check (true);
@@ -74,7 +85,14 @@ insert into public.community_posts (id, kind, author_id, author_name, title, bod
    'Is this neckline too wide for a heavyweight knit?',
    'Second iteration of my knit hoodie. The ribbed neckline reads too open to me on the front render — honest takes please.',
    '[]',
-   '[{"id":"seed_r1","authorId":"seed_nora","authorName":"Nora Bennett","text":"Not too wide — but I would raise the rib height 2cm so it holds shape after washing.","createdAt":0}]',
+   -- createdAt is epoch MILLISECONDS (what the app's timeAgo expects) — mirrors the local seed's "7 hours ago".
+   jsonb_build_array(jsonb_build_object(
+     'id', 'seed_r1',
+     'authorId', 'seed_nora',
+     'authorName', 'Nora Bennett',
+     'text', 'Not too wide — but I would raise the rib height 2cm so it holds shape after washing.',
+     'createdAt', (extract(epoch from now() - interval '7 hours') * 1000)::bigint
+   )),
    12, now() - interval '9 hours'),
   ('seed_p2', 'feedback', 'seed_diego', 'Diego Salas',
    'Back print placement — high or center?',

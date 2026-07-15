@@ -74,7 +74,8 @@ function CharacterWizard({ existing, onClose, onSaved }: WizardProps) {
   }
 
   const totalPhotos = (existing?.photoCount ?? 0) + photos.length
-  const canTrain = totalPhotos >= MIN_PHOTOS && name.trim().length > 0
+  // Soft minimum: one photo is enough to proceed (fewer refs = less consistent, and we say so).
+  const canTrain = totalPhotos >= 1 && name.trim().length > 0
 
   async function train() {
     setStep('train')
@@ -200,11 +201,16 @@ function CharacterWizard({ existing, onClose, onSaved }: WizardProps) {
               </div>
             </div>
 
+            {/* Soft minimum: continuing is possible from the first photo — below MIN_PHOTOS we
+                warn about consistency instead of silently dead-locking the Continue button. */}
+            {totalPhotos > 0 && totalPhotos < MIN_PHOTOS && !existing && (
+              <p className="mst-char-warn">{t('mk.char.fewPhotos', { n: totalPhotos, min: MIN_PHOTOS })}</p>
+            )}
             <div className="mst-modal__foot">
               <button type="button" className="s-btn s-btn--subtle" onClick={onClose}>
                 {t('mk.cancel')}
               </button>
-              <button type="button" className="s-btn s-btn--accent" disabled={totalPhotos < MIN_PHOTOS && !existing} onClick={() => setStep('persona')}>
+              <button type="button" className="s-btn s-btn--accent" disabled={totalPhotos === 0 && !existing} onClick={() => setStep('persona')}>
                 {t('mk.continue')}
               </button>
             </div>

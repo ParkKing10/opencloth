@@ -903,6 +903,18 @@
   margin-top: 4px;
 }
 
+/* Soft-minimum hint in the character wizard (below the recommended photo count). */
+.mst-char-warn {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: var(--s-r, 12px);
+  border: 1px solid color-mix(in oklab, var(--s-warn, #f5b544) 35%, transparent);
+  background: color-mix(in oklab, var(--s-warn, #f5b544) 9%, transparent);
+  color: var(--s-warn, #f5b544);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
 /* ── Products ───────────────────────────────────────────────────────────────────────────── */
 
 .mst-products {

@@ -122,6 +122,14 @@
 .s-btn:active {
   transform: translateY(0.5px);
 }
+/* A disabled button must LOOK disabled — an accent button that silently ignores
+   clicks reads as a broken app (the character wizard's Continue did exactly that). */
+.s-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
 
 .s-btn--accent {
   background: var(--s-accent);

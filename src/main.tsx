@@ -29,6 +29,16 @@ import { GarmentShop } from './suite/pages/Shop/GarmentShop'
 import { Analytics } from './suite/pages/Analytics/Analytics'
 import { Rewards } from './suite/pages/Rewards/Rewards'
 import { Pricing } from './suite/pages/Pricing/Pricing'
+import { MarketingShell } from './suite/pages/Marketing/MarketingShell'
+import { MkHome } from './suite/pages/Marketing/MkHome'
+import { MkTemplates } from './suite/pages/Marketing/MkTemplates'
+import { MkCharacters } from './suite/pages/Marketing/MkCharacters'
+import { MkProducts } from './suite/pages/Marketing/MkProducts'
+import { MkCampaigns } from './suite/pages/Marketing/MkCampaigns'
+import { MkAssets } from './suite/pages/Marketing/MkAssets'
+import { MkBrandKitPage } from './suite/pages/Marketing/MkBrandKit'
+import { MkLibrary } from './suite/pages/Marketing/MkLibrary'
+import { MkGenerate } from './suite/pages/Marketing/MkGenerate'
 import { Explainer } from './suite/pages/Explainer/Explainer'
 import { Settings } from './suite/pages/Settings/Settings'
 import { AdminApp } from './suite/admin/AdminApp'
@@ -97,6 +107,18 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="assets" element={<Assets />} />
                 <Route path="community" element={<Community />} />
                 <Route path="marketplace" element={<Marketplace />} />
+                {/* Marketing Studio — the AI marketing department (product-within-the-product). */}
+                <Route path="marketing" element={<MarketingShell />}>
+                  <Route index element={<MkHome />} />
+                  <Route path="templates" element={<MkTemplates />} />
+                  <Route path="characters" element={<MkCharacters />} />
+                  <Route path="products" element={<MkProducts />} />
+                  <Route path="campaigns" element={<MkCampaigns />} />
+                  <Route path="assets" element={<MkAssets />} />
+                  <Route path="brand" element={<MkBrandKitPage />} />
+                  <Route path="library" element={<MkLibrary />} />
+                  <Route path="generate" element={<MkGenerate />} />
+                </Route>
                 <Route path="analytics" element={<Analytics />} />
                 <Route path="rewards" element={<Rewards />} />
                 <Route path="pricing" element={<Pricing />} />

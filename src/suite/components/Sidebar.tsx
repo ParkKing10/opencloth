@@ -37,6 +37,7 @@ const PRIMARY: NavItem[] = [
   { to: '/manufacturers', label: 'nav.manufacturers', icon: IcoFactory },
   { to: '/community', label: 'nav.community', icon: IcoCommunity },
   { to: '/marketplace', label: 'nav.marketplace', icon: IcoMarketplace },
+  { to: '/marketing', label: 'nav.marketing', icon: IcoBolt, badge: true },
   { to: '/rewards', label: 'nav.rewards', icon: IcoCoins, badge: true },
   { to: '/analytics', label: 'nav.analytics', icon: IcoAnalytics },
   { to: '/explainer', label: 'nav.explainer', icon: IcoBolt, badge: true },

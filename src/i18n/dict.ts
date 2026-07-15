@@ -36,6 +36,7 @@ import { explainer } from './locales/explainer'
 import { rewards } from './locales/rewards'
 import { pricing } from './locales/pricing'
 import { studioMobile } from './locales/studioMobile'
+import { marketingStudio } from './locales/marketingStudio'
 import { tour } from './locales/tour'
 import { trial } from './locales/trial'
 
@@ -78,6 +79,7 @@ const BUNDLES: LocaleBundle[] = [
   rewards,
   pricing,
   studioMobile,
+  marketingStudio,
   tour,
   trial,
 ]

@@ -150,6 +150,51 @@ export function hasRunwareKey(): boolean {
   return resolveRunwareKey().length > 0
 }
 
+/* ---- Higgsfield (real AI video generation — Marketing Studio storyboards) ----
+   Credentials are one string in the platform's own format: "KEY_ID:KEY_SECRET". */
+
+const HIGGSFIELD_KEY_STORE = 'threados-higgsfield-key'
+
+function envHiggsfieldKey(): string {
+  try {
+    return (import.meta.env?.VITE_HIGGSFIELD_KEY as string | undefined)?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
+
+export function loadHiggsfieldKey(): string {
+  try {
+    const raw = localStorage.getItem(HIGGSFIELD_KEY_STORE)
+    return raw ? deobfuscate(raw) : ''
+  } catch {
+    return ''
+  }
+}
+
+export function saveHiggsfieldKey(key: string): void {
+  try {
+    const trimmed = key.trim()
+    if (trimmed) localStorage.setItem(HIGGSFIELD_KEY_STORE, obfuscate(trimmed))
+    else localStorage.removeItem(HIGGSFIELD_KEY_STORE)
+  } catch {
+    /* non-fatal */
+  }
+}
+
+export function resolveHiggsfieldKey(): string {
+  return loadHiggsfieldKey() || envHiggsfieldKey()
+}
+
+export function hasHiggsfieldKey(): boolean {
+  return resolveHiggsfieldKey().length > 0
+}
+
+/** Cheap shape check: the platform expects "KEY_ID:KEY_SECRET". */
+export function looksLikeHiggsfieldKey(key: string): boolean {
+  return /^[^\s:]{8,}:[^\s:]{8,}$/.test(key.trim())
+}
+
 /** True when the string looks like an OpenAI key (sk-… / project keys). Cheap pre-check only. */
 export function looksLikeOpenAiKey(key: string): boolean {
   return /^sk-[A-Za-z0-9_-]{20,}$/.test(key.trim())

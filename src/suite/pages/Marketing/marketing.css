@@ -903,6 +903,23 @@
   margin-top: 4px;
 }
 
+/* Higgsfield beat results — one real clip per beat. */
+.mst-hf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.mst-hf-beat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mst-hf-beat .mst-render__video {
+  margin: 0;
+  max-height: 40vh;
+}
+
 /* Storyboard → real video block in the content viewer. */
 .mst-render {
   margin: 4px 0 14px;

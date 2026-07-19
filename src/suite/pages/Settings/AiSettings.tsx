@@ -15,6 +15,10 @@ import {
   loadRunwareKey,
   saveRunwareKey,
   hasRunwareKey,
+  loadHiggsfieldKey,
+  saveHiggsfieldKey,
+  hasHiggsfieldKey,
+  looksLikeHiggsfieldKey,
   loadAiSettings,
   saveAiSettings,
   hasApiKey,
@@ -50,6 +54,24 @@ export function AiSettings() {
     }
     saveAiSettings({ ...openai, apiKey: key, model: openai.model || DEFAULT_OPENAI_MODEL })
     toast(key ? 'OpenAI-Key gespeichert.' : 'OpenAI-Key entfernt.', 'success')
+  }
+
+  // Higgsfield — real AI video for Marketing-Studio storyboards.
+  const [hfKey, setHfKey] = useState(loadHiggsfieldKey())
+  const [showHf, setShowHf] = useState(false)
+  const [hfSavedTick, setHfSavedTick] = useState(0)
+  void hfSavedTick // re-render trigger so the badge reflects a fresh save immediately
+  const hfConnected = hasHiggsfieldKey()
+
+  const saveHf = () => {
+    const key = hfKey.trim()
+    if (key && !looksLikeHiggsfieldKey(key)) {
+      toast(t('settings.ai.hfFormatHint'), 'info')
+      return
+    }
+    saveHiggsfieldKey(key)
+    setHfSavedTick((n) => n + 1)
+    toast(key ? t('settings.ai.savedToast') : t('settings.ai.clearedToast'), 'success')
   }
 
   return (
@@ -149,6 +171,49 @@ export function AiSettings() {
               {t('settings.ai.save')}
             </button>
           </div>
+        </div>
+      </section>
+
+      {/* Higgsfield — real AI video generation (Marketing Studio storyboards → clips). */}
+      <section className="set-card">
+        <div className="aiset">
+          <div className="aiset__head">
+            <div>
+              <h2>Higgsfield</h2>
+              <p className="aiset__sub">{t('settings.ai.hfSub')}</p>
+            </div>
+            <span className={`aiset__provider aiset__provider--${hfConnected ? 'openai' : 'placeholder'}`}>
+              {hfConnected ? t('settings.ai.connected') : t('settings.ai.notConnected')}
+            </span>
+          </div>
+
+          <label className="aiset__field">
+            <span>{t('settings.ai.hfKeyLabel')}</span>
+            <div className="aiset__key">
+              <input
+                type={showHf ? 'text' : 'password'}
+                value={hfKey}
+                onChange={(e) => setHfKey(e.target.value)}
+                placeholder="KEY_ID:KEY_SECRET"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button type="button" className="aiset__reveal" onClick={() => setShowHf((v) => !v)}>
+                {showHf ? t('settings.ai.hide') : t('settings.ai.show')}
+              </button>
+            </div>
+          </label>
+
+          <div className="aiset__actions">
+            <button type="button" className="s-btn s-btn--accent" onClick={saveHf}>
+              {t('settings.ai.save')}
+            </button>
+          </div>
+
+          <p className="aiset__security">
+            <b>{t('settings.ai.securityLabel')}</b>
+            {t('settings.ai.hfKeyHint')}
+          </p>
         </div>
       </section>
     </>

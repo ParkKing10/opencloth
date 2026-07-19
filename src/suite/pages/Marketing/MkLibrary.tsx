@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
+import { useAuth } from '../../auth/auth'
 import { useMarketing } from '../../marketing/useMarketing'
 import { delBlobs, getBlob, type MkContent } from '../../marketing/marketingStore'
 import { renderStoryboardVideo, storyboardDuration } from '../../marketing/storyboardVideo'
+import { generateBeatVideos, publishKeyframe, type BeatResult } from '../../marketing/higgsfield'
+import { hasHiggsfieldKey } from '../../garment-model/aiSettings'
 import { downloadBlob, slugify } from '../../lib/download'
 
 /* Generated Content — everything the studio creates lands here, ready to reuse:
@@ -56,12 +60,19 @@ function SceneFrame({ imageKey, index }: { imageKey?: string; index: number }) {
   return <span className="mst-scene__frame">{img ? <img src={img} alt="" /> : index + 1}</span>
 }
 
-/** Turn the storyboard into an actual playable/downloadable video, on demand. */
+/** Turn the storyboard into an actual video. Two paths:
+    — Higgsfield (real AI video per beat, needs the key from Settings → AI) — THE way.
+    — the local Ken-Burns render as a fast free preview. */
 function StoryboardVideoBlock({ item }: { item: MkContent }) {
   const t = useT()
   const toast = useToast()
-  const [pct, setPct] = useState<number | null>(null) // null = idle
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [pct, setPct] = useState<number | null>(null) // null = idle (local render)
   const [video, setVideo] = useState<{ url: string; blob: Blob; ext: string } | null>(null)
+  const [hfState, setHfState] = useState<'idle' | 'publishing' | 'generating'>('idle')
+  const [hfProgress, setHfProgress] = useState('')
+  const [hfVideos, setHfVideos] = useState<BeatResult[] | null>(null)
 
   // Blob URLs die with the component.
   useEffect(() => () => {
@@ -71,6 +82,55 @@ function StoryboardVideoBlock({ item }: { item: MkContent }) {
 
   const scenes = item.script?.scenes ?? []
   const seconds = Math.round(storyboardDuration(scenes.length))
+  const withFrames = scenes.filter((s) => s.imageKey)
+
+  const generateHf = async () => {
+    if (hfState !== 'idle') return
+    if (!hasHiggsfieldKey()) {
+      navigate('/settings?section=ai')
+      return
+    }
+    if (!user || withFrames.length === 0) {
+      toast(t('mk.lib.hfNoFrames'), 'info')
+      return
+    }
+    try {
+      setHfState('publishing')
+      setHfProgress(t('mk.lib.hfPublishing'))
+      const beats: { imageUrl: string; prompt: string }[] = []
+      for (let i = 0; i < withFrames.length; i++) {
+        const s = withFrames[i]
+        const dataUrl = s.imageKey ? await getBlob(s.imageKey) : null
+        if (!dataUrl) continue
+        const imageUrl = await publishKeyframe(user.id, `${item.id}-${i}`, dataUrl)
+        beats.push({ imageUrl, prompt: `${s.camera}. ${s.action}` })
+      }
+      setHfState('generating')
+      setHfProgress(t('mk.lib.hfGenerating', { done: 0, total: beats.length }))
+      const results = await generateBeatVideos(beats, (done, total) =>
+        setHfProgress(t('mk.lib.hfGenerating', { done, total })),
+      )
+      setHfVideos(results)
+      if (results.every((r) => !r.url)) toast(t('mk.lib.hfAllFailed'), 'info')
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      if (msg === 'auth') toast(t('mk.lib.hfAuthFail'), 'info')
+      else if (msg === 'storage') toast(t('mk.lib.hfNoStorage'), 'info')
+      else toast(t('mk.lib.hfFail'), 'info')
+    } finally {
+      setHfState('idle')
+      setHfProgress('')
+    }
+  }
+
+  const downloadHf = async (url: string, i: number) => {
+    try {
+      const blob = await fetch(url).then((r) => r.blob())
+      downloadBlob(blob, `loom-${slugify(item.title)}-beat${i + 1}.mp4`)
+    } catch {
+      window.open(url, '_blank') // CORS-blocked fetch → let the browser handle it
+    }
+  }
 
   const render = async () => {
     if (pct !== null || !scenes.length) return
@@ -94,13 +154,49 @@ function StoryboardVideoBlock({ item }: { item: MkContent }) {
 
   return (
     <div className="mst-render">
+      {/* — Higgsfield: the real thing — */}
+      {hfVideos ? (
+        <div className="mst-hf-grid">
+          {hfVideos.map((r, i) => (
+            <div className="mst-hf-beat" key={i}>
+              {r.url ? (
+                <>
+                  <video className="mst-render__video" src={r.url} controls playsInline preload="metadata" />
+                  <button type="button" className="s-btn s-btn--accent" onClick={() => void downloadHf(r.url!, i)}>
+                    {t('mk.lib.downloadVideo')}
+                  </button>
+                </>
+              ) : (
+                <p className="mst-note">
+                  {t('mk.lib.hfBeatFailed', { n: i + 1 })}
+                  {r.error ? ` (${r.error})` : ''}
+                </p>
+              )}
+            </div>
+          ))}
+          <p className="mst-note">{t('mk.lib.hfKeep')}</p>
+        </div>
+      ) : (
+        <div className="mst-render__row">
+          <button type="button" className="s-btn s-btn--accent" disabled={hfState !== 'idle'} onClick={() => void generateHf()}>
+            {hfState !== 'idle'
+              ? hfProgress
+              : hasHiggsfieldKey()
+                ? `✨ ${t('mk.lib.hfGenerate', { n: withFrames.length })}`
+                : `✨ ${t('mk.lib.hfNeedsKey')}`}
+          </button>
+          {hfState === 'idle' && <span className="mst-note">{t('mk.lib.hfNote')}</span>}
+        </div>
+      )}
+
+      {/* — local Ken-Burns preview (free, instant-ish) — */}
       {video ? (
         <>
           <video className="mst-render__video" src={video.url} controls autoPlay loop playsInline />
           <div className="mst-render__row">
             <button
               type="button"
-              className="s-btn s-btn--accent"
+              className="s-btn s-btn--subtle"
               onClick={() => downloadBlob(video.blob, `loom-${slugify(item.title)}.${video.ext}`)}
             >
               {t('mk.lib.downloadVideo')}
@@ -110,10 +206,9 @@ function StoryboardVideoBlock({ item }: { item: MkContent }) {
         </>
       ) : (
         <div className="mst-render__row">
-          <button type="button" className="s-btn s-btn--accent" disabled={pct !== null} onClick={() => void render()}>
-            {pct !== null ? t('mk.lib.rendering', { p: Math.round(pct * 100) }) : `🎬 ${t('mk.lib.renderVideo', { s: seconds })}`}
+          <button type="button" className="s-btn s-btn--subtle" disabled={pct !== null} onClick={() => void render()}>
+            {pct !== null ? t('mk.lib.rendering', { p: Math.round(pct * 100) }) : `🎬 ${t('mk.lib.renderPreview', { s: seconds })}`}
           </button>
-          {pct === null && <span className="mst-note">{t('mk.lib.renderNote')}</span>}
         </div>
       )}
     </div>

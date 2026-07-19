@@ -206,6 +206,10 @@ export const settings: LocaleBundle = {
     'settings.ai.sub':
       'One key powers all of loom studios AI — graphics, garment edits and campaign photos (Nano Banana 2). Get a key at runware.ai and top up your wallet (external models need credit).',
     'settings.ai.connected': 'Connected',
+    'settings.ai.hfSub': 'Real AI video generation — turns Marketing-Studio storyboards into actual clips (image-to-video per beat).',
+    'settings.ai.hfKeyLabel': 'Higgsfield API credentials',
+    'settings.ai.hfKeyHint': ' Create an API key at cloud.higgsfield.ai and paste it as KEY_ID:KEY_SECRET. Stored only in this browser.',
+    'settings.ai.hfFormatHint': 'That does not look like Higgsfield credentials — expected format KEY_ID:KEY_SECRET.',
     'settings.ai.notConnected': 'Not connected',
     'settings.ai.keyLabel': 'Runware API Key',
     'settings.ai.keyPlaceholder': 'Your Runware API key',
@@ -424,6 +428,10 @@ export const settings: LocaleBundle = {
     'settings.ai.sub':
       'Ein Schlüssel treibt die gesamte KI von loom studios an — Grafiken, Kleidungs-Bearbeitungen und Kampagnenfotos (Nano Banana 2). Hol dir einen Schlüssel auf runware.ai und lade dein Guthaben auf (externe Modelle benötigen Guthaben).',
     'settings.ai.connected': 'Verbunden',
+    'settings.ai.hfSub': 'Echte KI-Videogenerierung — macht aus Marketing-Studio-Storyboards richtige Clips (Bild-zu-Video pro Beat).',
+    'settings.ai.hfKeyLabel': 'Higgsfield-API-Zugangsdaten',
+    'settings.ai.hfKeyHint': ' Erstelle einen API-Key auf cloud.higgsfield.ai und füge ihn als KEY_ID:KEY_SECRET ein. Wird nur in diesem Browser gespeichert.',
+    'settings.ai.hfFormatHint': 'Das sieht nicht nach Higgsfield-Zugangsdaten aus — erwartetes Format KEY_ID:KEY_SECRET.',
     'settings.ai.notConnected': 'Nicht verbunden',
     'settings.ai.keyLabel': 'Runware-API-Schlüssel',
     'settings.ai.keyPlaceholder': 'Dein Runware-API-Schlüssel',

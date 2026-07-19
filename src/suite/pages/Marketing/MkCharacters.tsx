@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useT } from '@/i18n'
 import { useToast } from '../../components/ui/Toast'
 import { IcoPlus, IcoSparkle } from '../../components/ui/Icons'
+import { maxCharactersFor } from '../../economy/economy'
 import { useMarketing } from '../../marketing/useMarketing'
 import {
   delBlobs,
@@ -316,8 +317,20 @@ export function MkCharacters() {
   const t = useT()
   const toast = useToast()
   const navigate = useNavigate()
-  const { meta, update } = useMarketing()
+  const { user, meta, update } = useMarketing()
   const [wizard, setWizard] = useState<null | { existing?: MkCharacter }>(null)
+
+  // Character slots are the plan's strongest real differentiator — enforce them here.
+  const maxChars = maxCharactersFor(user?.plan ?? 'Free')
+  const atLimit = meta.characters.length >= maxChars
+  const openCreate = () => {
+    if (atLimit) {
+      toast(t('mk.chars.limitReached'), 'info')
+      navigate('/pricing')
+      return
+    }
+    setWizard({})
+  }
 
   function saveCharacter(c: MkCharacter) {
     update((m) => {
@@ -340,16 +353,21 @@ export function MkCharacters() {
           <h2>{t('mk.chars.head')}</h2>
           <p>{t('mk.chars.sub')}</p>
         </div>
-        <button type="button" className="s-btn s-btn--accent" onClick={() => setWizard({})}>
-          <IcoPlus width="15" height="15" /> {t('mk.chars.cta')}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span className="mst-pill" title={t('mk.chars.slotsTitle')}>
+            {t('mk.chars.slots', { n: meta.characters.length, max: Number.isFinite(maxChars) ? maxChars : '∞' })}
+          </span>
+          <button type="button" className="s-btn s-btn--accent" onClick={openCreate}>
+            <IcoPlus width="15" height="15" /> {atLimit ? t('mk.chars.upgrade') : t('mk.chars.cta')}
+          </button>
+        </div>
       </div>
 
       {meta.characters.length === 0 ? (
         <div className="mst-empty">
           <b>{t('mk.chars.emptyTitle')}</b>
           <p>{t('mk.chars.emptyBody')}</p>
-          <button type="button" className="s-btn s-btn--accent" onClick={() => setWizard({})}>
+          <button type="button" className="s-btn s-btn--accent" onClick={openCreate}>
             <IcoPlus width="15" height="15" /> {t('mk.chars.cta')}
           </button>
         </div>

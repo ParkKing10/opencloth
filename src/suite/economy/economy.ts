@@ -32,18 +32,21 @@ export const COIN_PACKS: CoinPack[] = [
 ]
 
 /** Plan tiers. A subscription is sold in € and GRANTS this many coins each month; inside the app
-   you only ever spend coins. */
+   you only ever spend coins. Priced against what we REPLACE (photographers, editors, UGC
+   creators, agencies) — business pricing, not consumer pricing. `maxCharacters` gates the
+   Marketing Studio character slots: the strongest real product differentiator per tier. */
 export type PlanId = 'Free' | 'Creator' | 'Studio' | 'Scale' | 'Brand'
-export type PlanTier = { id: PlanId; coinsPerMonth: number; coinCap: number }
+export type PlanTier = { id: PlanId; coinsPerMonth: number; coinCap: number; maxCharacters: number }
 export const PLAN_TIERS: PlanTier[] = [
-  { id: 'Free', coinsPerMonth: 0, coinCap: 2000 },
-  { id: 'Creator', coinsPerMonth: 3000, coinCap: 15000 },
-  { id: 'Studio', coinsPerMonth: 9000, coinCap: 45000 },
-  { id: 'Scale', coinsPerMonth: 24000, coinCap: 120000 },
-  { id: 'Brand', coinsPerMonth: 80000, coinCap: 400000 },
+  { id: 'Free', coinsPerMonth: 0, coinCap: 2000, maxCharacters: 1 },
+  { id: 'Creator', coinsPerMonth: 2000, coinCap: 10000, maxCharacters: 2 },
+  { id: 'Studio', coinsPerMonth: 10000, coinCap: 50000, maxCharacters: 5 },
+  { id: 'Scale', coinsPerMonth: 40000, coinCap: 200000, maxCharacters: 20 },
+  { id: 'Brand', coinsPerMonth: 150000, coinCap: 750000, maxCharacters: Infinity },
 ]
 export const planTier = (id: string): PlanTier => PLAN_TIERS.find((p) => p.id === id) ?? PLAN_TIERS[0]
 export const isPaidPlan = (id: string): boolean => id !== 'Free'
+export const maxCharactersFor = (planId: string): number => planTier(planId).maxCharacters
 
 /* ---------------- generation costs + free trial ----------------
    Coins are meant to be scarce: an AI generation is real work the user would pay a
@@ -105,12 +108,43 @@ export type PricingTier = {
   inherits?: PlanId
 }
 
+/* Business pricing, anchored against agency cost: a single UGC video runs €150–300 outside,
+   one photo shoot €1,500+. The top tier exists to anchor — it makes Studio (€99) feel cheap.
+   Annual is the default cycle in the UI: one payment a year = cash up front. */
 export const PRICING_TIERS: PricingTier[] = [
-  { id: 'Creator', monthly: 19, annual: 14, coins: 3000, accent: '#7ab8ff', bullets: 6 },
-  { id: 'Studio', monthly: 39, annual: 29, coins: 9000, badge: 'popular', accent: '#d1f94f', bullets: 7, inherits: 'Creator' },
-  { id: 'Scale', monthly: 79, annual: 59, coins: 24000, accent: '#ff7ab8', bullets: 7, inherits: 'Studio' },
-  { id: 'Brand', monthly: 199, annual: 149, coins: 80000, badge: 'best', accent: '#ffb26b', bullets: 8, inherits: 'Scale' },
+  { id: 'Creator', monthly: 29, annual: 19, coins: 2000, accent: '#7ab8ff', bullets: 6 },
+  { id: 'Studio', monthly: 99, annual: 69, coins: 10000, badge: 'popular', accent: '#d1f94f', bullets: 7, inherits: 'Creator' },
+  { id: 'Scale', monthly: 299, annual: 199, coins: 40000, accent: '#ff7ab8', bullets: 7, inherits: 'Studio' },
+  { id: 'Brand', monthly: 799, annual: 549, coins: 150000, badge: 'best', accent: '#ffb26b', bullets: 8, inherits: 'Scale' },
 ]
+
+/** The launch cash lever: a one-time Founders deal — Studio-tier limits for life, hard-capped
+    seat count. Shown as its own card on the pricing page. */
+export const FOUNDERS_DEAL = {
+  price: '€499',
+  priceNumber: 499,
+  planId: 'Studio' as PlanId,
+  seats: 200,
+  coins: 10000,
+} as const
+
+const FOUNDERS_KEY = 'loom-founders-v1'
+export function isFounder(userId: string): boolean {
+  try {
+    return !!(JSON.parse(localStorage.getItem(FOUNDERS_KEY) || '{}') as Record<string, boolean>)[userId]
+  } catch {
+    return false
+  }
+}
+export function markFounder(userId: string): void {
+  try {
+    const all = JSON.parse(localStorage.getItem(FOUNDERS_KEY) || '{}') as Record<string, boolean>
+    all[userId] = true
+    localStorage.setItem(FOUNDERS_KEY, JSON.stringify(all))
+  } catch {
+    /* non-fatal */
+  }
+}
 
 export const priceFor = (t: PricingTier, cycle: BillingCycle): number => (cycle === 'annual' ? t.annual : t.monthly)
 /** Coins you get per euro — rises with every tier, so the big plans read as "best value". */

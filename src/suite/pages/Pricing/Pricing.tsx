@@ -14,9 +14,12 @@ import { useToast } from '../../components/ui/Toast'
 import { IcoCoins, IcoCheck } from '../../components/ui/Icons'
 import { useRewards } from '../../economy/useRewards'
 import {
+  FOUNDERS_DEAL,
   PRICING_TIERS,
   annualSavePct,
   coinsPerEuro,
+  isFounder,
+  markFounder,
   priceFor,
   type BillingCycle,
   type PricingTier,
@@ -43,9 +46,29 @@ export function Pricing() {
     toast(t('pricing.chosen', { plan: t(`pricing.tier.${tier.id}.name`), n: tier.coins.toLocaleString() }), 'success')
   }
 
+  const founder = user ? isFounder(user.id) : false
+  const buyFounders = () => {
+    if (!user || founder) return
+    markFounder(user.id)
+    mutate((d) => ({ ...d, users: d.users.map((u) => (u.id === user.id ? { ...u, plan: FOUNDERS_DEAL.planId } : u)) }))
+    grant(FOUNDERS_DEAL.coins, `Founders deal — lifetime ${FOUNDERS_DEAL.planId}`)
+    toast(t('pricing.founders.done'), 'success')
+  }
+
   return (
     <SuitePage eyebrow={t('pricing.page.eyebrow')} title={t('pricing.page.title')} subtitle={t('pricing.page.subtitle')} wide>
       <div className="pr">
+        {/* What a plan replaces — the real-world cost anchor. */}
+        <div className="pr-anchor" role="note">
+          <span className="pr-anchor__title">{t('pricing.anchor.title')}</span>
+          <div className="pr-anchor__items">
+            <span><b>{t('pricing.anchor.1b')}</b> {t('pricing.anchor.1')}</span>
+            <span><b>{t('pricing.anchor.2b')}</b> {t('pricing.anchor.2')}</span>
+            <span><b>{t('pricing.anchor.3b')}</b> {t('pricing.anchor.3')}</span>
+          </div>
+          <span className="pr-anchor__punch">{t('pricing.anchor.punch')}</span>
+        </div>
+
         {/* monthly / annual toggle */}
         <div className="pr-cycle">
           <button className={`pr-cycle__opt${cycle === 'monthly' ? ' is-on' : ''}`} type="button" onClick={() => setCycle('monthly')}>
@@ -116,6 +139,24 @@ export function Pricing() {
               </div>
             )
           })}
+        </div>
+
+        {/* Founders lifetime — the launch cash lever. Hard seat cap, one-time price. */}
+        <div className={`pr-founders${founder ? ' is-owned' : ''}`}>
+          <div className="pr-founders__body">
+            <span className="pr-founders__kicker">{t('pricing.founders.kicker', { n: FOUNDERS_DEAL.seats })}</span>
+            <b className="pr-founders__title">{t('pricing.founders.title')}</b>
+            <p className="pr-founders__sub">{t('pricing.founders.sub', { plan: t(`pricing.tier.${FOUNDERS_DEAL.planId}.name`) })}</p>
+          </div>
+          <div className="pr-founders__buy">
+            <span className="pr-founders__price">
+              <b>{FOUNDERS_DEAL.price}</b>
+              <small>{t('pricing.founders.once')}</small>
+            </span>
+            <button className="pr-card__cta" type="button" disabled={founder} onClick={buyFounders}>
+              {founder ? t('pricing.founders.owned') : t('pricing.founders.cta')}
+            </button>
+          </div>
         </div>
 
         <p className="pr-guarantee">{t('pricing.moneyBack')}</p>

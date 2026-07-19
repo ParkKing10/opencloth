@@ -198,7 +198,18 @@ function okVersion(v: unknown): v is ClipVersion {
   if (typeof x.id !== 'string' || typeof x.label !== 'string' || x.label.length === 0 || x.label.length > 3) return false
   if (x.kind === 'scene') return !!x.spec && Array.isArray(x.spec.scenes) && x.spec.scenes.length > 0
   if (x.kind === 'footage') return !!x.plan && Array.isArray(x.plan.clips) && !!x.cfg && typeof x.cfg === 'object'
-  if (x.kind === 'video') return typeof x.assetId === 'string' && typeof x.duration === 'number' && x.duration > 0
+  if (x.kind === 'video') {
+    // Finite, sane media bounds — an Infinity duration would poison every
+    // play-length computation downstream (segments, export clock, trims).
+    return (
+      typeof x.assetId === 'string' &&
+      x.assetId.length > 0 &&
+      typeof x.duration === 'number' &&
+      Number.isFinite(x.duration) &&
+      x.duration > 0 &&
+      x.duration <= 600
+    )
+  }
   return false
 }
 

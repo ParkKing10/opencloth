@@ -92,6 +92,30 @@ export function isVideoBacked(v: ClipVersion): v is Extract<ClipVersion, { kind:
   return v.kind === 'footage' || v.kind === 'video'
 }
 
+/** Resolve once the element can paint frames (HAVE_CURRENT_DATA), or after `ms` —
+    the caller decides what an unready video means; we just never wait forever. */
+export function videoReady(video: HTMLVideoElement, ms: number): Promise<boolean> {
+  if (video.readyState >= 2) return Promise.resolve(true)
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => {
+      cleanup()
+      resolve(video.readyState >= 2)
+    }, ms)
+    const onReady = () => {
+      cleanup()
+      resolve(true)
+    }
+    const cleanup = () => {
+      window.clearTimeout(timer)
+      video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('canplay', onReady)
+    }
+    video.addEventListener('loadeddata', onReady)
+    video.addEventListener('canplay', onReady)
+    if (video.preload !== 'auto') video.preload = 'auto'
+  })
+}
+
 /** Cover-fit a video frame into the stage (center-crop, never letterbox bars). */
 export function drawVideoCover(ctx: CanvasRenderingContext2D, video: HTMLVideoElement, W: number, H: number): void {
   const vw = video.videoWidth || W
@@ -204,15 +228,18 @@ export async function exportCommercial({ commercial, media, audio, onProgress, s
   const assetIds = segs.flatMap((s) => (s.version.kind === 'scene' ? collectAssetIds(s.version.spec) : []))
   if (assetIds.length) await ensureAssetsLoaded(assetIds)
 
-  // Video-backed segments (recordings + generated videos): seek each to its first frame
-  // but do NOT start them — a video that free-runs from t=0 is at the wrong source time
-  // (or already ended) when its segment begins. The render loop plays exactly one at a time.
+  // Video-backed segments (recordings + generated videos): WAIT until each element
+  // can actually paint frames — otherwise the '⟳' placeholder gets baked into the
+  // file — then seek to its first frame but do NOT start it (a video free-running
+  // from t=0 is at the wrong source time when its segment begins). The render loop
+  // plays exactly one at a time.
   const videoBacked = segs.filter((s) => isVideoBacked(s.version))
   for (const s of videoBacked) {
     const v = media.videoFor(s.clip.id)
     if (v) {
       v.muted = true
       v.pause()
+      await videoReady(v, 8000)
       if (s.version.kind === 'footage') syncFootage(v, s.version, s.clip.trimStart, false)
       else if (s.version.kind === 'video') syncPlainVideo(v, s.version.duration, s.clip.trimStart, false)
     }

@@ -54,9 +54,9 @@ insert into storage.buckets (id, name, public)
 values ('generated-media', 'generated-media', true)
 on conflict (id) do nothing;
 
--- Reads are public (result URLs feed <video> tags); writes only via service role
--- (Edge Functions) — no client-side policies on purpose.
+-- NO select policy on purpose. The bucket is public=true, so objects are
+-- fetchable by their direct URL (paths contain unguessable UUIDs) — that is
+-- all <video> tags need. A bucket-wide SELECT policy would additionally allow
+-- storage.list()/search, letting ANY caller enumerate every user's reference
+-- images and results. Writes happen only via the service role in Edge Functions.
 drop policy if exists "generated_media_public_read" on storage.objects;
-create policy "generated_media_public_read"
-  on storage.objects for select
-  using (bucket_id = 'generated-media');

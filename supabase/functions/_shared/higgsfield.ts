@@ -35,6 +35,14 @@ export function hfConfigured(): boolean {
   return !!Deno.env.get('HIGGSFIELD_API_KEY') && !!Deno.env.get('HIGGSFIELD_API_SECRET')
 }
 
+/** Our webhook receiver URL (undefined when no secret is configured). Used for the
+    FIRST submit and every chained hop, so no leg of a job depends on polling alone. */
+export function webhookUrl(): string | undefined {
+  const secret = Deno.env.get('HIGGSFIELD_WEBHOOK_SECRET')
+  const base = Deno.env.get('SUPABASE_URL')
+  return secret && base ? `${base}/functions/v1/hf-webhook?secret=${encodeURIComponent(secret)}` : undefined
+}
+
 /* ---------------- requests ---------------- */
 
 export type HfSubmitResult = { requestId: string; raw: unknown }

@@ -126,16 +126,48 @@ const inputCost = (): number => VIDEO_GEN_COST
 
 export type JobUpdate = (job: GenerationJob) => void
 
+/** Consecutive status-probe failures tolerated before a job is declared unreachable. */
+const MAX_PROBE_MISSES = 8
+
+/** Same tab, same job, one loop — recovery + a surviving pre-unmount loop must
+    never poll (or refund) the same job twice. */
+const runningJobs = new Set<string>()
+
+/** Refund EXACTLY once per job: the flag is persisted to the registry before the
+    wallet moves, so a second loop (remount, second tab) sees `refunded` and skips. */
+function refundOnce(job: GenerationJob, wallet: CreditWallet): GenerationJob {
+  const fresh = listJobs().find((j) => j.id === job.id) ?? job
+  if (fresh.refunded || job.costCoins <= 0) return { ...job, refunded: fresh.refunded ?? job.refunded }
+  const marked = { ...job, refunded: true, updatedAt: Date.now() }
+  upsertJob(marked)
+  wallet.refund(job.costCoins)
+  return marked
+}
+
 /**
  * Poll until terminal, ingest the media, return the final job. Resolves with
  * state 'completed' + resultAssetId, or 'failed'/'cancelled'. Never throws for
  * provider-side failures — the returned job carries the error.
  */
 export async function runJob(job: GenerationJob, wallet: CreditWallet, onUpdate?: JobUpdate, signal?: AbortSignal): Promise<GenerationJob> {
+  if (runningJobs.has(job.id)) {
+    // Another loop in this tab already owns the job — report the latest state, do nothing.
+    return listJobs().find((j) => j.id === job.id) ?? job
+  }
+  runningJobs.add(job.id)
+  try {
+    return await runJobInner(job, wallet, onUpdate, signal)
+  } finally {
+    runningJobs.delete(job.id)
+  }
+}
+
+async function runJobInner(job: GenerationJob, wallet: CreditWallet, onUpdate?: JobUpdate, signal?: AbortSignal): Promise<GenerationJob> {
   const provider = registry.get(job.provider) ?? mockProvider
   let current = job
   const started = Date.now()
   let attempt = 0
+  let misses = 0
 
   const commit = (next: GenerationJob) => {
     current = next
@@ -143,34 +175,41 @@ export async function runJob(job: GenerationJob, wallet: CreditWallet, onUpdate?
     onUpdate?.(current)
   }
 
+  const abandon = async (state: 'cancelled' | 'failed', error?: GenerationJob['error']) => {
+    try {
+      await provider.cancelJob?.(current) // refunded jobs must not keep burning provider compute
+    } catch {
+      /* best-effort */
+    }
+    current = refundOnce(current, wallet)
+    commit({ ...current, state, error })
+    return current
+  }
+
   while (!isTerminal(current.state) && current.state !== 'processing') {
     if (signal?.aborted) {
-      try {
-        await provider.cancelJob?.(current)
-      } catch {
-        /* cancel is best-effort */
-      }
-      if (current.costCoins > 0) wallet.refund(current.costCoins)
-      commit({ ...current, state: 'cancelled' })
-      return current
+      // 'detach' (unmount) just stops WATCHING — the paid job keeps running and the
+      // next mount's recovery resumes it. Anything else is a real user cancel.
+      if ((signal as AbortSignal & { reason?: unknown }).reason === 'detach') return current
+      return await abandon('cancelled')
     }
-    if (Date.now() - started > POLL_TIMEOUT_MS) {
-      if (current.costCoins > 0) wallet.refund(current.costCoins)
-      commit({ ...current, state: 'failed', error: { code: 'timeout', message: 'Generation timed out.' } })
-      return current
-    }
+    if (Date.now() - started > POLL_TIMEOUT_MS) return await abandon('failed', { code: 'timeout', message: 'Generation timed out.' })
     await new Promise((r) => setTimeout(r, nextPollDelay(attempt++)))
     try {
       const probed = await provider.getJobStatus(current)
+      misses = 0
       if (probed.state !== current.state || probed.updatedAt !== current.updatedAt) commit({ ...current, ...probed })
     } catch {
-      // Transient status failure — keep polling until the hard timeout.
+      // Transient status failure — tolerate a few, then declare the job unreachable
+      // instead of polling a dead endpoint for the full ten minutes.
+      if (++misses >= MAX_PROBE_MISSES) return await abandon('failed', { code: 'status_unreachable', message: 'Job status could not be read.' })
     }
   }
 
   if (current.state === 'failed' || current.state === 'cancelled') {
     // Provider-side failure/moderation: Higgsfield refunds its credits; we refund ours.
-    if (current.costCoins > 0) wallet.refund(current.costCoins)
+    current = refundOnce(current, wallet)
+    commit({ ...current })
     return current
   }
 
@@ -181,24 +220,26 @@ export async function runJob(job: GenerationJob, wallet: CreditWallet, onUpdate?
     const meta: VideoAssetMeta = await saveVideoAsset(media.blob, `generated-${current.id}`)
     commit({ ...current, state: 'completed', resultAssetId: meta.id })
   } catch (err) {
-    if (current.costCoins > 0) wallet.refund(current.costCoins)
+    current = refundOnce(current, wallet)
     commit({ ...current, state: 'failed', error: { code: 'ingest_failed', message: err instanceof Error ? err.message : 'Could not store the result.' } })
   }
   return current
 }
 
-/** After a reload: resume polling for cloud jobs, honestly fail lost mock jobs. */
-export async function recoverPendingJobs(wallet: CreditWallet, onUpdate?: JobUpdate): Promise<GenerationJob[]> {
+/** After a reload: resume polling for cloud jobs, honestly fail lost mock jobs.
+    The signal aborts resumed polling (unmount) without cancelling the provider jobs. */
+export async function recoverPendingJobs(wallet: CreditWallet, onUpdate?: JobUpdate, signal?: AbortSignal): Promise<GenerationJob[]> {
   const pending = listJobs().filter((j) => !isTerminal(j.state))
   const results: GenerationJob[] = []
   for (const job of pending) {
+    if (signal?.aborted) break
     if (job.provider === 'mock') {
       const dead = { ...job, state: 'failed' as const, error: { code: 'mock_lost', message: 'Mock job did not survive the reload.' }, updatedAt: Date.now() }
       upsertJob(dead)
       onUpdate?.(dead)
       results.push(dead)
     } else {
-      results.push(await runJob(job, wallet, onUpdate))
+      results.push(await runJob(job, wallet, onUpdate, signal))
     }
   }
   return results

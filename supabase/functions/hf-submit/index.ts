@@ -1,11 +1,12 @@
 /* ============================================================
    hf-submit — create one Higgsfield generation job.
 
-   The ONLY place a job is born. Validates the user, enforces
-   idempotency (unique (user_id, idempotency_key)), uploads the
-   clip's reference images to our storage, picks the documented
-   model for the mode and submits. The API key never leaves this
-   process.
+   The ONLY place a job is born. Order matters for money-safety:
+   the idempotency row is INSERTED FIRST (unique (user_id,
+   idempotency_key)) and only the winner talks to the provider —
+   a concurrent duplicate conflicts at the insert, BEFORE any
+   paid submit, and simply receives the winner's row. The API
+   key never leaves this process.
 
    Secrets:  HIGGSFIELD_API_KEY / HIGGSFIELD_API_SECRET
    Optional: HIGGSFIELD_WEBHOOK_SECRET (enables hf_webhook),
@@ -13,7 +14,7 @@
    ============================================================ */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { CORS, json, hfConfigured, hfSubmit, MODELS, HfError } from '../_shared/higgsfield.ts'
+import { CORS, json, hfConfigured, hfSubmit, webhookUrl, MODELS, HfError } from '../_shared/higgsfield.ts'
 
 type SubmitBody = {
   clipId?: string
@@ -74,15 +75,6 @@ Deno.serve(async (req) => {
 
   const svc = createClient(supabaseUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  // Idempotency FIRST: the same intent never becomes a second paid job.
-  const { data: existing } = await svc
-    .from('video_generations')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('idempotency_key', idempotencyKey)
-    .maybeSingle()
-  if (existing) return json({ job: existing, deduped: true })
-
   // Upload reference images to OUR storage; the provider gets stable public URLs.
   const refUrls: string[] = []
   for (const img of images) {
@@ -94,31 +86,12 @@ Deno.serve(async (req) => {
     refUrls.push(svc.storage.from('generated-media').getPublicUrl(path).data.publicUrl)
   }
 
-  // Documented modes only: images → image-to-video; none → t2i→i2v chain.
-  const webhookSecret = Deno.env.get('HIGGSFIELD_WEBHOOK_SECRET')
-  const webhookUrl = webhookSecret ? `${supabaseUrl}/functions/v1/hf-webhook?secret=${encodeURIComponent(webhookSecret)}` : undefined
+  const mode = refUrls.length > 0 ? 'image-to-video' : 'text-to-video'
+  const chain: 'none' | 't2i' = refUrls.length > 0 ? 'none' : 't2i'
+  const model = refUrls.length > 0 ? MODELS.i2v : MODELS.t2i
 
-  let providerJobId: string
-  let model: string
-  let chain: 'none' | 't2i'
-  try {
-    if (refUrls.length > 0) {
-      model = MODELS.i2v
-      chain = 'none'
-      const sub = await hfSubmit(model, { prompt: compiledPrompt, image_url: refUrls[0], duration }, webhookUrl)
-      providerJobId = sub.requestId
-    } else {
-      // No assets: first a documented text-to-image, hf-status chains the i2v step.
-      model = MODELS.t2i
-      chain = 't2i'
-      const sub = await hfSubmit(model, { prompt: compiledPrompt, aspect_ratio: aspect }, webhookUrl)
-      providerJobId = sub.requestId
-    }
-  } catch (err) {
-    const e = err instanceof HfError ? err : new HfError('provider_unavailable', 'Provider request failed.')
-    return json({ error: { code: e.code, message: e.message } }, 502)
-  }
-
+  // IDEMPOTENCY ROW FIRST — before any paid provider call. A duplicate submit
+  // conflicts here (unique user_id+idempotency_key) and gets the winner's row.
   const { data: row, error: insErr } = await svc
     .from('video_generations')
     .insert({
@@ -126,28 +99,47 @@ Deno.serve(async (req) => {
       project_id: (body.projectId ?? '').slice(0, 64),
       clip_id: clipId,
       provider: 'higgsfield',
-      provider_job_id: providerJobId,
+      provider_job_id: null,
       model,
-      mode: refUrls.length > 0 ? 'image-to-video' : 'text-to-video',
+      mode,
       user_prompt: userPrompt,
       compiled_prompt: compiledPrompt,
       request_params: { duration, aspect, chain },
       asset_refs: refUrls,
       idempotency_key: idempotencyKey,
-      status: 'queued',
+      status: 'validating',
     })
     .select()
     .single()
+
   if (insErr || !row) {
-    // Unique-index race: a concurrent identical submit won — return that job.
-    const { data: raced } = await svc
+    const { data: existing } = await svc
       .from('video_generations')
       .select('*')
       .eq('user_id', user.id)
       .eq('idempotency_key', idempotencyKey)
       .maybeSingle()
-    if (raced) return json({ job: raced, deduped: true })
+    if (existing) return json({ job: existing, deduped: true })
     return json({ error: { code: 'db', message: 'Could not record the job.' } }, 500)
   }
-  return json({ job: row, deduped: false })
+
+  // Now — and only now — pay: submit to the documented model for the mode.
+  try {
+    const input = chain === 'none' ? { prompt: compiledPrompt, image_url: refUrls[0], duration } : { prompt: compiledPrompt, aspect_ratio: aspect }
+    const sub = await hfSubmit(model, input, webhookUrl())
+    const { data: live } = await svc
+      .from('video_generations')
+      .update({ provider_job_id: sub.requestId, status: 'queued', updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+      .select()
+      .single()
+    return json({ job: live ?? { ...row, provider_job_id: sub.requestId, status: 'queued' }, deduped: false })
+  } catch (err) {
+    const e = err instanceof HfError ? err : new HfError('provider_unavailable', 'Provider request failed.')
+    await svc
+      .from('video_generations')
+      .update({ status: 'failed', error_code: e.code, error_message: e.message, updated_at: new Date().toISOString() })
+      .eq('id', row.id)
+    return json({ error: { code: e.code, message: e.message } }, 502)
+  }
 })

@@ -228,6 +228,43 @@ describe('generationService', () => {
     expect(w.balance).toBe(1000)
   }, 10_000)
 
+  it('a job can never refund twice — flag persists across a second (stale) loop', async () => {
+    const p = fakeProvider({ endState: 'failed' })
+    registerProvider(p)
+    const w = walletOf(1000)
+    const { job } = await startGeneration(input(newIdempotencyKey()), w)
+    const final = await runJob(job, w)
+    expect(final.state).toBe('failed')
+    expect(w.balance).toBe(1000) // refunded once
+    // A remounted component / second tab resumes the same job: no second refund.
+    const again = await runJob({ ...job, state: 'failed' }, w)
+    expect(again.state).toBe('failed')
+    expect(w.balance).toBe(1000)
+  })
+
+  it('two concurrent loops on one job: only one runs, one refund total', async () => {
+    const p = fakeProvider({ endState: 'failed' })
+    registerProvider(p)
+    const w = walletOf(1000)
+    const { job } = await startGeneration(input(newIdempotencyKey()), w)
+    const [a, b] = await Promise.all([runJob(job, w), runJob(job, w)])
+    expect([a.state, b.state]).toContain('failed')
+    expect(w.balance).toBe(1000)
+  })
+
+  it("detach (unmount) stops watching WITHOUT cancelling or refunding — the job keeps running", async () => {
+    const p = fakeProvider({ failStatus: true }) // never reaches terminal on its own
+    registerProvider(p)
+    const w = walletOf(1000)
+    const { job } = await startGeneration(input(newIdempotencyKey()), w)
+    const ctrl = new AbortController()
+    const run = runJob(job, w, undefined, ctrl.signal)
+    ctrl.abort('detach')
+    const detached = await run
+    expect(isTerminal(detached.state)).toBe(false) // still in flight server-side
+    expect(w.balance).toBe(1000 - VIDEO_GEN_COST) // charge stays — nothing was cancelled
+  }, 10_000)
+
   it('registry survives hostile localStorage content', () => {
     localStorage.setItem('loom-director-jobs-v1', '{"not":"an array"}')
     expect(listJobs()).toEqual([])

@@ -110,6 +110,16 @@ export function DirectorStudio() {
   const metasRef = useRef(new Map<string, AssetMeta>())
   const abortRef = useRef<AbortController | null>(null)
   const genAbortRef = useRef<AbortController | null>(null)
+  /** SYNCHRONOUS re-entry lock for generate(): React state (genJob) only lands after
+      the submit round-trip, so a double-click would otherwise buy two provider jobs. */
+  const genBusyRef = useRef(false)
+  /** One idempotency key per user INTENT, kept per clip until the submit definitely
+      succeeded — a transport-failure retry reuses it, so the server dedupes instead
+      of minting a second paid job. */
+  const idemRef = useRef(new Map<string, string>())
+  /** Mirrors selectedId for async completions (the closure value goes stale). */
+  const selectedIdRef = useRef<string | null>(null)
+  const recoveryCtrl = useRef<AbortController | null>(null)
   const genSeq = useRef(0)
 
   const clip = com.clips.find((c) => c.id === selectedId) ?? null
@@ -120,6 +130,10 @@ export function DirectorStudio() {
   const providerId = resolveProviderId()
   const cloudBusy = genJob !== null && !isTerminal(genJob.state)
   const busyGen = generating || cloudBusy
+
+  useEffect(() => {
+    selectedIdRef.current = selectedId
+  }, [selectedId])
 
   // Generated videos win over session recordings — a clip's active version decides
   // which map is populated for it (the warm-up effect below keeps them disjoint).
@@ -165,9 +179,16 @@ export function DirectorStudio() {
       }
       return {
         ...c,
-        clips: c.clips.map((x) =>
-          x.id === job.clipId ? { ...x, versions: [...x.versions, ver].slice(-10), status: x.status === 'accepted' ? 'accepted' : 'ready' } : x,
-        ),
+        clips: c.clips.map((x) => {
+          if (x.id !== job.clipId) return x
+          // Cap the history at 10 takes — but the ACCEPTED take may never fall out,
+          // or the sequence would silently lose its clip via a dangling acceptedId.
+          const all = [...x.versions, ver]
+          let versions = all.slice(-10)
+          const accepted = all.find((v) => v.id === x.acceptedId)
+          if (accepted && !versions.some((v) => v.id === accepted.id)) versions = [accepted, ...versions.slice(1)]
+          return { ...x, versions, status: x.status === 'accepted' ? 'accepted' : 'ready' }
+        }),
       }
     })
     return newId
@@ -175,15 +196,24 @@ export function DirectorStudio() {
 
   // After a reload: resume polling for cloud jobs that were still running (mock jobs
   // honestly fail — their bake died with the tab) and land any finished results.
+  // Recovered jobs are VISIBLE (they drive the same veil/busy state as fresh ones)
+  // and the whole recovery is abortable — unmounting must not leave a loop behind
+  // that a remount would then duplicate.
   const recovered = useRef(false)
   useEffect(() => {
     if (recovered.current) return
     recovered.current = true
-    void recoverPendingJobs(wallet, (j) => setGenJob((cur) => (cur && cur.id === j.id ? j : cur))).then(async (jobs) => {
+    const ctrl = new AbortController()
+    recoveryCtrl.current = ctrl
+    const show = (j: import('./generation/types').GenerationJob) =>
+      setGenJob((cur) => (cur && cur.id !== j.id && !isTerminal(cur.state) ? cur : isTerminal(j.state) ? (cur && cur.id === j.id ? null : cur) : j))
+    void recoverPendingJobs(wallet, show, ctrl.signal).then(async (jobs) => {
+      if (ctrl.signal.aborted) return
       let landed = 0
       for (const j of jobs) {
         if (j.state === 'completed' && (await appendVideoVersion(j))) landed++
       }
+      setGenJob((cur) => (cur && jobs.some((j) => j.id === cur.id) ? null : cur))
       if (landed > 0) toast(t('director.toast.recovered', { n: landed }), 'success')
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -237,6 +267,11 @@ export function DirectorStudio() {
   useEffect(
     () => () => {
       abortRef.current?.abort()
+      // DETACH (not cancel): stop watching in-flight cloud jobs — they keep running
+      // server-side and the next mount's recovery resumes them. Killing the loops
+      // here is what prevents a remount from ever running two loops on one job.
+      genAbortRef.current?.abort('detach')
+      recoveryCtrl.current?.abort('detach')
       for (const rec of recsRef.current.values()) {
         rec.video.pause()
         rec.video.src = ''
@@ -314,10 +349,15 @@ export function DirectorStudio() {
      a key. One in-flight job at a time; Regenerate APPENDS takes, never
      overwrites, and nothing lands in the project without an explicit Accept. */
   const generate = async () => {
-    if (!clip || generating || (genJob && !isTerminal(genJob.state))) return
+    // genBusyRef is the SYNCHRONOUS lock: `generating`/`genJob` are React state and
+    // only land after awaits — a double-click in the submit window would otherwise
+    // reserve coins twice and buy two provider jobs.
+    if (!clip || genBusyRef.current || generating || (genJob && !isTerminal(genJob.state))) return
+    genBusyRef.current = true
 
     if (clip.type === 'recording') {
       if (!recsRef.current.get(clip.id)) {
+        genBusyRef.current = false
         toast(t('director.toast.needRecording'), 'info')
         return
       }
@@ -347,6 +387,7 @@ export function DirectorStudio() {
       } catch {
         if (seq === genSeq.current) toast(t('director.toast.genFailed'), 'info')
       } finally {
+        genBusyRef.current = false
         window.clearInterval(phaseTimer)
         if (seq === genSeq.current) setGenerating(false)
       }
@@ -376,18 +417,24 @@ export function DirectorStudio() {
       durationSec: clip.durationSec,
       imageAssetIds: clip.assetIds,
       continueFromClipId: clip.continuesFromClipId,
-      idempotencyKey: newIdempotencyKey(),
+      // ONE key per user intent: kept per clip until the submit definitely landed,
+      // so a transport-failure retry reuses it and the server dedupes instead of
+      // charging for a second job (the first may well have been created).
+      idempotencyKey: idemRef.current.get(clip.id) ?? newIdempotencyKey(),
     }
+    idemRef.current.set(clip.id, input.idempotencyKey)
     const ctrl = new AbortController()
     genAbortRef.current = ctrl
     try {
       const { job } = await startGeneration(input, wallet)
+      idemRef.current.delete(clip.id) // intent consumed — the job exists server-side
       setGenJob(job)
       const final = await runJob(job, wallet, (j) => setGenJob(j), ctrl.signal)
       setGenJob(final)
       if (final.state === 'completed') {
         const newVersionId = await appendVideoVersion(final)
-        if (newVersionId && selectedId === final.clipId) {
+        // The closure's selectedId is stale by now — never hijack another clip's view.
+        if (newVersionId && selectedIdRef.current === final.clipId) {
           setVersionId(newVersionId)
           timeRef.current = 0
           setPlaying(true)
@@ -400,6 +447,7 @@ export function DirectorStudio() {
       const code = err instanceof Error ? err.message : 'generic'
       toast(errorText(code), 'info')
     } finally {
+      genBusyRef.current = false
       genAbortRef.current = null
       setGenJob(null)
     }
@@ -450,6 +498,10 @@ export function DirectorStudio() {
       toast(t('director.toast.continueNotReady'), 'info')
       return
     }
+    // Freeze the preview loop for the grab — its per-frame syncPlainVideo would
+    // otherwise re-seek the element back to preview time mid-capture.
+    setPlaying(false)
+    exportingRef.current = true
     try {
       await new Promise<void>((resolve) => {
         const done = () => {
@@ -478,6 +530,8 @@ export function DirectorStudio() {
       toast(t('director.toast.continued'), 'success')
     } catch {
       toast(t('director.toast.continueFailed'), 'info')
+    } finally {
+      exportingRef.current = false
     }
   }
 
@@ -606,19 +660,20 @@ export function DirectorStudio() {
       const W = canvas.width
       const H = canvas.height
       if (view === 'edit') {
-        // Same discipline as the export loop: keep the ACTIVE footage segment's video
-        // on plan time (trims + speed ramps), one video rolling at a time — so the
-        // Project preview shows exactly what the export will contain.
+        // Same discipline as the export loop: keep the ACTIVE video-backed segment
+        // (recording OR generated video) on source time, one element rolling at a
+        // time — so the Project preview shows exactly what the export will contain.
         const hit = segmentAt(segments, tt)
-        const v = hit && hit.seg.version.kind === 'footage' ? media.videoFor(hit.seg.clip.id) : null
+        const v = hit && isVideoBacked(hit.seg.version) ? media.videoFor(hit.seg.clip.id) : null
         if (v !== editVideoRef.current) {
           editVideoRef.current?.pause()
           editVideoRef.current = v
         }
-        if (hit && v && hit.seg.version.kind === 'footage') {
+        if (hit && v) {
           if (playingRef.current && v.paused) void v.play().catch(() => {})
           if (!playingRef.current && !v.paused) v.pause()
-          syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, playingRef.current)
+          if (hit.seg.version.kind === 'footage') syncFootage(v, hit.seg.version, hit.seg.clip.trimStart + hit.local, playingRef.current)
+          else if (hit.seg.version.kind === 'video') syncPlainVideo(v, hit.seg.version.duration, hit.seg.clip.trimStart + hit.local, playingRef.current)
         }
         drawCommercialFrame(ctx, com, segments, tt, { W, H, media })
       } else if (clip && version) {

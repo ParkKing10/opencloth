@@ -64,6 +64,7 @@ export function normalizeServerRow(row: ServerRow, fallback?: GenerationJob): Ge
     resultUrl: row.result_url ?? undefined,
     idempotencyKey: row.idempotency_key ?? fallback?.idempotencyKey ?? '',
     costCoins: fallback?.costCoins ?? 0,
+    refunded: fallback?.refunded,
     retryCount: row.retry_count ?? 0,
     createdAt: row.created_at ? Date.parse(row.created_at) : (fallback?.createdAt ?? Date.now()),
     updatedAt: row.updated_at ? Date.parse(row.updated_at) : Date.now(),
@@ -110,6 +111,12 @@ export const higgsfieldProvider: VideoGenerationProvider = {
   async getJobStatus(job: GenerationJob): Promise<GenerationJob> {
     const res = await invoke<{ job: ServerRow }>('hf-status', { generationId: job.id })
     return normalizeServerRow(res.job, job)
+  },
+
+  async cancelJob(job: GenerationJob): Promise<void> {
+    // A refunded job must not keep burning provider compute — forward the cancel
+    // (documented: effective while queued) and mark the row cancelled server-side.
+    await invoke<{ job: ServerRow }>('hf-cancel', { generationId: job.id })
   },
 
   async downloadResult(job: GenerationJob): Promise<GeneratedMedia> {

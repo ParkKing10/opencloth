@@ -82,6 +82,8 @@ export type GenerationJob = {
   resultUrl?: string
   idempotencyKey: string
   costCoins: number
+  /** Set once the reserved coins were given back — a job can never refund twice. */
+  refunded?: boolean
   retryCount: number
   createdAt: number
   updatedAt: number

@@ -54,18 +54,22 @@ function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequ
 
 /* ---------------- probing ---------------- */
 
-/** Read duration/dimensions from a blob. Handles MediaRecorder webm's Infinity-duration quirk. */
+/** Read duration/dimensions from a blob. Handles MediaRecorder webm's Infinity-duration quirk.
+    Hard 8s timeout — a stalled <video> must fail the job, never hang it in 'processing'. */
 export function probeVideo(blob: Blob): Promise<{ duration: number; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob)
     const v = document.createElement('video')
     v.preload = 'metadata'
     v.muted = true
+    const guard = window.setTimeout(() => fail(), 8000)
     const fail = () => {
+      window.clearTimeout(guard)
       URL.revokeObjectURL(url)
       reject(new Error('unreadable video'))
     }
     const done = () => {
+      window.clearTimeout(guard)
       const duration = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 0
       const out = { duration, width: v.videoWidth || 0, height: v.videoHeight || 0 }
       URL.revokeObjectURL(url)
@@ -89,14 +93,20 @@ export function probeVideo(blob: Blob): Promise<{ duration: number; width: numbe
   })
 }
 
-/** Poster frame near the start (15% in) as a compact JPEG data URL. */
+/** Poster frame near the start (15% in) as a compact JPEG data URL.
+    Best-effort with a 6s guard — a missing thumb must never block ingestion. */
 export function makeThumb(blob: Blob, duration: number): Promise<string> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(blob)
     const v = document.createElement('video')
     v.preload = 'auto'
     v.muted = true
+    let settled = false
+    const guard = window.setTimeout(() => finish(''), 6000)
     const finish = (thumb: string) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(guard)
       URL.revokeObjectURL(url)
       resolve(thumb)
     }
